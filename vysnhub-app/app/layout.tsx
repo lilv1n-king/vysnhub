@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport = {
-  themeColor: "#000000",
+  themeColor: "#ffffff",
 };
 
 import MobileNav from '@/components/mobile-nav';
@@ -32,7 +32,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-white text-black pb-16 md:pb-0 pt-18 md:pt-20`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-white text-black pb-20 md:pb-0 pt-18 md:pt-20`}
       >
         <script dangerouslySetInnerHTML={{
           __html: `

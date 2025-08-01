@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Calendar, Package, RefreshCw, ArrowRight } from 'lucide-react';
+import { Calendar, Package, Copy, ArrowRight } from 'lucide-react';
 import Header from '@/components/header';
 
 const dummyProjects = [
@@ -60,65 +60,52 @@ export default function ProjectsPage() {
     <div className="min-h-screen bg-white">
       <Header />
       
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 md:pt-36 pb-6 md:pb-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-black mb-4">My Projects</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-black mb-4">My Projects</h1>
           <p className="text-gray-600">
-            View and manage your recent lighting installations and orders.
+            View and manage your recent lighting installations.
           </p>
         </div>
 
-        <div className="grid gap-6">
+        <div className="space-y-6">
           {dummyProjects.map((project) => (
             <Card key={project.id} className="border-gray-200 hover:shadow-lg transition-shadow">
               <CardHeader>
                 <div className="flex justify-between items-start">
-                  <div>
-                    <CardTitle className="text-black mb-2">{project.name}</CardTitle>
-                    <div className="flex items-center text-gray-600 text-sm">
-                      <Calendar className="mr-2 h-4 w-4" />
-                      {new Date(project.date).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                      })}
+                  <div className="flex-1">
+                    <CardTitle className="text-xl text-black mb-3">{project.name}</CardTitle>
+                    <div className="flex items-center text-gray-600 mb-2">
+                      <Calendar className="mr-2 h-5 w-5" />
+                      <span className="text-base">
+                        {new Date(project.date).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric'
+                        })}
+                      </span>
+                    </div>
+                    <div className="flex items-center text-gray-600">
+                      <Package className="mr-2 h-5 w-5" />
+                      <span className="text-base">{project.totalItems} items</span>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="flex items-center text-gray-600 text-sm mb-2">
-                      <Package className="mr-2 h-4 w-4" />
-                      {project.totalItems} items
-                    </div>
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                      {project.status}
-                    </span>
-                  </div>
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                    {project.status}
+                  </span>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="mb-4">
-                  <h4 className="text-sm font-medium text-black mb-2">Products Used:</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {project.products.map((product, index) => (
-                      <span 
-                        key={index}
-                        className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-gray-100 text-gray-800"
-                      >
-                        {product}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                
-                <div className="flex gap-4">
-                  <Link href={`/checkout/${project.id}`}>
-                    <Button className="flex items-center gap-2">
-                      <RefreshCw className="h-4 w-4" />
-                      Reorder Project
-                    </Button>
-                  </Link>
-                  <Link href={`/projects/${project.id}`}>
-                    <Button variant="outline" className="flex items-center gap-2">
+                <div className="flex gap-3">
+                  <Button 
+                    variant="outline" 
+                    className="flex-1 h-12 text-base font-medium flex items-center justify-center gap-2 border-gray-300 hover:bg-gray-50"
+                  >
+                    <Copy className="h-4 w-4" />
+                    Copy Project
+                  </Button>
+                  <Link href={`/projects/${project.id}`} className="flex-1">
+                    <Button className="w-full h-12 text-base font-medium flex items-center justify-center gap-2 bg-black hover:bg-gray-800">
                       <ArrowRight className="h-4 w-4" />
                       View Details
                     </Button>
@@ -132,12 +119,12 @@ export default function ProjectsPage() {
         {dummyProjects.length === 0 && (
           <div className="text-center py-12">
             <Package className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-black mb-2">No Projects Yet</h3>
+            <h3 className="text-xl font-medium text-black mb-2">No Projects Yet</h3>
             <p className="text-gray-600 mb-4">
               Start your first lighting project by browsing our product catalog.
             </p>
             <Link href="/products">
-              <Button>Browse Products</Button>
+              <Button className="h-12 text-base font-medium bg-black hover:bg-gray-800">Browse Products</Button>
             </Link>
           </div>
         )}

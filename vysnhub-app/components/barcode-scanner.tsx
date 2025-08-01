@@ -60,31 +60,36 @@ export default function BarcodeScanner({ onResult, onClose }: BarcodeScannerProp
     };
   }, [showManualInput]);
 
-  const handleManualSearch = () => {
+  const handleManualSearch = async () => {
     if (!manualInput.trim()) return;
     
-    const searchTerm = manualInput.trim();
-    
-    // First, try exact barcode match
-    const barcodeMatch = getProductByBarcode(searchTerm);
-    if (barcodeMatch) {
-      onResult(barcodeMatch.itemNumberVysn);
-      return;
+    try {
+      const searchTerm = manualInput.trim();
+      
+      // First, try exact barcode match
+      const barcodeMatch = await getProductByBarcode(searchTerm);
+      if (barcodeMatch) {
+        onResult(barcodeMatch.itemNumberVysn);
+        return;
+      }
+      
+      // Then try exact item number match
+      const products = await searchProducts(searchTerm);
+      const exactItemMatch = products.find(p => 
+        p.itemNumberVysn?.toLowerCase() === searchTerm.toLowerCase()
+      );
+      
+      if (exactItemMatch) {
+        onResult(exactItemMatch.itemNumberVysn);
+        return;
+      }
+      
+      // If no exact match, show search results
+      setSearchResults(products.slice(0, 5));
+    } catch (error) {
+      console.error('Error searching products:', error);
+      setError('Fehler beim Suchen der Produkte');
     }
-    
-    // Then try exact item number match
-    const products = searchProducts(searchTerm);
-    const exactItemMatch = products.find(p => 
-      p.itemNumberVysn?.toLowerCase() === searchTerm.toLowerCase()
-    );
-    
-    if (exactItemMatch) {
-      onResult(exactItemMatch.itemNumberVysn);
-      return;
-    }
-    
-    // If no exact match, show search results
-    setSearchResults(products.slice(0, 5));
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {

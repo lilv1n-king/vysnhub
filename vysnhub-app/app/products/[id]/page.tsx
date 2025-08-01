@@ -22,8 +22,34 @@ export default function ProductDetailPage() {
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [isReordering, setIsReordering] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
-  
-  const product = getProductByItemNumber(productId);
+  const [showChat, setShowChat] = useState(false);
+  const [product, setProduct] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Load product from Supabase
+  useEffect(() => {
+    const loadProduct = async () => {
+      try {
+        setLoading(true);
+        const productData = await getProductByItemNumber(productId);
+        if (productData) {
+          setProduct(productData);
+        } else {
+          setError('Produkt nicht gefunden');
+        }
+      } catch (err) {
+        console.error('Error loading product:', err);
+        setError('Fehler beim Laden des Produkts');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (productId) {
+      loadProduct();
+    }
+  }, [productId]);
 
   // Reset selected image when product changes
   useEffect(() => {
@@ -37,33 +63,59 @@ export default function ProductDetailPage() {
     inStock: true,
     stockQuantity: 156,
     lowStockThreshold: 10,
-    estimatedDelivery: "2-3 Werktage",
+    estimatedDelivery: "2-3 business days",
     nextRestock: "2025-02-15",
-    warehouse: "Berlin Lager"
+    warehouse: "Berlin Warehouse"
   };
 
   // Helper functions for stock status
   const getStockStatus = () => {
-    if (!inventoryData.inStock) return { text: "Nicht verfügbar", color: "text-red-600", bgColor: "bg-red-50" };
+    if (!inventoryData.inStock) return { text: "Out of Stock", color: "text-red-600", bgColor: "bg-red-50" };
     if (inventoryData.stockQuantity <= inventoryData.lowStockThreshold) {
-      return { text: "Wenige verfügbar", color: "text-orange-600", bgColor: "bg-orange-50" };
+      return { text: "Low Stock", color: "text-orange-600", bgColor: "bg-orange-50" };
     }
-    return { text: "Verfügbar", color: "text-green-600", bgColor: "bg-green-50" };
+    return { text: "In Stock", color: "text-green-600", bgColor: "bg-green-50" };
   };
 
   const getMaxQuantity = () => {
     return Math.min(inventoryData.stockQuantity, 99); // Max 99 or stock quantity
   };
 
-  if (!product) {
+  // Loading state
+  if (loading) {
     return (
       <div className="min-h-screen bg-white">
         <Header />
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-black mb-4">Product Not Found</h1>
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-4 md:pb-8">
+          <div className="flex items-center justify-center py-20">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black mx-auto mb-4"></div>
+              <p className="text-gray-600">Lade Produkt...</p>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // Error state or product not found
+  if (error || !product) {
+    return (
+      <div className="min-h-screen bg-white">
+        <Header />
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-4 md:pb-8">
+          <div className="mb-4 md:mb-6">
+            <Link href="/products" className="flex items-center text-gray-600 hover:text-black text-sm md:text-base">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Products
+            </Link>
+          </div>
+          <div className="text-center py-20">
+            <h1 className="text-2xl font-bold text-black mb-4">
+              {error || 'Produkt nicht gefunden'}
+            </h1>
             <Link href="/products">
-              <Button variant="outline">Back to Products</Button>
+              <Button variant="outline">Zurück zu den Produkten</Button>
             </Link>
           </div>
         </main>
@@ -86,7 +138,7 @@ export default function ProductDetailPage() {
     if (value < 1) return;
     const maxQty = getMaxQuantity();
     if (value > maxQty) {
-      alert(`Nur ${maxQty} Stück verfügbar`);
+      alert(`Only ${maxQty} items available`);
       return;
     }
     setQuantity(value);
@@ -94,31 +146,31 @@ export default function ProductDetailPage() {
 
   const handleAddToProject = async () => {
     if (!inventoryData.inStock) {
-      alert('Produkt ist derzeit nicht verfügbar');
+      alert('Product is currently out of stock');
       return;
     }
     if (quantity > inventoryData.stockQuantity) {
-      alert(`Nur ${inventoryData.stockQuantity} Stück verfügbar`);
+      alert(`Only ${inventoryData.stockQuantity} items available`);
       return;
     }
     
     setIsAddingToCart(true);
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1000));
-    alert(`${quantity}x ${product.vysnName} zum Projekt hinzugefügt!`);
+    alert(`${quantity}x ${product.vysnName} added to project!`);
     setIsAddingToCart(false);
   };
 
   const handleReorder = async () => {
     if (!inventoryData.inStock) {
-      alert('Produkt ist derzeit nicht verfügbar');
+      alert('Product is currently out of stock');
       return;
     }
     
     setIsReordering(true);
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1000));
-    alert(`${quantity}x ${product.vysnName} nachbestellt!`);
+    alert(`${quantity}x ${product.vysnName} reordered!`);
     setIsReordering(false);
   };
 
@@ -155,7 +207,7 @@ export default function ProductDetailPage() {
     <div className="min-h-screen bg-white">
       <Header />
       
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-4 md:pb-8">
         <div className="mb-4 md:mb-6">
           <Link href="/products" className="flex items-center text-gray-600 hover:text-black text-sm md:text-base">
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -163,8 +215,9 @@ export default function ProductDetailPage() {
           </Link>
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-6 md:gap-8 mb-6 md:mb-8">
-          <div>
+        <div className="space-y-6 md:space-y-8">
+          {/* Produktbilder - Mobile First */}
+          <div className="w-full">
             <div className="aspect-square mb-4 bg-white rounded-lg overflow-hidden relative border border-gray-200 max-w-md mx-auto">
               {productImages.length > 0 && productImages[selectedImageIndex] ? (
                 <Image 
@@ -172,7 +225,7 @@ export default function ProductDetailPage() {
                   alt={product.vysnName || 'Product image'}
                   fill
                   className="object-contain p-4"
-                  sizes="(max-width: 1024px) 100vw, 50vw"
+                  sizes="(max-width: 768px) 100vw, 50vw"
                   priority
                 />
               ) : (
@@ -200,7 +253,7 @@ export default function ProductDetailPage() {
                         alt={`${product.vysnName} ${index + 1}`}
                         fill
                         className="object-contain p-1"
-                        sizes="(max-width: 1024px) 25vw, 12vw"
+                        sizes="25vw"
                       />
                       {/* Selected indicator */}
                       {selectedImageIndex === index && (
@@ -218,13 +271,14 @@ export default function ProductDetailPage() {
                 <a href={product.manuallink} target="_blank" rel="noopener noreferrer" className="block">
                   <Button className="w-full h-16 text-lg font-bold bg-black hover:bg-gray-800 text-white">
                     <Download className="h-6 w-6 mr-3" />
-                    Bedienungsanleitung herunterladen
+                    Download Manual
                   </Button>
                 </a>
               </div>
             )}
           </div>
 
+          {/* Produktinfo */}
           <div className="space-y-4 md:space-y-6">
             <div>
               <h1 className="text-2xl md:text-3xl font-bold text-black mb-2 md:mb-4">
@@ -251,15 +305,15 @@ export default function ProductDetailPage() {
                 {inventoryData.inStock && (
                   <div className="text-sm text-gray-600 space-y-1">
                     <div className="flex items-center gap-2">
-                      <span className="font-medium">Lagerbestand:</span>
-                      <span>{inventoryData.stockQuantity} Stück verfügbar</span>
+                      <span className="font-medium">Stock:</span>
+                      <span>{inventoryData.stockQuantity} items available</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="font-medium">Lieferung:</span>
+                      <span className="font-medium">Delivery:</span>
                       <span>{inventoryData.estimatedDelivery}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="font-medium">Lager:</span>
+                      <span className="font-medium">Warehouse:</span>
                       <span>{inventoryData.warehouse}</span>
                     </div>
                   </div>
@@ -267,7 +321,7 @@ export default function ProductDetailPage() {
 
                 {!inventoryData.inStock && inventoryData.nextRestock && (
                   <div className="text-sm text-gray-600">
-                    <span className="font-medium">Nächste Lieferung:</span> {new Date(inventoryData.nextRestock).toLocaleDateString('de-DE')}
+                                            <span className="font-medium">Next Delivery:</span> {new Date(inventoryData.nextRestock).toLocaleDateString('en-US')}
                   </div>
                 )}
               </div>
@@ -280,12 +334,12 @@ export default function ProductDetailPage() {
             {/* Quantity and Order Section - Mobile Optimized */}
             <div className="bg-gray-50 p-4 rounded-lg space-y-4">
               <div className="flex items-center justify-between">
-                <label className="text-base md:text-lg font-medium text-black">Menge:</label>
+                <label className="text-base md:text-lg font-medium text-black">Quantity:</label>
                 <div className="flex items-center gap-2">
                   <Button 
                     variant="outline" 
                     size="sm"
-                    className="h-10 w-10 p-0 md:h-8 md:w-8"
+                    className="h-12 w-12 p-0 md:h-8 md:w-8"
                     onClick={() => handleQuantityChange(quantity - 1)}
                     disabled={quantity <= 1}
                   >
@@ -295,14 +349,14 @@ export default function ProductDetailPage() {
                     type="number"
                     value={quantity}
                     onChange={(e) => handleQuantityChange(parseInt(e.target.value) || 1)}
-                    className="w-20 text-center h-10 md:h-8"
+                    className="w-20 text-center h-12 md:h-8"
                     min="1"
                     max={getMaxQuantity()}
                   />
                   <Button 
                     variant="outline" 
                     size="sm"
-                    className="h-10 w-10 p-0 md:h-8 md:w-8"
+                    className="h-12 w-12 p-0 md:h-8 md:w-8"
                     onClick={() => handleQuantityChange(quantity + 1)}
                     disabled={quantity >= getMaxQuantity()}
                   >
@@ -315,7 +369,7 @@ export default function ProductDetailPage() {
               {inventoryData.inStock && quantity > inventoryData.stockQuantity && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-3">
                   <p className="text-red-600 text-sm">
-                    ⚠️ Nur {inventoryData.stockQuantity} Stück verfügbar
+                    ⚠️ Only {inventoryData.stockQuantity} items available
                   </p>
                 </div>
               )}
@@ -324,7 +378,7 @@ export default function ProductDetailPage() {
               {inventoryData.inStock && inventoryData.stockQuantity <= inventoryData.lowStockThreshold && (
                 <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
                   <p className="text-orange-600 text-sm">
-                    🔥 Nur noch {inventoryData.stockQuantity} Stück auf Lager
+                    🔥 Only {inventoryData.stockQuantity} items left in stock
                   </p>
                 </div>
               )}
@@ -332,14 +386,14 @@ export default function ProductDetailPage() {
               {/* Available Quantity Info */}
               {inventoryData.inStock && (
                 <div className="text-xs text-gray-500">
-                  Maximal {getMaxQuantity()} Stück bestellbar
+                  Maximum {getMaxQuantity()} items can be ordered
                 </div>
               )}
 
               {/* Total Price */}
               {product.grossPrice && (
                 <div className="flex items-center justify-between text-lg md:text-xl font-bold">
-                  <span>Gesamt:</span>
+                  <span>Total:</span>
                   <span className="text-green-600">
                     {formatPrice(product.grossPrice * quantity)}
                   </span>
@@ -351,7 +405,7 @@ export default function ProductDetailPage() {
                 <Button 
                   onClick={handleAddToProject}
                   disabled={isAddingToCart || !inventoryData.inStock || quantity > inventoryData.stockQuantity}
-                  className="h-12 md:h-10 text-base md:text-sm font-medium disabled:opacity-50"
+                  className="h-14 md:h-10 text-base md:text-sm font-medium disabled:opacity-50"
                 >
                   {isAddingToCart ? (
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
@@ -359,17 +413,17 @@ export default function ProductDetailPage() {
                     <ShoppingCart className="h-4 w-4 mr-2" />
                   )}
                   {!inventoryData.inStock 
-                    ? 'Nicht verfügbar' 
+                    ? 'Out of Stock' 
                     : isAddingToCart 
-                    ? 'Wird hinzugefügt...' 
-                    : 'Zum Projekt hinzufügen'}
+                    ? 'Adding...' 
+                    : 'Add to Project'}
                 </Button>
                 
                 <Button 
                   variant="outline"
                   onClick={handleReorder}
                   disabled={isReordering || !inventoryData.inStock || quantity > inventoryData.stockQuantity}
-                  className="h-12 md:h-10 text-base md:text-sm font-medium disabled:opacity-50"
+                  className="h-14 md:h-10 text-base md:text-sm font-medium disabled:opacity-50"
                 >
                   {isReordering ? (
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
@@ -377,17 +431,83 @@ export default function ProductDetailPage() {
                     <RefreshCw className="h-4 w-4 mr-2" />
                   )}
                   {!inventoryData.inStock 
-                    ? 'Nicht verfügbar' 
+                    ? 'Out of Stock' 
                     : isReordering 
-                    ? 'Nachbestellung läuft...' 
-                    : 'Nachbestellen'}
+                    ? 'Reordering...' 
+                    : 'Reorder'}
                 </Button>
               </div>
             </div>
           </div>
-        </div>
 
-        <div className="grid lg:grid-cols-2 gap-6 md:gap-8">
+          {/* Mobile-optimized Chatbot Section */}
+          <div className="w-full">
+            <Button 
+              onClick={() => setShowChat(!showChat)}
+              className="w-full h-14 mb-4 text-base font-medium flex items-center justify-center gap-2 md:hidden"
+              variant="outline"
+            >
+              <MessageCircle className="h-5 w-5" />
+              {showChat ? 'Close Chat' : 'Ask Product Questions'}
+            </Button>
+            
+            <Card className={`${showChat ? 'block' : 'hidden'} md:block`}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
+                  <MessageCircle className="h-5 w-5" />
+                  Product Assistant
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4 mb-4 max-h-60 overflow-y-auto">
+                  {chatHistory.length === 0 && (
+                    <p className="text-gray-600 text-sm">
+                      Ask me anything about this product...
+                    </p>
+                  )}
+                  {chatHistory.map((message, index) => (
+                    <div key={index} className={`${message.role === 'user' ? 'text-right' : 'text-left'}`}>
+                      <div className={`inline-block max-w-[80%] p-3 rounded-lg text-sm ${
+                        message.role === 'user' 
+                          ? 'bg-black text-white' 
+                          : 'bg-gray-100 text-black'
+                      }`}>
+                        {message.content}
+                      </div>
+                    </div>
+                  ))}
+                  {isLoading && (
+                    <div className="text-left">
+                      <div className="inline-block bg-gray-100 text-black p-3 rounded-lg text-sm">
+                        Thinking...
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Ask about specifications, compatibility, installation..."
+                    value={question}
+                    onChange={(e) => setQuestion(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleAskQuestion()}
+                    disabled={isLoading}
+                    className="h-12 md:h-8 text-base md:text-sm"
+                  />
+                  <Button 
+                    onClick={handleAskQuestion} 
+                    disabled={!question.trim() || isLoading}
+                    size="icon"
+                    className="h-12 w-12 md:h-8 md:w-8"
+                  >
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Technical Specifications */}
           <Card>
             <CardHeader>
               <CardTitle className="text-lg md:text-xl">Technical Specifications</CardTitle>
@@ -435,61 +555,6 @@ export default function ProductDetailPage() {
                   <span className="font-medium">{product.steering}</span>
                 </div>
               )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
-                <MessageCircle className="h-5 w-5" />
-                Product Assistant
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4 mb-4 max-h-60 overflow-y-auto">
-                {chatHistory.length === 0 && (
-                  <p className="text-gray-600 text-sm">
-                    Ask me anything about this product...
-                  </p>
-                )}
-                {chatHistory.map((message, index) => (
-                  <div key={index} className={`${message.role === 'user' ? 'text-right' : 'text-left'}`}>
-                    <div className={`inline-block max-w-[80%] p-3 rounded-lg text-sm ${
-                      message.role === 'user' 
-                        ? 'bg-black text-white' 
-                        : 'bg-gray-100 text-black'
-                    }`}>
-                      {message.content}
-                    </div>
-                  </div>
-                ))}
-                {isLoading && (
-                  <div className="text-left">
-                    <div className="inline-block bg-gray-100 text-black p-3 rounded-lg text-sm">
-                      Thinking...
-                    </div>
-                  </div>
-                )}
-              </div>
-              
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Ask about specifications, compatibility, installation..."
-                  value={question}
-                  onChange={(e) => setQuestion(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleAskQuestion()}
-                  disabled={isLoading}
-                  className="h-10 md:h-8"
-                />
-                <Button 
-                  onClick={handleAskQuestion} 
-                  disabled={!question.trim() || isLoading}
-                  size="icon"
-                  className="h-10 w-10 md:h-8 md:w-8"
-                >
-                  <Send className="h-4 w-4" />
-                </Button>
-              </div>
             </CardContent>
           </Card>
         </div>

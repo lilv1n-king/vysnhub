@@ -6,8 +6,8 @@ import {
   Home, 
   Search, 
   FolderOpen, 
-  Phone,
-  QrCode 
+  QrCode,
+  Bot
 } from 'lucide-react';
 
 export default function MobileNav() {
@@ -33,22 +33,22 @@ export default function MobileNav() {
       active: pathname === '/scanner'
     },
     {
+      href: '/ai-chat',
+      icon: Bot,
+      label: 'AI Chat',
+      active: pathname === '/ai-chat'
+    },
+    {
       href: '/projects',
       icon: FolderOpen,
       label: 'Projects',
       active: pathname === '/projects'
-    },
-    {
-      href: '/contact',
-      icon: Phone,
-      label: 'Contact',
-      active: pathname === '/contact'
     }
   ];
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 md:hidden">
-      <div className="grid grid-cols-5 h-16">
+      <div className="grid grid-cols-5 h-20">
         {navItems.map((item) => {
           const Icon = item.icon;
           return (
@@ -61,8 +61,8 @@ export default function MobileNav() {
                   : 'text-gray-600 hover:text-black hover:bg-gray-50'
               }`}
             >
-              <Icon className="h-5 w-5 mb-1" />
-              <span className="text-xs font-medium">{item.label}</span>
+              <Icon className="h-6 w-6 mb-1" />
+              <span className="text-sm font-medium">{item.label}</span>
             </Link>
           );
         })}

@@ -1,0 +1,54 @@
+{
+  "expo": {
+    "name": "VYSN Hub",
+    "slug": "vysnhub-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.vysn.hub"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "package": "com.vysn.hub",
+      "permissions": [
+        "android.permission.CAMERA"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-barcode-scanner",
+        {
+          "isCamera": true,
+          "isBackgroundColor": true,
+          "cameraPermission": "Allow VYSN Hub to access your camera to scan QR codes and barcodes."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow VYSN Hub to access your camera to scan QR codes and barcodes."
+        }
+      ]
+    ],
+    "extra": {
+      "supabaseUrl": "https://cajkiixyxznfuieeuqqh.supabase.co",
+      "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNhamtpaXh5eHpuZnVpZWV1cXFoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0NzY1MDYsImV4cCI6MjA2OTA1MjUwNn0.TKGaRkHYfWBb_TK0abr_CyfRPQgaUejm7foMrxbdMdM"
+    }
+  }
+}

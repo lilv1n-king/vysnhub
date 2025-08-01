@@ -3,22 +3,62 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { AlertCircle, Keyboard, CheckCircle, Copy, Home } from 'lucide-react';
+import { AlertCircle, Keyboard, CheckCircle, Home, Search } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { getProductByBarcode, searchProducts } from '@/lib/utils/product-data';
 
-export default function QRScanner() {
+export default function BarcodeScanner() {
+  const router = useRouter();
   const [error, setError] = useState<string>('');
   const [manualInput, setManualInput] = useState('');
   const [showManualInput, setShowManualInput] = useState(false);
   const [scanResult, setScanResult] = useState<string>('');
   const [isScanning, setIsScanning] = useState(false);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
   const videoRef = useRef<HTMLVideoElement>(null);
   const scannerRef = useRef<any>(null);
+
+  // Funktion zum Weiterleiten zur Produktseite
+  const navigateToProduct = async (barcodeOrItemNumber: string) => {
+    try {
+      // Erst versuchen, Produkt per Barcode zu finden
+      const productByBarcode = await getProductByBarcode(barcodeOrItemNumber);
+      if (productByBarcode) {
+        router.push(`/products/${productByBarcode.itemNumberVysn}`);
+        return;
+      }
+
+      // Dann versuchen, nach Item Number zu suchen
+      const searchResults = await searchProducts(barcodeOrItemNumber);
+      const exactMatch = searchResults.find(p => 
+        p.itemNumberVysn?.toLowerCase() === barcodeOrItemNumber.toLowerCase()
+      );
+      
+      if (exactMatch) {
+        router.push(`/products/${exactMatch.itemNumberVysn}`);
+        return;
+      }
+
+      // Wenn nur ein Suchergebnis, direkt dorthin
+      if (searchResults.length === 1) {
+        router.push(`/products/${searchResults[0].itemNumberVysn}`);
+        return;
+      }
+
+      // Sonst Suchergebnisse anzeigen
+      setSearchResults(searchResults.slice(0, 5));
+      setScanResult(barcodeOrItemNumber);
+    } catch (error) {
+      console.error('Error searching for product:', error);
+      setError('Fehler beim Suchen des Produkts');
+    }
+  };
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     
-    const startScanner = async () => {
+    const startBarcodeScanner = async () => {
       if (showManualInput || scanResult) return;
       
       try {
@@ -29,56 +69,72 @@ export default function QRScanner() {
           return;
         }
 
-        // Dynamically import QrScanner
-        const QrScanner = (await import('qr-scanner')).default;
+        // Dynamically import ZXing for barcode scanning
+        const { BrowserMultiFormatReader } = await import('@zxing/library');
         
         if (!videoRef.current) return;
         
-        scannerRef.current = new QrScanner(
-          videoRef.current,
-          (result) => {
-            setScanResult(result.data);
-            setIsScanning(false);
-            if (scannerRef.current) {
-              scannerRef.current.stop();
-            }
-          },
-          {
-            onDecodeError: (err) => {
-              // Ignore decode errors, they happen continuously until a QR code is found
-            },
-            highlightScanRegion: true,
-            highlightCodeOutline: true,
-            maxScansPerSecond: 5,
+        const reader = new BrowserMultiFormatReader();
+        scannerRef.current = reader;
+        
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { 
+            facingMode: 'environment',
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
           }
-        );
-
-        await scannerRef.current.start();
+        });
+        
+        videoRef.current.srcObject = stream;
         setIsScanning(true);
         setError('');
+
+        // Start scanning
+        reader.decodeFromVideoDevice(null, videoRef.current, (result, err) => {
+          if (result) {
+            const barcodeText = result.getText();
+            console.log('Barcode gefunden:', barcodeText);
+            
+            // Stop scanning
+            if (scannerRef.current) {
+              scannerRef.current.reset();
+            }
+            if (stream) {
+              stream.getTracks().forEach(track => track.stop());
+            }
+            
+            setIsScanning(false);
+            
+            // Navigate to product
+            await navigateToProduct(barcodeText);
+          }
+        });
         
       } catch (err) {
-        console.error('QR Scanner error:', err);
+        console.error('Barcode Scanner error:', err);
         setError('Kamera-Zugriff nicht möglich. Bitte Berechtigungen überprüfen.');
         setShowManualInput(true);
       }
     };
 
     // Start scanner immediately when component mounts
-    startScanner();
+    startBarcodeScanner();
 
     return () => {
       if (scannerRef.current) {
-        scannerRef.current.stop();
-        scannerRef.current.destroy();
+        scannerRef.current.reset();
+      }
+      // Stop video stream
+      if (videoRef.current?.srcObject) {
+        const stream = videoRef.current.srcObject as MediaStream;
+        stream.getTracks().forEach(track => track.stop());
       }
     };
   }, [showManualInput, scanResult]);
 
-  const handleManualSubmit = () => {
+  const handleManualSubmit = async () => {
     if (!manualInput.trim()) return;
-    setScanResult(manualInput.trim());
-    setManualInput('');
+    await navigateToProduct(manualInput.trim());
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -87,22 +143,8 @@ export default function QRScanner() {
     }
   };
 
-  const copyToClipboard = async () => {
-    if (scanResult) {
-      try {
-        await navigator.clipboard.writeText(scanResult);
-        alert('QR-Code Inhalt kopiert!');
-      } catch {
-        // Fallback for older browsers
-        const textArea = document.createElement('textarea');
-        textArea.value = scanResult;
-        document.body.appendChild(textArea);
-        textArea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textArea);
-        alert('QR-Code Inhalt kopiert!');
-      }
-    }
+  const selectProduct = (product: any) => {
+    router.push(`/products/${product.itemNumberVysn}`);
   };
 
   const resetScanner = () => {
@@ -110,63 +152,70 @@ export default function QRScanner() {
     setError('');
     setShowManualInput(false);
     setManualInput('');
+    setSearchResults([]);
     // Restart scanner
     window.location.reload();
   };
 
   const toggleMode = () => {
     if (scannerRef.current) {
-      scannerRef.current.stop();
+      scannerRef.current.reset();
+    }
+    // Stop video stream
+    if (videoRef.current?.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      stream.getTracks().forEach(track => track.stop());
     }
     setShowManualInput(!showManualInput);
     setError('');
     setScanResult('');
     setManualInput('');
+    setSearchResults([]);
   };
 
   return (
     <div className="h-full w-full bg-black relative">
       {/* Top Navigation */}
-      <div className="absolute top-4 left-4 right-4 z-50 flex justify-between items-center">
-        <Link href="/">
-          <Button variant="ghost" size="sm" className="text-white hover:bg-white/20">
-            <Home className="h-5 w-5" />
-          </Button>
-        </Link>
-        
+      <div className="absolute top-4 left-4 right-4 z-50 flex justify-center items-center">
         <div className="text-white text-lg font-medium">
-          QR Scanner
+          Barcode Scanner
         </div>
-        
-        <Button variant="ghost" size="sm" onClick={toggleMode} className="text-white hover:bg-white/20">
-          <Keyboard className="h-5 w-5" />
-        </Button>
       </div>
-      {scanResult ? (
-        // Show scan result - Fullscreen
-        <div className="h-full flex flex-col justify-center items-center p-6 text-white">
+
+      {searchResults.length > 0 ? (
+        // Show search results - Fullscreen
+        <div className="h-full flex flex-col justify-center items-center p-6 text-white overflow-y-auto">
           <div className="max-w-md w-full space-y-6">
             <div className="text-center">
-              <CheckCircle className="h-16 w-16 text-green-400 mx-auto mb-4" />
-              <h2 className="text-2xl font-bold mb-2">QR-Code gescannt!</h2>
+              <Search className="h-16 w-16 text-blue-400 mx-auto mb-4" />
+              <h2 className="text-2xl font-bold mb-2">Suchergebnisse</h2>
+              <p className="text-gray-300">Für Barcode: {scanResult}</p>
             </div>
             
-            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6">
-              <p className="text-sm text-gray-300 mb-3">Inhalt:</p>
-              <p className="font-mono text-sm break-all bg-black/50 p-4 rounded border border-white/20">
-                {scanResult}
-              </p>
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {searchResults.map((product) => (
+                <div 
+                  key={product.itemNumberVysn}
+                  className="bg-white/10 backdrop-blur-sm rounded-lg p-4 cursor-pointer hover:bg-white/20 transition-colors"
+                  onClick={() => selectProduct(product)}
+                >
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <p className="font-medium text-sm text-white">{product.vysnName}</p>
+                      <p className="text-xs text-gray-300">#{product.itemNumberVysn}</p>
+                      {product.barcodeNumber && (
+                        <p className="text-xs text-gray-400">Barcode: {product.barcodeNumber}</p>
+                      )}
+                    </div>
+                    <Button size="sm" variant="outline" className="text-black">Auswählen</Button>
+                  </div>
+                </div>
+              ))}
             </div>
             
-            <div className="flex gap-3">
-              <Button onClick={copyToClipboard} variant="outline" className="flex-1 bg-white/10 border-white/20 text-white hover:bg-white/20">
-                <Copy className="h-4 w-4 mr-2" />
-                Kopieren
-              </Button>
-              <Button onClick={resetScanner} className="flex-1 bg-white text-black hover:bg-gray-100">
-                Neuer Scan
-              </Button>
-            </div>
+            <Button onClick={resetScanner} className="w-full bg-white text-black hover:bg-gray-100">
+              Neuer Scan
+            </Button>
           </div>
         </div>
       ) : showManualInput ? (
@@ -176,7 +225,7 @@ export default function QRScanner() {
             <div className="text-center">
               <Keyboard className="h-16 w-16 text-blue-400 mx-auto mb-4" />
               <h2 className="text-2xl font-bold mb-2">Manuelle Eingabe</h2>
-              <p className="text-gray-300">Geben Sie QR-Code Inhalt ein</p>
+              <p className="text-gray-300">Barcode oder Artikelnummer eingeben</p>
             </div>
             
             <div className="space-y-4">
@@ -185,15 +234,15 @@ export default function QRScanner() {
                   value={manualInput}
                   onChange={(e) => setManualInput(e.target.value)}
                   onKeyPress={handleKeyPress}
-                  placeholder="QR-Code Inhalt eingeben..."
+                  placeholder="z.B. 4255805301036 oder V104100T2W"
                   className="flex-1 bg-white/10 border-white/20 text-white placeholder:text-gray-400"
                 />
                 <Button onClick={handleManualSubmit} disabled={!manualInput.trim()} className="bg-white text-black hover:bg-gray-100">
-                  OK
+                  <Search className="h-4 w-4" />
                 </Button>
               </div>
               <p className="text-xs text-gray-400 text-center">
-                Für Testzwecke: https://vysn.com/test-qr-code
+                Für Tests: V204300A7B (Artikelnummer)
               </p>
             </div>
           </div>
@@ -221,16 +270,26 @@ export default function QRScanner() {
             autoPlay
           />
           
-          {/* Scanning overlay */}
+          {/* Scanning overlay for barcode */}
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="border-4 border-white w-64 h-64 md:w-80 md:h-80 rounded-2xl shadow-lg"></div>
+            <div className="border-4 border-white w-80 h-48 md:w-96 md:h-56 rounded-2xl shadow-lg">
+              <div className="w-full h-full relative">
+                {/* Scanning line animation */}
+                <div className="absolute inset-2 overflow-hidden">
+                  <div className="w-full h-1 bg-red-500 animate-pulse absolute top-1/2 -translate-y-1/2"></div>
+                </div>
+              </div>
+            </div>
           </div>
           
           {/* Bottom instruction */}
           <div className="absolute bottom-20 md:bottom-8 left-4 right-4 text-center">
             <div className="bg-black/70 backdrop-blur-sm rounded-lg p-4 mx-auto max-w-md">
               <p className="text-white font-medium">
-                {isScanning ? 'QR-Code in den Rahmen halten' : 'Kamera startet...'}
+                {isScanning ? 'Barcode in den Rahmen halten' : 'Kamera startet...'}
+              </p>
+              <p className="text-gray-300 text-sm mt-1">
+                EAN/UPC Barcodes werden unterstützt
               </p>
             </div>
           </div>

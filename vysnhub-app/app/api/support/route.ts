@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const mockResponse = generateSupportResponse(question);
+    const mockResponse = await generateSupportResponse(question);
     
     return NextResponse.json({ 
       answer: mockResponse 
@@ -27,12 +27,17 @@ export async function POST(request: NextRequest) {
   }
 }
 
-function generateSupportResponse(question: string): string {
+async function generateSupportResponse(question: string): Promise<string> {
   const q = question.toLowerCase();
   
   if (q.includes('ip65') || q.includes('waterproof')) {
-    const products = searchProducts('IP65');
-    return `For IP65 rated products, I found ${products.length} options in our catalog. These are fully protected against water jets and suitable for outdoor use. Would you like me to show you some specific downlights or other fixtures with IP65 rating?`;
+    try {
+      const products = await searchProducts('IP65');
+      return `For IP65 rated products, I found ${products.length} options in our catalog. These are fully protected against water jets and suitable for outdoor use. Would you like me to show you some specific downlights or other fixtures with IP65 rating?`;
+    } catch (error) {
+      console.error('Error searching products:', error);
+      return `For IP65 rated products, we have many options in our catalog. These are fully protected against water jets and suitable for outdoor use. Would you like me to show you some specific downlights or other fixtures with IP65 rating?`;
+    }
   }
   
   if (q.includes('dali') && q.includes('dimming')) {
