@@ -14,7 +14,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.vysn.hub"
+      "bundleIdentifier": "com.vysn.hub",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Allow VYSN Hub to access your camera to scan QR codes and barcodes."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -31,14 +34,6 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      [
-        "expo-barcode-scanner",
-        {
-          "isCamera": true,
-          "isBackgroundColor": true,
-          "cameraPermission": "Allow VYSN Hub to access your camera to scan QR codes and barcodes."
-        }
-      ],
       [
         "expo-camera",
         {

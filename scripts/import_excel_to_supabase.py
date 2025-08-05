@@ -35,6 +35,18 @@ def clean_value(value):
         return value.strip()
     return value
 
+def clean_barcode(value):
+    """Spezielle Bereinigung für Barcode-Nummern"""
+    if pd.isna(value) or value == '' or value == 'nan':
+        return None
+    
+    # Konvertiere zu String und entferne .0
+    str_value = str(value)
+    if str_value.endswith('.0'):
+        str_value = str_value[:-2]
+    
+    return str_value.strip()
+
 def convert_to_numeric(value):
     """Konvertiert Werte zu numerischen Typen"""
     if pd.isna(value) or value == '' or value == 'nan':

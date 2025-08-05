@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { supabase } from '../utils/supabase';
 import { AuthUser, Profile, SignUpData, SignInData } from '../types/auth';
 import { Session, User, AuthError } from '@supabase/supabase-js';
+import { apiService } from '../services/apiService';
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -9,12 +10,14 @@ interface AuthContextType {
   loading: boolean;
   initialized: boolean;
   isAuthenticated: boolean;
+  accessToken: string | null;
   signUp: (data: SignUpData) => Promise<{ error: AuthError | Error | null }>;
   signIn: (data: SignInData) => Promise<{ error: AuthError | Error | null }>;
   signOut: () => Promise<{ error: AuthError | Error | null }>;
   resetPassword: (email: string) => Promise<{ error: AuthError | Error | null }>;
   updateProfile: (updates: Partial<Profile>) => Promise<{ error: Error | null }>;
   refreshProfile: () => Promise<void>;
+  getApiHeaders: () => Record<string, string>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -38,6 +41,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [initialized, setInitialized] = useState(false);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
 
   // Load profile from database with error handling
   const loadProfile = useCallback(async (userId: string): Promise<Profile | null> => {
@@ -183,6 +187,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
           profile: profile || undefined
         });
         setSession(data.session);
+        
+        // Set token for API service
+        const token = data.session?.access_token || null;
+        setAccessToken(token);
+        apiService.setAuthToken(token);
 
         // Update last login (optional, don't fail if this fails)
         if (profile && supabase?.from) {
@@ -223,6 +232,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // Always clear local state, even if remote signout fails
       setUser(null);
       setSession(null);
+      setAccessToken(null);
+      apiService.setAuthToken(null);
 
       if (error) {
         console.error('Sign out error:', error);
@@ -234,6 +245,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // Still clear local state
       setUser(null);
       setSession(null);
+      setAccessToken(null);
+      apiService.setAuthToken(null);
       return { error: error as Error };
     } finally {
       setLoading(false);
@@ -316,127 +329,48 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }, [user, loadProfile]);
 
-  // Initialize auth state and listen for changes with robust error handling
+  // Get headers for API requests
+  const getApiHeaders = useCallback((): Record<string, string> => {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    if (accessToken) {
+      headers['Authorization'] = `Bearer ${accessToken}`;
+    }
+
+    return headers;
+  }, [accessToken]);
+
+  // Initialize auth state and listen for changes
   useEffect(() => {
     let mounted = true;
     let authSubscription: any = null;
 
-    const initializeAuth = async () => {
-      try {
-        if (!supabase?.auth) {
-          if (mounted) {
-            setLoading(false);
-            setInitialized(true);
-          }
-          return;
-        }
-
-        // Get initial session with timeout
-        const sessionPromise = supabase.auth.getSession();
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Session timeout')), 10000)
-        );
-
-        const { data: { session }, error } = await Promise.race([
-          sessionPromise,
-          timeoutPromise
-        ]) as any;
-        
-        if (error) {
-          console.error('Error getting session:', error);
-          if (mounted) {
-            setLoading(false);
-            setInitialized(true);
-          }
-          return;
-        }
-
-        if (!mounted) return;
-
-        setSession(session);
-        
-        if (session?.user) {
-          try {
-            const profile = await loadProfile(session.user.id);
-            setUser({
-              id: session.user.id,
-              email: session.user.email!,
-              profile: profile || undefined
-            });
-            
-            // If no profile exists, create a basic one
-            if (!profile && supabase?.from) {
-              try {
-                const basicProfile = {
-                  id: session.user.id,
-                  email: session.user.email!,
-                  first_name: session.user.user_metadata?.first_name || '',
-                  last_name: session.user.user_metadata?.last_name || '',
-                  company_name: null,
-                  phone: null,
-                  customer_type: 'standard' as const,
-                  discount_percentage: 0,
-                  account_status: 'active' as const,
-                  language: 'de',
-                  currency: 'EUR',
-                  newsletter_subscription: false,
-                  marketing_emails: false,
-                  country: 'Deutschland'
-                };
-
-                const { data: newProfile, error: createError } = await supabase
-                  .from('profiles')
-                  .insert([basicProfile])
-                  .select()
-                  .single();
-
-                if (!createError && newProfile) {
-                  setUser({
-                    id: session.user.id,
-                    email: session.user.email!,
-                    profile: newProfile
-                  });
-                }
-              } catch (createProfileError) {
-                console.warn('Failed to create missing profile:', createProfileError);
-              }
-            }
-          } catch (profileError) {
-            console.error('Error loading profile during init:', profileError);
-            // Set user without profile
-            setUser({
-              id: session.user.id,
-              email: session.user.email!,
-              profile: undefined
-            });
-          }
-        }
-        
-        setLoading(false);
-        setInitialized(true);
-      } catch (error) {
-        console.error('Error initializing auth:', error);
+    const setupAuth = async () => {
+      if (!supabase?.auth) {
         if (mounted) {
           setLoading(false);
           setInitialized(true);
         }
-      }
-    };
-
-    const setupAuthListener = () => {
-      if (!supabase?.auth?.onAuthStateChange) {
         return;
       }
 
       try {
+        // Set up auth state listener first
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
           async (event, session) => {
             if (!mounted) return;
 
-            
+            console.log('Auth state changed:', event, !!session);
+
             try {
               setSession(session);
-
+              
+              const token = session?.access_token || null;
+              setAccessToken(token);
+              apiService.setAuthToken(token);
+              
               if (session?.user) {
                 try {
                   const profile = await loadProfile(session.user.id);
@@ -446,7 +380,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
                     profile: profile || undefined
                   });
 
-                  // If no profile exists, create a basic one
+                  // Create profile if missing
                   if (!profile && supabase?.from) {
                     try {
                       const basicProfile = {
@@ -466,13 +400,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
                         country: 'Deutschland'
                       };
 
-                      const { data: newProfile, error: createError } = await supabase
+                      const { data: newProfile } = await supabase
                         .from('profiles')
                         .insert([basicProfile])
                         .select()
                         .single();
 
-                      if (!createError && newProfile) {
+                      if (newProfile) {
                         setUser({
                           id: session.user.id,
                           email: session.user.email!,
@@ -480,11 +414,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
                         });
                       }
                     } catch (createProfileError) {
-                      console.warn('Failed to create missing profile on auth change:', createProfileError);
+                      console.warn('Failed to create profile:', createProfileError);
                     }
                   }
                 } catch (profileError) {
-                  console.error('Error loading profile on auth change:', profileError);
+                  console.error('Error loading profile:', profileError);
                   setUser({
                     id: session.user.id,
                     email: session.user.email!,
@@ -501,18 +435,39 @@ export function AuthProvider({ children }: AuthProviderProps) {
               }
             } catch (error) {
               console.error('Error handling auth state change:', error);
+              if (!initialized) {
+                setLoading(false);
+                setInitialized(true);
+              }
             }
           }
         );
 
         authSubscription = subscription;
+
+        // Get initial session
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Error getting initial session:', error);
+        }
+
+        // The onAuthStateChange will handle the session, so we don't need to duplicate logic here
+        if (!session && mounted) {
+          setLoading(false);
+          setInitialized(true);
+        }
+
       } catch (error) {
-        console.error('Error setting up auth listener:', error);
+        console.error('Error setting up auth:', error);
+        if (mounted) {
+          setLoading(false);
+          setInitialized(true);
+        }
       }
     };
 
-    initializeAuth();
-    setupAuthListener();
+    setupAuth();
 
     return () => {
       mounted = false;
@@ -520,11 +475,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
         try {
           authSubscription.unsubscribe();
         } catch (error) {
-          console.error('Error unsubscribing from auth changes:', error);
+          console.error('Error unsubscribing:', error);
         }
       }
     };
-  }, [loadProfile, initialized]);
+  }, [loadProfile]);
 
   const value: AuthContextType = {
     user,
@@ -532,12 +487,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
     loading,
     initialized,
     isAuthenticated: !!user && !!session,
+    accessToken,
     signUp,
     signIn,
     signOut,
     resetPassword,
     updateProfile,
     refreshProfile,
+    getApiHeaders,
   };
 
   return (

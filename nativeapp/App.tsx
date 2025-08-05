@@ -4,7 +4,7 @@ import { View, Text } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { AuthProvider, useAuth } from './lib/contexts/AuthContext';
 import AuthNavigator from './src/navigation/AuthNavigator';
-import TabNavigator from './src/navigation/TabNavigator';
+import RootNavigator from './src/navigation/RootNavigator';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 
 // Loading component
@@ -35,7 +35,7 @@ function AppContent() {
   }
 
   // Show appropriate navigator based on auth state
-  return isAuthenticated ? <TabNavigator /> : <AuthNavigator />;
+  return isAuthenticated ? <RootNavigator /> : <AuthNavigator />;
 }
 
 export default function App() {

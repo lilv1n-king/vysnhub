@@ -11,16 +11,14 @@ import {
   Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Bot, Send, User, Mic, MicOff, Keyboard, X } from 'lucide-react-native';
+import { Audio } from 'expo-av';
+import { Bot, Send, User, Mic, MicOff, Keyboard, X, WifiOff, Headphones } from 'lucide-react-native';
 import Button from '../components/ui/Button';
 import Header from '../components/Header';
+import { chatService, ChatMessage } from '../../lib/services/chatService';
+import { useAuth } from '../../lib/contexts/AuthContext';
 
-interface Message {
-  id: string;
-  content: string;
-  sender: 'user' | 'ai';
-  timestamp: Date;
-}
+// Using ChatMessage from chatService instead of local interface
 
 const styles = StyleSheet.create({
   container: {
@@ -71,10 +69,10 @@ const styles = StyleSheet.create({
   },
   messageBubble: {
     borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    flex: 1,
-    minHeight: 32,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    minHeight: 44,
+    maxWidth: '100%',
   },
   messageBubbleUser: {
     backgroundColor: '#000000',
@@ -83,82 +81,134 @@ const styles = StyleSheet.create({
     backgroundColor: '#f3f4f6',
   },
   messageText: {
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 16,
+    lineHeight: 22,
     textAlign: 'left',
+    color: '#000000', // Default black color
+    flexWrap: 'wrap',
   },
   messageTextUser: {
     color: '#ffffff',
+    fontWeight: '400',
   },
   messageTextBot: {
     color: '#000000',
+    fontWeight: '400',
   },
   inputContainer: {
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
     backgroundColor: '#ffffff',
-    padding: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    paddingBottom: 24,
   },
   voiceModeContainer: {
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
   },
   voiceButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
-    borderWidth: 2,
-    borderColor: '#000000',
+    backgroundColor: '#000000',
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   voiceButtonRecording: {
     backgroundColor: '#ef4444',
-    borderColor: '#ef4444',
+    transform: [{ scale: 1.1 }],
   },
   voiceStatus: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginBottom: 8,
+    fontSize: 16,
+    color: '#374151',
+    marginBottom: 12,
+    fontWeight: '500',
   },
   voiceStatusRecording: {
     color: '#ef4444',
+    fontSize: 16,
+    fontWeight: '600',
   },
   keyboardToggle: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#6b7280',
+    fontWeight: '500',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
   },
-  keyboardModeContainer: {
+  chatInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    backgroundColor: '#f8f9fa',
+    borderRadius: 24,
+    paddingHorizontal: 4,
+    paddingVertical: 4,
+    minHeight: 48,
+    maxHeight: 120,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  switchModeButton: {
+    padding: 12,
+    borderRadius: 20,
+    backgroundColor: '#f3f4f6',
+    marginBottom: 12,
+  },
+  supportButton: {
+    backgroundColor: '#000000',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    marginTop: 12,
+    alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  keyboardModeHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
+  supportButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
   },
   textInput: {
     flex: 1,
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    fontSize: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    lineHeight: 22,
     maxHeight: 100,
+    minHeight: 40,
+    textAlignVertical: 'center',
+    color: '#000000',
   },
   sendButton: {
     width: 40,
     height: 40,
-    borderRadius: 8,
+    borderRadius: 20,
     backgroundColor: '#000000',
     justifyContent: 'center',
     alignItems: 'center',
+    marginLeft: 8,
+    marginRight: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
   sendButtonDisabled: {
-    backgroundColor: '#d1d5db',
+    backgroundColor: '#e5e7eb',
+    shadowOpacity: 0,
+    elevation: 0,
   },
   loadingDots: {
     flexDirection: 'row',
@@ -171,10 +221,38 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     backgroundColor: '#6b7280',
   },
+  offlineIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fef3c7',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  offlineText: {
+    fontSize: 12,
+    color: '#d97706',
+    fontWeight: '500',
+  },
+  errorMessage: {
+    backgroundColor: '#fef2f2',
+    borderColor: '#fecaca',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    margin: 16,
+  },
+  errorText: {
+    color: '#dc2626',
+    fontSize: 14,
+    textAlign: 'center',
+  },
 });
 
 export default function AIChatScreen() {
-  const [messages, setMessages] = useState<Message[]>([
+  const auth = useAuth();
+  const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '1',
       content: 'Hey! 👋 I\'m your VYSN Lighting Assistant. Feel free to ask me anything about LED lighting, product details, installation or technical questions!',
@@ -186,11 +264,76 @@ export default function AIChatScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [showKeyboard, setShowKeyboard] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const [isProcessingVoice, setIsProcessingVoice] = useState(false);
   
   const scrollViewRef = useRef<ScrollView>(null);
 
-  const handleSettingsPress = () => {
-    navigation.navigate('Settings');
+
+
+  // Initialize chat session and check backend connectivity
+  useEffect(() => {
+    const initializeChat = async () => {
+      try {
+        // Ensure we have auth token set for API service
+        if (auth?.accessToken) {
+          // This should already be set by AuthContext, but ensure it's there
+          // apiService.setAuthToken(auth.accessToken); // Already handled in AuthContext
+        }
+
+        // Check if backend is available
+        const backendAvailable = await chatService.checkBackendHealth();
+        setIsOnline(backendAvailable);
+
+        if (backendAvailable) {
+          // Try to create or restore session
+          try {
+            const newSessionId = await chatService.createSession();
+            setSessionId(newSessionId);
+            setError(null);
+            console.log('Chat session created:', newSessionId);
+          } catch (sessionError) {
+            console.warn('Failed to create session, using offline mode:', sessionError);
+            setError('Could not connect to chat service. Some features may be limited.');
+          }
+        } else {
+          setError('Backend service is currently unavailable. Working in offline mode.');
+        }
+      } catch (initError) {
+        console.error('Failed to initialize chat:', initError);
+        setIsOnline(false);
+        setError('Failed to initialize chat service.');
+      }
+    };
+
+    if (auth?.isAuthenticated) {
+      initializeChat();
+    }
+  }, [auth?.isAuthenticated, auth?.accessToken]);
+
+  // Add retry connection function
+  const retryConnection = async () => {
+    setError(null);
+    setIsLoading(true);
+    
+    try {
+      const backendAvailable = await chatService.checkBackendHealth();
+      setIsOnline(backendAvailable);
+      
+      if (backendAvailable && !sessionId) {
+        const newSessionId = await chatService.createSession();
+        setSessionId(newSessionId);
+        console.log('Reconnected with session:', newSessionId);
+      }
+    } catch (error) {
+      console.error('Retry connection failed:', error);
+      setError('Still unable to connect to chat service.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -203,41 +346,191 @@ export default function AIChatScreen() {
     }, 100);
   };
 
-  const startVoiceRecording = () => {
-    Alert.alert('Voice Feature', 'Voice recording feature coming soon!');
+  // Request permissions for audio recording
+  useEffect(() => {
+    const requestPermissions = async () => {
+      const { status } = await Audio.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', 'Please allow microphone access to use voice features.');
+      }
+    };
+    requestPermissions();
+  }, []);
+
+  const startVoiceRecording = async () => {
+    try {
+      if (isRecording) {
+        await stopVoiceRecording();
+        return;
+      }
+
+      setIsRecording(true);
+      setError(null);
+
+      // Configure audio recording
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      });
+
+      const { recording } = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY
+      );
+      
+      setRecording(recording);
+    } catch (error) {
+      console.error('Failed to start recording:', error);
+      setIsRecording(false);
+      Alert.alert('Recording Error', 'Could not start voice recording. Please try again.');
+    }
+  };
+
+  const stopVoiceRecording = async () => {
+    try {
+      if (!recording) return;
+
+      setIsRecording(false);
+      setIsProcessingVoice(true);
+      
+      await recording.stopAndUnloadAsync();
+      const uri = recording.getURI();
+      setRecording(null);
+
+      if (uri) {
+        // For now, just show a placeholder message since we'd need a speech-to-text service
+        // In a real implementation, you'd send the audio to a speech-to-text API
+        Alert.alert(
+          'Voice Processing', 
+          'Voice message recorded! In a real implementation, this would be converted to text and sent to the chat.',
+          [
+            {
+              text: 'Send Test Message',
+              onPress: () => sendMessage('This is a test voice message converted to text.')
+            },
+            { text: 'Cancel', style: 'cancel' }
+          ]
+        );
+      }
+    } catch (error) {
+      console.error('Failed to stop recording:', error);
+      Alert.alert('Recording Error', 'Could not process voice recording.');
+    } finally {
+      setIsProcessingVoice(false);
+    }
+  };
+
+
+  // Support contact function
+  const contactSupport = () => {
+    Alert.alert(
+      'Support kontaktieren',
+      'Wie möchten Sie uns kontaktieren?',
+      [
+        {
+          text: 'E-Mail',
+          onPress: () => {
+            // In einer echten App würde hier ein E-Mail-Client geöffnet
+            Alert.alert('E-Mail Support', 'support@vysn.de\n\nBitte beschreiben Sie Ihr Problem detailliert.');
+          }
+        },
+        {
+          text: 'Telefon',
+          onPress: () => {
+            // In einer echten App würde hier die Telefon-App geöffnet
+            Alert.alert('Telefon Support', '+49 123 456 789\n\nMontag bis Freitag, 9:00 - 17:00 Uhr');
+          }
+        },
+        {
+          text: 'Abbrechen',
+          style: 'cancel'
+        }
+      ]
+    );
   };
 
   const sendMessage = async (text?: string) => {
     const messageText = text || inputText.trim();
     if (!messageText || isLoading) return;
 
-    const userMessage: Message = {
+    // Clear any previous errors
+    setError(null);
+    setInputText('');
+    setIsLoading(true);
+
+    // Add user message immediately
+    const userMessage: ChatMessage = {
       id: Date.now().toString(),
       content: messageText,
       sender: 'user',
       timestamp: new Date(),
     };
-
     setMessages(prev => [...prev, userMessage]);
-    setInputText('');
-    setIsLoading(true);
 
-    // Simulate AI response
-    setTimeout(() => {
-      const aiMessage: Message = {
+    try {
+      if (isOnline && sessionId) {
+        // Send to backend
+        const { response, messages: newMessages } = await chatService.sendMessage(messageText, sessionId);
+        
+        // Add only the AI response (user message was already added)
+        const aiMessage = newMessages.find(msg => msg.sender === 'ai');
+        if (aiMessage) {
+          setMessages(prev => [...prev, aiMessage]);
+        }
+      } else {
+        // Fallback offline response
+        throw new Error('Backend not available');
+      }
+    } catch (chatError) {
+      console.error('Chat error:', chatError);
+      
+      // Add fallback AI response
+      const errorMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
-        content: 'Thank you for your question! This is a demo response. In the full version, I would help you with LED lighting questions and product recommendations.',
+        content: 'I apologize, but I\'m currently having trouble connecting to the backend service. This might be a temporary issue. Please check your internet connection and try again. In the meantime, I can still help with basic questions about VYSN lighting products.',
         sender: 'ai',
         timestamp: new Date()
       };
-      setMessages(prev => [...prev, aiMessage]);
+      
+      setMessages(prev => [...prev, errorMessage]);
+      setError('Connection to chat service failed. Please try again.');
+      setIsOnline(false);
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
   };
 
   return (
     <View style={styles.container}>
-      <Header onSettingsPress={handleSettingsPress} />
+              <Header onSettingsPress={() => navigation.navigate('Settings' as any)} />
+      
+      {/* Offline Indicator */}
+      {!isOnline && (
+        <View style={styles.offlineIndicator}>
+          <WifiOff size={16} color="#d97706" />
+          <Text style={styles.offlineText}>
+            Offline Mode - Limited functionality
+          </Text>
+        </View>
+      )}
+
+      {/* Error Message */}
+      {error && (
+        <View style={styles.errorMessage}>
+          <Text style={styles.errorText}>{error}</Text>
+          {!isOnline && (
+            <TouchableOpacity 
+              onPress={retryConnection} 
+              disabled={isLoading}
+              style={{ marginTop: 8, alignSelf: 'center' }}
+            >
+              <Text style={{ color: '#dc2626', fontWeight: '600', fontSize: 12 }}>
+                {isLoading ? 'Retrying...' : 'Retry Connection'}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
       <KeyboardAvoidingView 
         style={styles.chatContainer}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -287,6 +580,17 @@ export default function AIChatScreen() {
                   ]}>
                     {message.content}
                   </Text>
+                  
+                  {/* Add support button for error messages */}
+                  {message.sender === 'ai' && message.supportContact && (
+                    <TouchableOpacity 
+                      style={styles.supportButton}
+                      onPress={contactSupport}
+                    >
+                      <Headphones size={16} color="#ffffff" />
+                      <Text style={styles.supportButtonText}>Support kontaktieren</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               </View>
             </View>
@@ -315,49 +619,56 @@ export default function AIChatScreen() {
         {/* Input Area */}
         <View style={styles.inputContainer}>
           {!showKeyboard ? (
-            /* Voice-First Mode */
+            /* Voice Mode */
             <View style={styles.voiceModeContainer}>
               <TouchableOpacity
                 style={[styles.voiceButton, isRecording ? styles.voiceButtonRecording : {}]}
                 onPress={startVoiceRecording}
               >
                 {isRecording ? (
-                  <MicOff size={24} color="#ffffff" />
+                  <MicOff size={28} color="#ffffff" />
                 ) : (
-                  <Mic size={24} color="#000000" />
+                  <Mic size={28} color="#ffffff" />
                 )}
               </TouchableOpacity>
               
               <Text style={[styles.voiceStatus, isRecording ? styles.voiceStatusRecording : {}]}>
-                {isRecording ? '🎤 Listening...' : '🎤 Tap to speak'}
+                {isProcessingVoice ? 'Processing...' : isRecording ? 'Tap to stop recording' : 'Tap to speak'}
               </Text>
               
-              <TouchableOpacity onPress={() => setShowKeyboard(true)}>
-                <Text style={styles.keyboardToggle}>Switch to keyboard</Text>
+              <TouchableOpacity 
+                style={styles.switchModeButton}
+                onPress={() => setShowKeyboard(true)}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                  <Keyboard size={16} color="#6b7280" />
+                  <Text style={[styles.keyboardToggle, { marginLeft: 8 }]}>Use keyboard</Text>
+                </View>
               </TouchableOpacity>
             </View>
           ) : (
             /* Keyboard Mode */
             <View>
-              <View style={styles.keyboardModeHeader}>
-                <Text style={styles.keyboardToggle}>Keyboard mode</Text>
-                <TouchableOpacity onPress={() => setShowKeyboard(false)}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <X size={16} color="#6b7280" />
-                    <Text style={[styles.keyboardToggle, { marginLeft: 4 }]}>Close</Text>
-                  </View>
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity 
+                style={styles.switchModeButton}
+                onPress={() => setShowKeyboard(false)}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                  <Mic size={16} color="#6b7280" />
+                  <Text style={[styles.keyboardToggle, { marginLeft: 8 }]}>Use voice</Text>
+                </View>
+              </TouchableOpacity>
               
-              <View style={styles.keyboardModeContainer}>
-                                  <TextInput
-                    style={styles.textInput}
-                    value={inputText}
-                    onChangeText={setInputText}
-                    placeholder="Type your question..."
-                    multiline
-                    onSubmitEditing={() => sendMessage()}
-                  />
+              <View style={styles.chatInputContainer}>
+                <TextInput
+                  style={styles.textInput}
+                  value={inputText}
+                  onChangeText={setInputText}
+                  placeholder="Message VYSN Assistant..."
+                  placeholderTextColor="#9ca3af"
+                  multiline
+                  textAlignVertical="center"
+                />
                 
                 <TouchableOpacity
                   style={[
@@ -367,7 +678,7 @@ export default function AIChatScreen() {
                   onPress={() => sendMessage()}
                   disabled={!inputText.trim() || isLoading}
                 >
-                  <Send size={20} color="#ffffff" />
+                  <Send size={18} color={(!inputText.trim() || isLoading) ? "#9ca3af" : "#ffffff"} />
                 </TouchableOpacity>
               </View>
             </View>

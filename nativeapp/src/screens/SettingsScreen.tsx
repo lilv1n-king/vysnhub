@@ -20,7 +20,8 @@ import {
   CreditCard,
   Edit3,
   Save,
-  X
+  X,
+  ArrowLeft
 } from 'lucide-react-native';
 import { useAuth } from '../../lib/contexts/AuthContext';
 import Header from '../components/Header';
@@ -36,6 +37,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 20,
     paddingBottom: 40,
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 8,
+  },
+  backButtonText: {
+    fontSize: 16,
+    color: '#6b7280',
+    marginLeft: 8,
   },
   section: {
     marginBottom: 24,
@@ -323,7 +336,17 @@ export default function SettingsScreen() {
   if (!user) {
     return (
       <View style={styles.container}>
-        <Header onSettingsPress={() => {}} />
+        <Header onSettingsPress={() => navigation.goBack()} />
+        
+        {/* Back Button */}
+        <TouchableOpacity 
+          style={styles.backButton} 
+          onPress={() => navigation.goBack()}
+        >
+          <ArrowLeft size={20} color="#6b7280" />
+          <Text style={styles.backButtonText}>Zurück</Text>
+        </TouchableOpacity>
+        
         <View style={styles.scrollContent}>
           <Text style={styles.loadingText}>Please sign in to view settings</Text>
         </View>
@@ -334,6 +357,15 @@ export default function SettingsScreen() {
   return (
     <View style={styles.container}>
       <Header onSettingsPress={() => navigation.goBack()} />
+      
+      {/* Back Button */}
+      <TouchableOpacity 
+        style={styles.backButton} 
+        onPress={() => navigation.goBack()}
+      >
+        <ArrowLeft size={20} color="#6b7280" />
+        <Text style={styles.backButtonText}>Zurück</Text>
+      </TouchableOpacity>
       
       <ScrollView style={styles.scrollContent}>
         {/* Profile Section */}

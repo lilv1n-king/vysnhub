@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { ProjectsStackParamList } from '../navigation/ProjectsStackNavigator';
-import { Calendar, Package, Copy, ArrowRight, Plus } from 'lucide-react-native';
+import { Calendar, Package, ArrowRight, Plus } from 'lucide-react-native';
 import { Card, CardContent } from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Header from '../components/Header';
@@ -230,94 +230,14 @@ export default function ProjectsScreen() {
   }, [loadProjects]);
 
   const handleCreateProject = () => {
-    Alert.prompt(
-      'New Project',
-      'Enter project name',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Create',
-          onPress: async (projectName) => {
-            if (!projectName?.trim()) {
-              Alert.alert('Error', 'Please enter a project name');
-              return;
-            }
-            
-            if (!supabase) {
-              Alert.alert('Error', 'Database not available');
-              return;
-            }
-            
-            try {
-              const projectData = {
-                user_id: user.id,
-                project_name: projectName.trim(),
-                status: 'planning' as const,
-                project_description: '',
-                project_notes: '',
-                priority: 'medium' as const
-              };
-
-              const { data, error } = await supabase
-                .from('user_projects')
-                .insert([projectData])
-                .select()
-                .single();
-
-              if (error) {
-                Alert.alert('Error', `Failed to create project: ${error.message}`);
-                return;
-              }
-
-              await loadProjects();
-            } catch (error) {
-              const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-              Alert.alert('Error', `Failed to create project: ${errorMessage}`);
-            }
-          }
-        }
-      ],
-      'plain-text'
-    );
+    navigation.navigate('CreateProject' as any);
   };
 
   const handleViewProject = (projectId: string) => {
     navigation.navigate('ProjectDetail', { id: projectId });
   };
 
-  const handleCopyProject = async (project: Project) => {
-    if (!supabase) {
-      Alert.alert('Error', 'Database not available');
-      return;
-    }
 
-    try {
-      const projectData = {
-        user_id: user.id,
-        project_name: `${project.project_name} (Copy)`,
-        project_description: project.project_description || '',
-        status: 'planning' as const,
-        project_notes: project.project_notes || '',
-        priority: project.priority || 'medium' as const
-      };
-
-      const { data, error } = await supabase
-        .from('user_projects')
-        .insert([projectData])
-        .select()
-        .single();
-
-      if (error) {
-        Alert.alert('Error', `Failed to copy project: ${error.message}`);
-        return;
-      }
-
-      await loadProjects();
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      Alert.alert('Error', `Failed to copy project: ${errorMessage}`);
-    }
-  };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -414,13 +334,7 @@ export default function ProjectsScreen() {
 
                 {/* Project Actions */}
                 <View style={styles.projectActions}>
-                  <TouchableOpacity 
-                    style={styles.actionButton}
-                    onPress={() => handleCopyProject(project)}
-                  >
-                    <Copy size={16} color="#374151" />
-                    <Text style={styles.actionButtonText}>Copy Project</Text>
-                  </TouchableOpacity>
+                  
                   
                   <TouchableOpacity 
                     style={[styles.actionButton, styles.primaryActionButton]}
@@ -445,7 +359,7 @@ export default function ProjectsScreen() {
             </Text>
             <TouchableOpacity style={styles.createButton} onPress={handleCreateProject}>
               <Plus size={20} color="#ffffff" />
-              <Text style={styles.createButtonText}>Create Project</Text>
+              <Text style={styles.createButtonText}>Neues Projekt</Text>
             </TouchableOpacity>
           </View>
         )}

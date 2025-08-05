@@ -1,5 +1,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import Constants from 'expo-constants';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Für Development/Testing - später durch echte Credentials ersetzen
 const SUPABASE_URL = 'https://cajkiixyxznfuieeuqqh.supabase.co';
@@ -45,6 +46,7 @@ try {
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: false,
+        storage: AsyncStorage,
       },
       global: {
         headers: {

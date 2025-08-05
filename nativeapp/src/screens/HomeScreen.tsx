@@ -147,13 +147,11 @@ export default function HomeScreen() {
     navigation.navigate('Products');
   };
 
-  const handleSettingsPress = () => {
-    navigation.navigate('Settings');
-  };
+
 
   return (
     <View style={styles.container}>
-      <Header onSettingsPress={handleSettingsPress} />
+              <Header onSettingsPress={() => navigation.navigate('Settings' as any)} />
       <ScrollView style={styles.scrollContent}>
         {/* Header */}
         <View style={styles.sectionMargin}>

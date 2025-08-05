@@ -1,119 +1,214 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Alert, StyleSheet, Platform } from 'react-native';
-import { QrCode, Zap } from 'lucide-react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, TouchableOpacity, Alert, StyleSheet, Platform, TextInput, ScrollView } from 'react-native';
+import { QrCode, Zap, Camera as CameraIcon, X, Keyboard, Search, Check } from 'lucide-react-native';
+import { useNavigation } from '@react-navigation/native';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import Header from '../components/Header';
 import Button from '../components/ui/Button';
-
-// Import barcode scanner conditionally
-let BarCodeScanner: any = null;
-let Camera: any = null;
-
-try {
-  const barcodeScannerModule = require('expo-barcode-scanner');
-  const cameraModule = require('expo-camera');
-  BarCodeScanner = barcodeScannerModule.BarCodeScanner;
-  Camera = cameraModule.Camera;
-} catch (error) {
-}
+import { VysnProduct } from '../../lib/types/product';
+import { searchProducts, getProductByBarcode } from '../../lib/services/productService';
+import { scanTrackingService } from '../../lib/services/scanTrackingService';
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#ffffff',
+  },
+  mainContainer: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 20,
+  },
+  content: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scanIcon: {
+    marginBottom: 24,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#000',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  description: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 32,
+    paddingHorizontal: 16,
+  },
+  buttonContainer: {
+    width: '100%',
+    gap: 16,
+    marginBottom: 32,
+  },
+  primaryButton: {
     backgroundColor: '#000000',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    gap: 8,
   },
-  headerContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 10,
+  primaryButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '600',
   },
+  secondaryButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  secondaryButtonText: {
+    color: '#374151',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  features: {
+    width: '100%',
+    backgroundColor: '#f8f9fa',
+    padding: 20,
+    borderRadius: 12,
+    marginTop: 16,
+  },
+  featuresTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#000',
+    marginBottom: 12,
+  },
+  featureItem: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 8,
+    lineHeight: 24,
+  },
+  // Camera styles
   cameraContainer: {
     flex: 1,
+    position: 'relative',
   },
   camera: {
     flex: 1,
   },
-  simulatorContainer: {
-    flex: 1,
-    backgroundColor: '#1a1a1a',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  overlay: {
+  cameraOverlay: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    pointerEvents: 'box-none',
   },
   scanArea: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    width: 250,
-    height: 250,
-    marginLeft: -125,
-    marginTop: -125,
-    borderWidth: 2,
+    width: 300,
+    height: 200,
+    borderWidth: 3,
     borderColor: '#ffffff',
     borderRadius: 16,
     backgroundColor: 'transparent',
+    position: 'relative',
   },
   corner: {
     position: 'absolute',
-    width: 32,
-    height: 32,
+    width: 30,
+    height: 30,
   },
   cornerTopLeft: {
-    top: 0,
-    left: 0,
+    top: -3,
+    left: -3,
     borderLeftWidth: 4,
     borderTopWidth: 4,
     borderColor: '#ffffff',
+    borderRadius: 8,
   },
   cornerTopRight: {
-    top: 0,
-    right: 0,
+    top: -3,
+    right: -3,
     borderRightWidth: 4,
     borderTopWidth: 4,
     borderColor: '#ffffff',
+    borderRadius: 8,
   },
   cornerBottomLeft: {
-    bottom: 0,
-    left: 0,
+    bottom: -3,
+    left: -3,
     borderLeftWidth: 4,
     borderBottomWidth: 4,
     borderColor: '#ffffff',
+    borderRadius: 8,
   },
   cornerBottomRight: {
-    bottom: 0,
-    right: 0,
+    bottom: -3,
+    right: -3,
     borderRightWidth: 4,
     borderBottomWidth: 4,
     borderColor: '#ffffff',
+    borderRadius: 8,
+  },
+  scanLine: {
+    position: 'absolute',
+    top: '50%',
+    left: 8,
+    right: 8,
+    height: 2,
+    backgroundColor: '#ff0000',
+    opacity: 0.8,
+  },
+  topControls: {
+    position: 'absolute',
+    top: 20,
+    left: 16,
+    right: 16,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  topControlButton: {
+    width: 44,
+    height: 44,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   instructionText: {
     position: 'absolute',
-    bottom: 200,
-    left: 0,
-    right: 0,
+    bottom: 140,
+    left: 16,
+    right: 16,
+    backgroundColor: 'rgba(0,0,0,0.8)',
     color: '#ffffff',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '500',
     textAlign: 'center',
-    paddingHorizontal: 32,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
   },
   controls: {
     position: 'absolute',
-    bottom: 50,
+    bottom: 60,
     left: 0,
     right: 0,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 32,
+    gap: 24,
   },
   controlButton: {
     width: 64,
@@ -123,243 +218,511 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  controlButtonActive: {
+    backgroundColor: '#fff',
+  },
   scanAgainButton: {
     paddingHorizontal: 24,
     paddingVertical: 12,
-    backgroundColor: '#ffffff',
-    borderRadius: 25,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#000000',
   },
   scanAgainText: {
-    color: '#000000',
+    color: '#000',
     fontWeight: '500',
   },
-  permissionContainer: {
+  errorContainer: {
+    position: 'absolute',
+    top: 120,
+    left: 16,
+    right: 16,
+    backgroundColor: 'rgba(255, 59, 48, 0.9)',
+    padding: 12,
+    borderRadius: 8,
+  },
+  cameraResultsContainer: {
+    position: 'absolute',
+    bottom: 150,
+    left: 16,
+    right: 16,
+    maxHeight: 200,
+  },
+  cameraResults: {
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    borderRadius: 8,
+    padding: 12,
+  },
+  // Manual input styles
+  manualContainer: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#fff',
+  },
+  content: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  manualInputContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+    width: '100%',
+  },
+  textInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 16,
+    backgroundColor: '#fff',
+  },
+  searchButton: {
+    backgroundColor: '#000000',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 32,
   },
-  permissionIcon: {
-    marginBottom: 16,
-  },
-  permissionTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
+  loadingText: {
     color: '#000000',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  permissionText: {
     fontSize: 16,
-    color: '#6b7280',
     textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 24,
+    marginVertical: 16,
   },
-  simulatorContent: {
-    alignItems: 'center',
-    paddingHorizontal: 32,
-  },
-  simulatorTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#ffffff',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  simulatorText: {
+  errorText: {
+    color: '#FF3B30',
     fontSize: 16,
-    color: '#cccccc',
     textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 32,
+    marginVertical: 16,
   },
-  testButtons: {
-    gap: 12,
+  resultsContainer: {
+    flex: 1,
+    marginTop: 16,
     width: '100%',
+  },
+  resultsTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 12,
+    color: '#000',
+  },
+  productItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  productInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  productName: {
+    fontSize: 16,
+    fontWeight: '500',
+    marginBottom: 4,
+    color: '#000',
+  },
+  productNumber: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 2,
+  },
+  productBarcode: {
+    fontSize: 12,
+    color: '#999',
+  },
+  selectButton: {
+    backgroundColor: '#000000',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  selectButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '500',
   },
 });
 
 export default function ScannerScreen() {
-  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const navigation = useNavigation();
+  const [showManualInput, setShowManualInput] = useState(false);
   const [scanned, setScanned] = useState(false);
   const [flashlight, setFlashlight] = useState(false);
-
-  // Check if we're running in a simulator or if camera modules are available
-  const isSimulator = Platform.OS === 'ios' && !BarCodeScanner;
-  const isCameraAvailable = BarCodeScanner && Camera;
+  const [manualInput, setManualInput] = useState('');
+  const [searchResults, setSearchResults] = useState<VysnProduct[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string>('');
+  const [permission, requestPermission] = useCameraPermissions();
+  
+  const scanSessionRef = useRef<string>('');
+  const hasScannedRef = useRef<boolean>(false);
 
   useEffect(() => {
-    if (isCameraAvailable) {
-      const getBarCodeScannerPermissions = async () => {
-        try {
-          const { status } = await BarCodeScanner.requestPermissionsAsync();
-          setHasPermission(status === 'granted');
-        } catch (error) {
-          setHasPermission(false);
-        }
-      };
+    // Generate unique session ID for this scan session
+    scanSessionRef.current = `scan_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }, []);
 
-      getBarCodeScannerPermissions();
+  const trackScan = async (scannedCode: string, scanType: 'barcode' | 'qr_code' | 'manual_input', productFound: boolean = false, searchResultsCount: number = 0) => {
+    try {
+      await scanTrackingService.trackScan({
+        scannedCode,
+        scanType,
+        scanSource: 'native_app',
+        sessionId: scanSessionRef.current,
+        deviceInfo: {
+          platform: Platform.OS,
+          version: Platform.Version
+        },
+        productFound,
+        searchResultsCount
+      });
+    } catch (error) {
+      console.error('Error tracking scan:', error);
+      // Don't fail the scan if tracking fails
     }
-  }, [isCameraAvailable]);
+  };
+
+  const processScannedCode = async (code: string, scanType: 'barcode' | 'qr_code' | 'manual_input') => {
+    setIsLoading(true);
+    setError('');
+    setSearchResults([]);
+    
+    try {
+      // First, try exact barcode match
+      const barcodeMatch = await getProductByBarcode(code);
+      if (barcodeMatch) {
+        await trackScan(code, scanType, true, 1);
+        handleProductFound(barcodeMatch);
+        handleNavigateToProduct(barcodeMatch.itemNumberVysn);
+        return;
+      }
+
+      // Then try searching for products
+      const products = await searchProducts(code);
+      
+      // Check for exact item number match
+      const exactItemMatch = products.find(p => 
+        p.itemNumberVysn?.toLowerCase() === code.toLowerCase()
+      );
+
+      if (exactItemMatch) {
+        await trackScan(code, scanType, true, 1);
+        handleProductFound(exactItemMatch);
+        handleNavigateToProduct(exactItemMatch.itemNumberVysn);
+        return;
+      }
+
+      // If multiple results, show them
+      if (products.length > 0) {
+        await trackScan(code, scanType, true, products.length);
+        setSearchResults(products.slice(0, 5));
+        
+        // If only one result, navigate directly
+        if (products.length === 1) {
+          handleProductFound(products[0]);
+          handleNavigateToProduct(products[0].itemNumberVysn);
+          return;
+        }
+      } else {
+        await trackScan(code, scanType, false, 0);
+        setError(`Kein Produkt gefunden für "${code}"`);
+      }
+    } catch (error: any) {
+      console.error('Error processing scanned code:', error);
+      
+      // Specific error messages based on error type
+      let errorMessage = 'Fehler beim Suchen des Produkts';
+      
+      if (error?.status === 404) {
+        errorMessage = `Kein Produkt gefunden für "${code}"`;
+      } else if (error?.status === 500) {
+        errorMessage = 'Server-Fehler. Bitte versuchen Sie es später erneut.';
+      } else if (error?.status === 0 || error?.message?.includes('Network request failed')) {
+        errorMessage = 'Keine Verbindung zum Server. Prüfen Sie Ihre Internetverbindung.';
+      } else if (error?.status === 408 || error?.message?.includes('timeout')) {
+        errorMessage = 'Zeitüberschreitung. Bitte versuchen Sie es erneut.';
+      } else if (error?.message) {
+        errorMessage = `Fehler: ${error.message}`;
+      }
+      
+      setError(errorMessage);
+      await trackScan(code, scanType, false, 0);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleBarCodeScanned = ({ type, data }: { type: string; data: string }) => {
+    // Prevent double scanning
+    if (hasScannedRef.current) return;
+    hasScannedRef.current = true;
     setScanned(true);
     
-    // Check if it's a product barcode (numeric)
-    if (/^\d+$/.test(data)) {
-      Alert.alert(
-        'Product Barcode Scanned', 
-        `Barcode: ${data}\n\nThis would normally search for the product in your catalog.`,
-        [
-          { text: 'Search Products', onPress: () => setScanned(false) },
-          { text: 'Scan Again', onPress: () => setScanned(false) }
-        ]
-      );
-    } else {
-      Alert.alert(
-        'QR Code Scanned', 
-        `Data: ${data}`,
-        [{ text: 'OK', onPress: () => setScanned(false) }]
-      );
-    }
+    console.log('Code scanned:', data);
+    
+    // Determine scan type
+    const scanType = /^\d+$/.test(data) ? 'barcode' : 'qr_code';
+    processScannedCode(data, scanType);
   };
 
-  const handleSettingsPress = () => {
-    navigation.navigate('Settings');
+  const handleManualSearch = async () => {
+    if (!manualInput.trim()) return;
+    
+    const code = manualInput.trim();
+    await processScannedCode(code, 'manual_input');
   };
 
-  const requestPermission = async () => {
-    if (isCameraAvailable) {
-      try {
-        const { status } = await BarCodeScanner.requestPermissionsAsync();
-        setHasPermission(status === 'granted');
-      } catch (error) {
-        Alert.alert('Error', 'Failed to request camera permissions');
-      }
-    }
+  const selectProduct = (product: VysnProduct) => {
+    handleProductFound(product);
+    handleNavigateToProduct(product.itemNumberVysn);
   };
 
-  // Simulator test functions
-  const simulateProductScan = () => {
-    handleBarCodeScanned({ type: 'code128', data: '1234567890123' });
+  const toggleMode = () => {
+    setShowManualInput(!showManualInput);
+    setScanned(false);
+    setError('');
+    setSearchResults([]);
+    setManualInput('');
   };
 
-  const simulateQRScan = () => {
-    handleBarCodeScanned({ type: 'qr', data: 'https://vysn.com/product/V109001B2B' });
+  const startNewScan = () => {
+    hasScannedRef.current = false;
+    setScanned(false);
+    setError('');
+    setSearchResults([]);
+    setManualInput('');
   };
 
-  // If camera modules are not available (simulator/web)
-  if (!isCameraAvailable) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.headerContainer}>
-          <Header onSettingsPress={handleSettingsPress} />
-        </View>
-        
-        <View style={styles.simulatorContainer}>
-          <View style={styles.simulatorContent}>
-            <QrCode size={64} color="#ffffff" style={styles.permissionIcon} />
-            <Text style={styles.simulatorTitle}>Scanner Simulator</Text>
-            <Text style={styles.simulatorText}>
-              Camera scanning is not available in the simulator. Use the buttons below to test scanner functionality.
-            </Text>
-            
-            <View style={styles.testButtons}>
-              <Button onPress={simulateProductScan}>
-                Test Product Barcode Scan
-              </Button>
-              <Button variant="outline" onPress={simulateQRScan}>
-                Test QR Code Scan
-              </Button>
-            </View>
-          </View>
-        </View>
-      </View>
+
+
+  const handleProductFound = (product: VysnProduct) => {
+    // Show success message or handle product found
+    Alert.alert(
+      'Produkt gefunden!', 
+      `${product.vysnName}\nArtikelnummer: ${product.itemNumberVysn}`,
+      [{ text: 'OK' }]
     );
-  }
+  };
 
-  if (hasPermission === null) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.headerContainer}>
-          <Header onSettingsPress={handleSettingsPress} />
-        </View>
-        <View style={styles.permissionContainer}>
-          <Text style={styles.permissionText}>Requesting camera permission...</Text>
-        </View>
-      </View>
-    );
-  }
-
-  if (hasPermission === false) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.headerContainer}>
-          <Header onSettingsPress={handleSettingsPress} />
-        </View>
-        <View style={styles.permissionContainer}>
-          <QrCode size={64} color="#d1d5db" style={styles.permissionIcon} />
-          <Text style={styles.permissionTitle}>Camera Permission Required</Text>
-          <Text style={styles.permissionText}>
-            We need access to your camera to scan QR codes and barcodes for product identification and information retrieval.
-          </Text>
-          <Button onPress={requestPermission}>Grant Permission</Button>
-        </View>
-      </View>
-    );
-  }
+  const handleNavigateToProduct = (itemNumber: string) => {
+    // Navigate to product detail screen
+    navigation.navigate('ProductDetail' as any, { id: itemNumber });
+  };
 
   return (
     <View style={styles.container}>
-      <View style={styles.headerContainer}>
-        <Header onSettingsPress={handleSettingsPress} />
-      </View>
+      {/* Always show header like other tabs */}
+              <Header onSettingsPress={() => navigation.navigate('Settings' as any)} />
       
-      <View style={styles.cameraContainer}>
-        <BarCodeScanner
-          onBarCodeScanned={scanned ? undefined : handleBarCodeScanned}
-          style={styles.camera}
-          flashMode={flashlight ? Camera.Constants.FlashMode.torch : Camera.Constants.FlashMode.off}
-        >
-          {/* Overlay */}
-          <View style={styles.overlay} />
+      {/* Camera view takes remaining space */}
+      {!showManualInput && permission && permission.granted ? (
+        <View style={styles.cameraContainer}>
+          <CameraView
+            style={styles.camera}
+            barcodeScannerSettings={{ 
+              barcodeTypes: ['qr', 'ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39', 'code93', 'codabar', 'itf14'] 
+            }}
+            onBarcodeScanned={hasScannedRef.current ? undefined : handleBarCodeScanned}
+          />
           
-          {/* Scan Area */}
-          <View style={styles.scanArea}>
-            <View style={[styles.corner, styles.cornerTopLeft]} />
-            <View style={[styles.corner, styles.cornerTopRight]} />
-            <View style={[styles.corner, styles.cornerBottomLeft]} />
-            <View style={[styles.corner, styles.cornerBottomRight]} />
-          </View>
-          
-          {/* Instruction Text */}
-          <Text style={styles.instructionText}>
-            {scanned ? 'Tap to scan again' : 'Point camera at QR code or barcode'}
-          </Text>
-          
-          {/* Controls */}
-          <View style={styles.controls}>
-            <TouchableOpacity
-              onPress={() => setFlashlight(!flashlight)}
-              style={styles.controlButton}
-            >
-              <Zap size={24} color={flashlight ? '#fff' : '#ccc'} />
+          {/* Top controls - absolute positioned */}
+          <View style={styles.topControls}>
+            <TouchableOpacity onPress={toggleMode} style={styles.topControlButton}>
+              <Keyboard size={24} color="#ffffff" />
             </TouchableOpacity>
-            
-            {scanned && (
-              <TouchableOpacity
-                onPress={() => setScanned(false)}
-                style={styles.scanAgainButton}
-              >
-                <Text style={styles.scanAgainText}>Scan Again</Text>
-              </TouchableOpacity>
-            )}
           </View>
-        </BarCodeScanner>
-      </View>
+          
+          {/* Camera overlay with scan area - absolute positioned */}
+          <View style={styles.cameraOverlay}>
+            {/* Scan Area */}
+            <View style={styles.scanArea}>
+              <View style={[styles.corner, styles.cornerTopLeft]} />
+              <View style={[styles.corner, styles.cornerTopRight]} />
+              <View style={[styles.corner, styles.cornerBottomLeft]} />
+              <View style={[styles.corner, styles.cornerBottomRight]} />
+              {/* Scanning line */}
+              <View style={styles.scanLine} />
+            </View>
+            
+            {/* Instruction Text */}
+            <Text style={styles.instructionText}>
+              {scanned ? 'Verarbeitung...' : isLoading ? 'Suche läuft...' : 'Barcode in den Rahmen halten'}
+            </Text>
+            
+            {/* Bottom Controls */}
+            <View style={styles.controls}>
+              {(scanned || error) && (
+                <TouchableOpacity
+                  onPress={startNewScan}
+                  style={styles.scanAgainButton}
+                >
+                  <Text style={styles.scanAgainText}>Erneut scannen</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+
+          {/* Error overlay - absolute positioned */}
+          {error && (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          )}
+
+          {/* Results overlay - absolute positioned */}
+          {searchResults.length > 0 && (
+            <View style={styles.cameraResultsContainer}>
+              <ScrollView style={styles.cameraResults}>
+                <Text style={styles.resultsTitle}>Suchergebnisse:</Text>
+                {searchResults.map((product) => (
+                  <TouchableOpacity
+                    key={product.itemNumberVysn}
+                    style={styles.productItem}
+                    onPress={() => selectProduct(product)}
+                  >
+                    <View style={styles.productInfo}>
+                      <Text style={styles.productName} numberOfLines={1}>
+                        {product.vysnName}
+                      </Text>
+                      <Text style={styles.productNumber}>#{product.itemNumberVysn}</Text>
+                    </View>
+                    <TouchableOpacity style={styles.selectButton}>
+                      <Check size={16} color="#fff" />
+                    </TouchableOpacity>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+        </View>
+      ) : (
+        // Non-camera modes
+        <View style={styles.mainContainer}>
+            {showManualInput ? (
+              // Manual input mode
+              <View style={styles.manualContainer}>
+                <View style={styles.content}>
+                  <Search size={64} color="#000000" style={styles.scanIcon} />
+                  <Text style={styles.title}>Manuelle Eingabe</Text>
+                  <Text style={styles.description}>
+                    Geben Sie eine Barcode-Nummer oder Artikelnummer ein
+                  </Text>
+                  
+                  <View style={styles.buttonContainer}>
+                    <View style={styles.manualInputContainer}>
+                      <TextInput
+                        style={styles.textInput}
+                        value={manualInput}
+                        onChangeText={setManualInput}
+                        placeholder="Barcode oder Artikelnummer eingeben"
+                        placeholderTextColor="#999"
+                        onSubmitEditing={handleManualSearch}
+                      />
+                      <TouchableOpacity 
+                        style={styles.searchButton} 
+                        onPress={handleManualSearch}
+                        disabled={isLoading}
+                      >
+                        <Search size={20} color="#fff" />
+                      </TouchableOpacity>
+                    </View>
+                    
+                    <TouchableOpacity 
+                      style={styles.secondaryButton} 
+                      onPress={toggleMode}
+                    >
+                      <CameraIcon size={20} color="#000000" />
+                      <Text style={styles.secondaryButtonText}>Zur Kamera wechseln</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {isLoading && (
+                    <Text style={styles.loadingText}>Suche läuft...</Text>
+                  )}
+
+                  {error && (
+                    <Text style={styles.errorText}>{error}</Text>
+                  )}
+
+                  {searchResults.length > 0 && (
+                    <ScrollView style={styles.resultsContainer}>
+                      <Text style={styles.featuresTitle}>Suchergebnisse:</Text>
+                      {searchResults.map((product) => (
+                        <TouchableOpacity
+                          key={product.itemNumberVysn}
+                          style={styles.productItem}
+                          onPress={() => selectProduct(product)}
+                        >
+                          <View style={styles.productInfo}>
+                            <Text style={styles.productName} numberOfLines={2}>
+                              {product.vysnName}
+                            </Text>
+                            <Text style={styles.productNumber}>#{product.itemNumberVysn}</Text>
+                            {product.barcodeNumber && (
+                              <Text style={styles.productBarcode}>
+                                Barcode: {product.barcodeNumber}
+                              </Text>
+                            )}
+                          </View>
+                          <TouchableOpacity style={styles.selectButton}>
+                            <Text style={styles.selectButtonText}>Auswählen</Text>
+                          </TouchableOpacity>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  )}
+                </View>
+              </View>
+            ) : !permission ? (
+              // Loading permission
+              <View style={styles.content}>
+                <CameraIcon size={120} color="#000000" style={styles.scanIcon} />
+                <Text style={styles.title}>Kamera wird vorbereitet...</Text>
+                <Text style={styles.description}>
+                  Kamera-Berechtigung wird angefragt...
+                </Text>
+              </View>
+            ) : !permission.granted ? (
+              // Permission denied
+              <View style={styles.content}>
+                <CameraIcon size={120} color="#ff3b30" style={styles.scanIcon} />
+                <Text style={styles.title}>Kamera-Berechtigung erforderlich</Text>
+                <Text style={styles.description}>
+                  Wir benötigen Zugriff auf Ihre Kamera, um Barcodes und QR-Codes zu scannen.
+                </Text>
+                
+                <View style={styles.buttonContainer}>
+                  <TouchableOpacity style={styles.primaryButton} onPress={requestPermission}>
+                    <CameraIcon size={24} color="#fff" />
+                    <Text style={styles.primaryButtonText}>Berechtigung erteilen</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity 
+                    style={styles.secondaryButton} 
+                    onPress={() => setShowManualInput(true)}
+                  >
+                    <Keyboard size={20} color="#000000" />
+                    <Text style={styles.secondaryButtonText}>Manuelle Eingabe verwenden</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : null}
+        </View>
+      )}
     </View>
   );
 }

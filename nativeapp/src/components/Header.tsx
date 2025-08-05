@@ -1,8 +1,7 @@
 import React from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Settings, LogOut } from 'lucide-react-native';
-import { useAuth } from '../../lib/contexts/AuthContext';
+import { Settings } from 'lucide-react-native';
 
 const styles = StyleSheet.create({
   container: {
@@ -36,41 +35,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  logoutButton: {
-    padding: 8,
-    borderRadius: 6,
-  },
 });
 
 interface HeaderProps {
-  onSettingsPress?: () => void;
-  showLogout?: boolean;
+  onSettingsPress: () => void;
 }
 
-export default function Header({ onSettingsPress, showLogout = true }: HeaderProps) {
-  const auth = useAuth();
-
-  const handleLogout = () => {
-    if (!auth) return;
-
-    Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out of your VYSN account?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Sign Out',
-          style: 'destructive',
-          onPress: async () => {
-            const { error } = await auth.signOut();
-            if (error) {
-              Alert.alert('Error', 'Failed to sign out');
-            }
-          },
-        },
-      ]
-    );
-  };
+export default function Header({ onSettingsPress }: HeaderProps) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -84,23 +55,12 @@ export default function Header({ onSettingsPress, showLogout = true }: HeaderPro
         </View>
         
         <View style={styles.headerActions}>
-          {showLogout && (
-            <TouchableOpacity
-              onPress={handleLogout}
-              style={styles.logoutButton}
-            >
-              <LogOut size={20} color="#ef4444" />
-            </TouchableOpacity>
-          )}
-          
-          {onSettingsPress && (
-            <TouchableOpacity
-              onPress={onSettingsPress}
-              style={styles.settingsButton}
-            >
-              <Settings size={24} color="#000" />
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity
+            onPress={onSettingsPress}
+            style={styles.settingsButton}
+          >
+            <Settings size={24} color="#000" />
+          </TouchableOpacity>
         </View>
       </View>
     </SafeAreaView>

@@ -1,25 +1,15 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { View, Text } from 'react-native';
 import { Home, Search, QrCode, Bot, FolderOpen } from 'lucide-react-native';
 
 // Import aller echten Screens
 import HomeScreen from '../screens/HomeScreen';
-import ProductsScreen from '../screens/ProductsScreen';
+import ProductsStackNavigator from './ProductsStackNavigator';
+import ScannerStackNavigator from './ScannerStackNavigator';
 import AIChatScreen from '../screens/AIChatScreen';
 import ProjectsStackNavigator from './ProjectsStackNavigator';
 
-// Einfacher Test-Scanner Screen
-function TestScannerScreen() {
-  return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#ffffff' }}>
-      <Text style={{ fontSize: 24, fontWeight: 'bold' }}>Scanner</Text>
-      <Text style={{ fontSize: 16, marginTop: 10, textAlign: 'center' }}>
-        QR/Barcode Scanner{'\n'}Coming Soon!
-      </Text>
-    </View>
-  );
-}
+
 
 const Tab = createBottomTabNavigator();
 
@@ -62,8 +52,8 @@ export default function TabNavigator() {
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Products" component={ProductsScreen} />
-      <Tab.Screen name="Scanner" component={TestScannerScreen} />
+      <Tab.Screen name="Products" component={ProductsStackNavigator} />
+      <Tab.Screen name="Scanner" component={ScannerStackNavigator} />
       <Tab.Screen name="AI Chat" component={AIChatScreen} />
       <Tab.Screen name="Projects" component={ProjectsStackNavigator} />
     </Tab.Navigator>
