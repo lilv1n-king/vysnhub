@@ -74,7 +74,7 @@ router.post('/', async (req: Request, res: Response) => {
 router.get('/all', authenticateToken, async (req: Request, res: Response) => {
   try {
     // Prüfen ob Benutzer Admin ist
-    const userRole = req.user?.role;
+    const userRole = (req.user as any)?.role;
     if (userRole !== 'admin') {
       return res.status(403).json({
         error: 'Admin-Rechte erforderlich'
@@ -135,7 +135,7 @@ router.get('/session/:sessionId', async (req: Request, res: Response) => {
 router.get('/stats', authenticateToken, async (req: Request, res: Response) => {
   try {
     // Prüfen ob Benutzer Admin ist
-    const userRole = req.user?.role;
+    const userRole = (req.user as any)?.role;
     if (userRole !== 'admin') {
       return res.status(403).json({
         error: 'Admin-Rechte erforderlich'
@@ -160,7 +160,7 @@ router.get('/stats', authenticateToken, async (req: Request, res: Response) => {
  */
 router.get('/popular-codes', authenticateToken, async (req: Request, res: Response) => {
   try {
-    const userRole = req.user?.role;
+    const userRole = (req.user as any)?.role;
     if (userRole !== 'admin') {
       return res.status(403).json({
         error: 'Admin-Rechte erforderlich'

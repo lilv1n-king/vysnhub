@@ -94,12 +94,12 @@ export class OrderService {
         }
       }
 
-      console.log('✅ Order created:', order.id, order.order_number);
+      console.log('✅ Order created:', order!.id, order!.order_number);
 
       // Erstelle Order Items
       const orderItemsWithOrderId = orderItems.map(item => ({
         ...item,
-        order_id: order.id
+        order_id: order!.id
       }));
 
       const { data: itemsResult, error: itemsError } = await userSupabase
@@ -110,14 +110,14 @@ export class OrderService {
       if (itemsError) {
         console.error('Order items creation error:', itemsError);
         // Rollback: Delete the order if items creation fails
-        await userSupabase.from('orders').delete().eq('id', order.id);
+        await userSupabase.from('orders').delete().eq('id', order!.id);
         throw new Error(`Failed to create order items: ${itemsError.message}`);
       }
 
       const items = itemsResult as OrderItem[];
       console.log(`✅ Created ${items.length} order items`);
 
-      return { order, items };
+      return { order: order!, items };
 
     } catch (error) {
       console.error('OrderService.createOrder error:', error);

@@ -1,4 +1,4 @@
-import { Expo, ExpoPushMessage, ExpoPushTicket, ExpoPushReceiptError } from 'expo-server-sdk';
+import { Expo, ExpoPushMessage, ExpoPushTicket, ExpoPushReceipt } from 'expo-server-sdk';
 
 interface PushTokenData {
   token: string;
@@ -182,7 +182,7 @@ class PushNotificationService {
           const receipt = receipts[receiptId];
           
           if (receipt.status === 'error') {
-            const error = receipt as ExpoPushReceiptError;
+            const error = receipt as any;
             console.error(`Push notification error for receipt ${receiptId}:`, error);
             
             // Token ist ungültig - entfernen

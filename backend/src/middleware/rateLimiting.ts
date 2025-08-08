@@ -38,7 +38,7 @@ export function createRateLimit(options: {
     maxRequests,
     skipSuccessfulRequests = false,
     skipFailedRequests = false,
-    keyGenerator = (req) => req.ip,
+    keyGenerator = (req) => req.ip || 'unknown',
     message = 'Zu viele Anfragen. Versuchen Sie es später erneut.'
   } = options;
 
@@ -69,7 +69,7 @@ export function createRateLimit(options: {
     // Limit überschritten?
     if (data.count > maxRequests) {
       // IP als verdächtig markieren
-      suspiciousIPs.add(req.ip);
+      if (req.ip) suspiciousIPs.add(req.ip);
       
       if (options.onLimitReached) {
         options.onLimitReached(req, res);
@@ -150,17 +150,17 @@ export const progressiveRateLimit = (baseLimit: number = 100) => {
   return createRateLimit({
     windowMs: 15 * 60 * 1000,
     maxRequests: baseLimit,
-    keyGenerator: (req) => req.ip,
+    keyGenerator: (req) => req.ip || 'unknown',
     onLimitReached: (req, res) => {
-      const violations = violationCount.get(req.ip) || 0;
-      violationCount.set(req.ip, violations + 1);
+      const violations = violationCount.get(req.ip || 'unknown') || 0;
+      violationCount.set(req.ip || 'unknown', violations + 1);
       
       // Log verdächtige Aktivität
-      console.warn(`Rate limit violation #${violations + 1} for IP: ${req.ip}`);
+      console.warn(`Rate limit violation #${violations + 1} for IP: ${req.ip || 'unknown'}`);
       
       // Nach 3 Verstößen: Längere Sperre
       if (violations >= 2) {
-        suspiciousIPs.add(req.ip);
+        if (req.ip) suspiciousIPs.add(req.ip);
         res.setHeader('Retry-After', '3600'); // 1 Stunde
       }
     }
@@ -196,7 +196,7 @@ export const userRateLimit = (maxRequests: number = 500) => {
         return `user:${req.user.id}`;
       }
       // Unauthentifiziert: IP verwenden
-      return `ip:${req.ip}`;
+      return `ip:${req.ip || 'unknown'}`;
     },
     message: 'Benutzer-Limit erreicht. Limit: 500 Anfragen pro Stunde.'
   });
@@ -209,7 +209,7 @@ export const endpointRateLimit = (endpoint: string, maxRequests: number) => {
   return createRateLimit({
     windowMs: 60 * 1000, // 1 Minute
     maxRequests,
-    keyGenerator: (req) => `${req.ip}:${endpoint}`,
+    keyGenerator: (req) => `${req.ip || 'unknown'}:${endpoint}`,
     message: `Zu viele Anfragen an ${endpoint}. Limit: ${maxRequests} pro Minute.`
   });
 };
@@ -225,7 +225,7 @@ export const geoRateLimit = createRateLimit({
   keyGenerator: (req) => {
     const country = req.headers['cf-ipcountry'] as string; // Cloudflare-Header
     const isHighRisk = highRiskCountries.includes(country);
-    return isHighRisk ? `high-risk:${req.ip}` : req.ip;
+    return isHighRisk ? `high-risk:${req.ip || 'unknown'}` : req.ip || 'unknown';
   }
 });
 
@@ -239,7 +239,7 @@ export const bruteForceProtection = (
   blockDurationMs: number = 30 * 60 * 1000 // 30 Minuten
 ) => {
   return (req: Request, res: Response, next: NextFunction): void => {
-    const key = `${req.ip}:${req.path}`;
+    const key = `${req.ip || 'unknown'}:${req.path}`;
     const now = Date.now();
     
     const attempts = failedAttempts.get(key);
@@ -352,9 +352,9 @@ export default {
 export const rateLimitEmail = createRateLimit({
   windowMs: 60 * 60 * 1000, // 1 Stunde
   maxRequests: 10, // Max 10 Emails pro Stunde pro User
-  keyGenerator: (req: Request) => `email:${req.user?.id || req.ip}`,
+  keyGenerator: (req: Request) => `email:${req.user?.id || req.ip || 'unknown'}`,
   message: 'Email-Limit erreicht. Maximal 10 E-Mails pro Stunde erlaubt.',
   onLimitReached: (req: Request, res: Response) => {
-    console.warn(`🚨 Email rate limit reached for user: ${req.user?.id || req.ip}`);
+    console.warn(`🚨 Email rate limit reached for user: ${req.user?.id || req.ip || 'unknown'}`);
   }
 });

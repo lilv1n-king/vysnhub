@@ -158,8 +158,8 @@ export const validateFileUpload = (
 
   const maxFileSize = 5 * 1024 * 1024; // 5MB
 
-  if (req.file) {
-    const { mimetype, size, originalname } = req.file;
+  if ((req as any).file) {
+    const { mimetype, size, originalname } = (req as any).file;
 
     const errors: string[] = [];
 
@@ -238,13 +238,13 @@ export const userRateLimit = (
 ) => {
   return (req: Request, res: Response, next: NextFunction): void => {
     // Benutzer-ID aus auth context
-    const userId = req.user?.id || req.ip;
+    const userId = req.user?.id || req.ip || 'unknown';
     
     const now = Date.now();
     const record = userRequestCounts.get(userId);
     
     if (!record || now > record.resetTime) {
-      userRequestCounts.set(userId, { count: 1, resetTime: now + windowMs });
+      userRequestCounts.set(userId!, { count: 1, resetTime: now + windowMs });
       next();
       return;
     }

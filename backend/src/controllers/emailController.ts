@@ -104,7 +104,7 @@ export class EmailController {
       }
 
       const orderItemsData: CreateOrderItemData[] = validProducts.map(product => ({
-        product_id: product.productId,
+        product_id: product.productId!,
         quantity: product.quantity,
         unit_price: product.unitPrice,
         line_total: product.totalPrice,
@@ -337,7 +337,7 @@ export class EmailController {
             quantity: item.quantity,
             unitPrice: 0,
             totalPrice: 0,
-            productId: null // Explizit null für Filterung
+            productId: undefined // Explizit undefined für Filterung
           });
         }
       } catch (error) {
@@ -349,7 +349,7 @@ export class EmailController {
           quantity: item.quantity,
           unitPrice: 0,
           totalPrice: 0,
-          productId: null // Explizit null für Filterung
+          productId: undefined // Explizit undefined für Filterung
         });
       }
     }
@@ -410,11 +410,16 @@ export class EmailController {
         customerCompany: customerInfo.company,
         orderNotes: orderNotes || '',
         project: {
+          id: 'cart-order',
+          user_id: req.user!.id,
           project_name: `Warenkorb-Bestellung ${order.order_number}`,
           project_description: 'Direkte Bestellung über Warenkorb',
           project_notes: `Warenkorb-Artikel:\n${cartItems.map((item: any) => 
             `- ${item.quantity}x ${item.productName} (${item.itemNumber})`
-          ).join('\n')}`
+          ).join('\n')}`,
+          status: 'active' as const,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         },
         products: cartItems.map((item: any) => ({
           name: item.productName,

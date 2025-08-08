@@ -29,7 +29,7 @@ export const generateCsrfTokenMiddleware = (
   next: NextFunction
 ): void => {
   // Benutzer-ID oder Session-ID als Key verwenden
-  const sessionKey = req.user?.id || req.session?.id || req.ip;
+  const sessionKey = req.user?.id || (req as any).session?.id || req.ip;
   
   const token = generateCsrfToken();
   const expires = Date.now() + TOKEN_EXPIRY;
@@ -60,7 +60,7 @@ export const validateCsrfToken = (
     return;
   }
 
-  const sessionKey = req.user?.id || req.session?.id || req.ip;
+  const sessionKey = req.user?.id || (req as any).session?.id || req.ip;
   
   // Token aus Header oder Body holen
   const clientToken = req.headers['x-csrf-token'] || 
@@ -121,7 +121,7 @@ export const validateCsrfToken = (
  * API-Endpunkt: Neuen CSRF-Token anfordern
  */
 export const getCsrfToken = (req: Request, res: Response): void => {
-  const sessionKey = req.user?.id || req.session?.id || req.ip;
+  const sessionKey = req.user?.id || (req as any).session?.id || req.ip;
   
   const token = generateCsrfToken();
   const expires = Date.now() + TOKEN_EXPIRY;
@@ -209,7 +209,7 @@ export const setSameSiteCookies = (
       maxAge: 15 * 60 * 1000 // 15 Minuten
     };
     
-    return originalCookie.call(this, name, value, secureOptions);
+    return (originalCookie as any).call(this, name, value, secureOptions);
   };
   
   next();

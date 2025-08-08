@@ -45,21 +45,20 @@ class CartService {
   async getOrCreateCart(userId?: string, sessionId?: string): Promise<Cart | null> {
     try {
       // Zuerst versuchen, bestehenden aktiven Warenkorb zu finden
-      let query = supabase
+      let queryBuilder = supabase
         .from('carts')
         .select('*')
-        .eq('status', 'active')
-        .single();
+        .eq('status', 'active');
 
       if (userId) {
-        query = query.eq('user_id', userId);
+        queryBuilder = queryBuilder.eq('user_id', userId);
       } else if (sessionId) {
-        query = query.eq('session_id', sessionId);
+        queryBuilder = queryBuilder.eq('session_id', sessionId);
       } else {
         throw new Error('Either userId or sessionId is required');
       }
 
-      const { data: existingCart, error: fetchError } = await query;
+      const { data: existingCart, error: fetchError } = await queryBuilder.single();
 
       if (existingCart && !fetchError) {
         return existingCart;

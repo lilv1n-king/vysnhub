@@ -998,7 +998,7 @@ Antworte nur mit den NUMMERN der relevanten Nachrichten (z.B. "1,3" oder "keine"
       });
 
       const data = await response.json();
-      const relevantNumbers = data.choices?.[0]?.message?.content?.trim() || '';
+      const relevantNumbers = (data as any).choices?.[0]?.message?.content?.trim() || '';
       
       console.log(`DEBUG: GPT context relevance decision: "${relevantNumbers}"`);
       
@@ -1056,7 +1056,7 @@ Suchbegriffe:`;
       });
 
       const data = await response.json();
-      const extractedTerm = data.choices?.[0]?.message?.content?.trim() || message;
+      const extractedTerm = (data as any).choices?.[0]?.message?.content?.trim() || message;
       
       return extractedTerm;
     } catch (error) {

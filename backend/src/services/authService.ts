@@ -49,6 +49,13 @@ export class AuthService {
         last_name: data.user.user_metadata?.last_name || '',
         company_name: data.user.user_metadata?.company_name,
         phone: data.user.user_metadata?.phone,
+        customer_type: 'standard',
+        discount_percentage: 0,
+        account_status: 'active',
+        language: 'de',
+        currency: 'EUR',
+        newsletter_subscription: false,
+        marketing_emails: false,
         created_at: data.user.created_at,
         updated_at: data.user.updated_at || data.user.created_at
       };
@@ -95,6 +102,13 @@ export class AuthService {
         last_name: userData.last_name,
         company_name: userData.company_name,
         phone: userData.phone,
+        customer_type: 'standard',
+        discount_percentage: 0,
+        account_status: 'active',
+        language: 'de',
+        currency: 'EUR',
+        newsletter_subscription: false,
+        marketing_emails: false,
         created_at: authData.user.created_at,
         updated_at: authData.user.updated_at || authData.user.created_at
       };
@@ -123,6 +137,13 @@ export class AuthService {
         last_name: user.user_metadata?.last_name || '',
         company_name: user.user_metadata?.company_name,
         phone: user.user_metadata?.phone,
+        customer_type: 'standard',
+        discount_percentage: 0,
+        account_status: 'active',
+        language: 'de',
+        currency: 'EUR',
+        newsletter_subscription: false,
+        marketing_emails: false,
         created_at: user.created_at,
         updated_at: user.updated_at || user.created_at
       };
@@ -157,6 +178,13 @@ export class AuthService {
         last_name: data.user.user_metadata?.last_name || '',
         company_name: data.user.user_metadata?.company_name,
         phone: data.user.user_metadata?.phone,
+        customer_type: 'standard',
+        discount_percentage: 0,
+        account_status: 'active',
+        language: 'de',
+        currency: 'EUR',
+        newsletter_subscription: false,
+        marketing_emails: false,
         created_at: data.user.created_at,
         updated_at: data.user.updated_at || data.user.created_at
       };
@@ -335,6 +363,13 @@ export class AuthService {
         last_name: userData.user.user_metadata?.last_name || '',
         company_name: userData.user.user_metadata?.company_name,
         phone: userData.user.user_metadata?.phone,
+        customer_type: 'standard',
+        discount_percentage: 0,
+        account_status: 'active',
+        language: 'de',
+        currency: 'EUR',
+        newsletter_subscription: false,
+        marketing_emails: false,
         created_at: userData.user.created_at,
         updated_at: userData.user.updated_at || userData.user.created_at
       };
