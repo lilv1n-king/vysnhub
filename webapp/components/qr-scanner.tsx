@@ -90,7 +90,7 @@ export default function BarcodeScanner() {
         setError('');
 
         // Start scanning
-        reader.decodeFromVideoDevice(null, videoRef.current, (result, err) => {
+        reader.decodeFromVideoDevice(null, videoRef.current, async (result, err) => {
           if (result) {
             const barcodeText = result.getText();
             console.log('Barcode gefunden:', barcodeText);

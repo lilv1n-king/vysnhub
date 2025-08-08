@@ -93,8 +93,7 @@ const nextConfig: NextConfig = {
   
   // Weitere Sicherheitsoptionen
   experimental: {
-    // Server Components verwenden (sicherer)
-    serverComponents: true
+    // Next.js 15 uses Server Components by default
   },
   
   // Image-Optimization Sicherheit
@@ -112,19 +111,18 @@ const nextConfig: NextConfig = {
       // Produktions-Optimierungen
       config.optimization = {
         ...config.optimization,
-        minimize: true,
-        // Source Maps nur in Development
-        ...(dev ? {} : { devtool: false })
+        minimize: true
+      }
+      // devtool is handled at root level, not in optimization
+      if (!dev) {
+        config.devtool = false;
       }
     }
     
     return config
   },
   
-  // Environment Variables Validierung
-  env: {
-    NODE_ENV: process.env.NODE_ENV,
-  },
+  // Environment Variables are handled automatically by Next.js
   
   // Build-Zeit Validierungen
   generateBuildId: () => {

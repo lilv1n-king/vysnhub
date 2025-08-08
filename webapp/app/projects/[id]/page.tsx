@@ -129,13 +129,11 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
   // Calculate totals from loaded projectProducts
 
-  // Calculate total value based on current quantities
-  const totalValue = projectProducts.reduce((sum, item) => {
-    return sum + (item.quantity * (item.product?.grossPrice || 0));
-  }, 0);
-
   // Calculate total items based on current quantities
-  const totalItems = projectProducts.reduce((sum, item) => sum + item.quantity, 0);
+  const totalItems = project?.products.reduce((sum, item) => sum + item.quantity, 0) || 0;
+  
+  // For now, set totalValue to 0 (will need product data loading)
+  const totalValue = 0;
 
   const updateQuantity = (itemNumber: string, newQuantity: number) => {
     if (newQuantity >= 0) {
@@ -160,12 +158,12 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     if (format === 'csv') {
       content = [
         'Item Number,Product Name,Quantity,Unit Price (€),Total Price (€)',
-        ...projectProducts.map(item => 
-          `${item.itemNumber},"${item.product?.vysnName}",${item.quantity},${item.product?.grossPrice?.toFixed(2)},${(item.quantity * (item.product?.grossPrice || 0)).toFixed(2)}`
+        ...(project?.products || []).map(item => 
+          `${item.itemNumber},"Unknown Product",${item.quantity},0.00,0.00`
         ),
         `,,,,${totalValue.toFixed(2)}`
       ].join('\n');
-      filename = `${project.name.replace(/\s+/g, '_')}_products.csv`;
+      filename = `${project?.name?.replace(/\s+/g, '_') || 'project'}_products.csv`;
       mimeType = 'text/csv';
     } else if (format === 'excel') {
       // In real app, this would generate actual Excel
@@ -371,12 +369,12 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
         <div>
           <h2 className="text-xl font-bold text-black mb-6">Products Used</h2>
           <div className="space-y-4">
-            {projectProducts.map((item, index) => (
+            {(project?.products || []).map((item, index) => (
               <div key={index} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
-                    <h3 className="font-medium text-black text-base mb-1">{item.product?.vysnName}</h3>
-                    <p className="text-gray-600 text-sm">{item.product?.shortDescription}</p>
+                    <h3 className="font-medium text-black text-base mb-1">Item {item.itemNumber}</h3>
+                    <p className="text-gray-600 text-sm">Product details</p>
                     <p className="text-gray-500 text-sm">Item #{item.itemNumber}</p>
                   </div>
                   <div className="text-right ml-4">
@@ -407,8 +405,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                         <Plus className="h-3 w-3" />
                       </Button>
                     </div>
-                    <div className="text-sm text-gray-600">€{item.product?.grossPrice} each</div>
-                    <div className="text-base font-bold text-black">€{(item.quantity * (item.product?.grossPrice || 0)).toFixed(2)}</div>
+                    <div className="text-sm text-gray-600">€0.00 each</div>
+                    <div className="text-base font-bold text-black">€0.00</div>
                     <Link href={`/products/${item.itemNumber}`}>
                       <Button variant="ghost" size="sm" className="text-gray-600 hover:text-black p-1 h-auto mt-1">
                         <ExternalLink className="h-4 w-4" />
