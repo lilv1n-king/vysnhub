@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Image, TouchableOpacity, FlatList, StyleSheet, Alert, Modal, ActivityIndicator, TextInput, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Search, ShoppingCart, X, Plus, Minus } from 'lucide-react-native';
+import { Search, ShoppingCart, X, Plus, Minus, Filter } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { ProductsStackParamList } from '../navigation/ProductsStackNavigator';
 import { Card, CardContent } from '../components/ui/Card';
@@ -10,10 +11,12 @@ import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
 import Header from '../components/Header';
 import { VysnProduct } from '../../lib/types/product';
-import { getProducts } from '../../lib/utils/product-data';
+import { getProducts, searchProducts } from '../../lib/utils/product-data';
 import { Project } from '../../lib/types/project';
 import { useAuth } from '../../lib/contexts/AuthContext';
-import { supabase } from '../../lib/utils/supabase';
+import { projectService } from '../../lib/services/projectService';
+import ProductFilterBar, { ProductFilters, FilterOptions } from '../components/ProductFilterBar';
+import { filterService } from '../../lib/services/filterService';
 
 const styles = StyleSheet.create({
   container: {
@@ -21,20 +24,48 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
   },
   searchContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
   },
   searchInputContainer: {
     position: 'relative',
+    flex: 1,
+    backgroundColor: '#f8fafc',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   searchIcon: {
     position: 'absolute',
-    left: 12,
-    top: 12,
+    left: 16,
+    top: 16,
     zIndex: 1,
   },
   searchInput: {
-    paddingLeft: 40,
+    paddingLeft: 48,
+    paddingRight: 20,
+    paddingVertical: 16,
+    fontSize: 16,
+    fontWeight: '500',
+    backgroundColor: 'transparent',
+    borderRadius: 16,
+    borderWidth: 0,
+    minHeight: 52,
+    color: '#000000',
   },
   productList: {
     padding: 8,
@@ -47,6 +78,14 @@ const styles = StyleSheet.create({
   productCard: {
     height: 140,
     backgroundColor: '#ffffff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   productContent: {
     padding: 16,
@@ -193,6 +232,70 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginLeft: 4,
   },
+  // Filter-related styles
+  filterButtonContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  filterButton: {
+    position: 'relative',
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  filterButtonActive: {
+    backgroundColor: '#000000',
+    borderColor: '#000000',
+    shadowOpacity: 0.15,
+  },
+  filterBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#ef4444',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  filterBadgeText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  clearFiltersButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
+  },
 });
 
 type ProductsScreenNavigationProp = StackNavigationProp<ProductsStackParamList, 'ProductsList'>;
@@ -200,6 +303,7 @@ type ProductsScreenNavigationProp = StackNavigationProp<ProductsStackParamList, 
 export default function ProductsScreen() {
   const navigation = useNavigation<ProductsScreenNavigationProp>();
   const auth = useAuth();
+  const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
   const [products, setProducts] = useState<VysnProduct[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<VysnProduct[]>([]);
@@ -209,60 +313,171 @@ export default function ProductsScreen() {
   const [userProjects, setUserProjects] = useState<Project[]>([]);
   const [newProjectName, setNewProjectName] = useState('');
   const [quantity, setQuantity] = useState(1);
+  
+  // Filter-related state
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [currentFilters, setCurrentFilters] = useState<ProductFilters>({});
+  const [filterOptions, setFilterOptions] = useState<FilterOptions | undefined>();
+  const [activeFiltersCount, setActiveFiltersCount] = useState(0);
+  const [isFilteredSearch, setIsFilteredSearch] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
 
   useEffect(() => {
-    const loadProducts = async () => {
+    const loadInitialData = async () => {
       try {
         setLoading(true);
-        const productData = await getProducts();
+        
+        // Load products and filter options in parallel
+        const [productData, filterOpts] = await Promise.all([
+          getProducts(),
+          filterService.getFilterOptions().catch(() => undefined) // Don't fail if filter options can't be loaded
+        ]);
+        
         setProducts(productData);
         setFilteredProducts(productData.slice(0, 20)); // Show first 20 products initially
+        setFilterOptions(filterOpts);
       } catch (error) {
         // Optional: Show error message to user
+        console.error('Error loading products:', error);
       } finally {
         setLoading(false);
       }
     };
-    loadProducts();
+    loadInitialData();
   }, []);
 
+  // Handle search query changes (API-based search)
   useEffect(() => {
-    if (searchQuery.trim() === '') {
-      setFilteredProducts(products.slice(0, 20));
-    } else {
-      const filtered = products.filter(product =>
-        product.vysnName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product.itemNumberVysn.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product.shortDescription.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-      setFilteredProducts(filtered.slice(0, 50));
-    }
-  }, [searchQuery, products]);
+    if (isFilteredSearch) return; // Don't interfere with filtered searches
+    
+    const performSearch = async () => {
+      if (searchQuery.trim() === '') {
+        setFilteredProducts(products.slice(0, 20));
+        setIsSearching(false);
+        return;
+      }
+
+      setIsSearching(true);
+      try {
+        console.log(`🔍 Performing API search for: "${searchQuery}"`);
+        const searchResults = await searchProducts(searchQuery);
+        setFilteredProducts(searchResults);
+        console.log(`✅ Search returned ${searchResults.length} results`);
+      } catch (error) {
+        console.error('❌ Search error:', error);
+        setFilteredProducts([]);
+      } finally {
+        setIsSearching(false);
+      }
+    };
+
+    // Debounce search to avoid too many API calls
+    const debounceTimer = setTimeout(performSearch, 300);
+    return () => clearTimeout(debounceTimer);
+  }, [searchQuery, products, isFilteredSearch]);
+
+  // Count active filters
+  useEffect(() => {
+    const count = Object.keys(currentFilters).filter(key => {
+      const value = currentFilters[key as keyof ProductFilters];
+      return value !== undefined && value !== '' && value !== null;
+    }).length;
+    setActiveFiltersCount(count);
+  }, [currentFilters]);
 
   const handleProductPress = (product: VysnProduct) => {
-    navigation.navigate('ProductDetail', { id: product.itemNumberVysn });
+    const itemNumber = product.itemNumberVysn || product.item_number_vysn;
+    console.log(`🔍 NavigatingProductDetail with ID: ${itemNumber}`, product);
+    
+    if (!itemNumber) {
+      Alert.alert('Fehler', 'Produktnummer nicht verfügbar');
+      return;
+    }
+    
+    navigation.navigate('ProductDetail', { id: itemNumber });
+  };
+
+  // Filter handling functions
+  const handleApplyFilters = async (filters: ProductFilters) => {
+    try {
+      setLoading(true);
+      setIsFilteredSearch(true);
+      
+      // Include search query in filters if present
+      const filtersWithSearch = {
+        ...filters,
+        searchQuery: searchQuery.trim() || undefined
+      };
+      
+      const result = await filterService.searchProductsWithFilters(filtersWithSearch);
+      
+      // Convert backend products to VysnProduct format
+      const convertedProducts = result.products.map((product: any) => ({
+        id: product.id,
+        vysnName: product.vysn_name || '',
+        itemNumberVysn: product.item_number_vysn || '',
+        shortDescription: product.short_description || '',
+        longDescription: product.long_description || '',
+        grossPrice: product.gross_price,
+        category1: product.category_1,
+        category2: product.category_2,
+        groupName: product.group_name,
+        ingressProtection: product.ingress_protection,
+        material: product.material,
+        housingColor: product.housing_color,
+        energyClass: product.energy_class,
+        ledType: product.led_type,
+        lumen: product.lumen,
+        wattage: product.wattage,
+        cct: product.cct,
+        cri: product.cri,
+        availability: product.availability,
+        productPicture1: product.product_picture_1,
+        productPicture2: product.product_picture_2,
+        productPicture3: product.product_picture_3,
+        productPicture4: product.product_picture_4,
+        productPicture5: product.product_picture_5,
+        productPicture6: product.product_picture_6,
+        productPicture7: product.product_picture_7,
+        productPicture8: product.product_picture_8,
+        // Add other fields as needed
+      }));
+      
+      setFilteredProducts(convertedProducts);
+      setCurrentFilters(filters);
+    } catch (error) {
+      console.error('Error applying filters:', error);
+      Alert.alert(t('common.error'), 'Fehler beim Anwenden der Filter');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleClearFilters = () => {
+    setCurrentFilters({});
+    setIsFilteredSearch(false);
+    setFilteredProducts(products.slice(0, 20));
+  };
+
+  const handleShowFilterModal = () => {
+    setShowFilterModal(true);
   };
 
 
 
   const loadUserProjects = async () => {
-    if (!auth?.user || !supabase) return;
+    if (!auth?.user) return;
 
     try {
-      const { data, error } = await supabase
-        .from('user_projects')
-        .select('*')
-        .eq('user_id', auth.user.id)
-        .order('updated_at', { ascending: false });
-
-      if (error) {
-        console.error('Error loading projects:', error);
-        return;
-      }
-
-      setUserProjects(data || []);
+      console.log('📂 Loading active user projects for modal...');
+      const allProjects = await projectService.getUserProjects();
+      // Nur aktive Projekte (nicht completed) anzeigen
+      const activeProjects = allProjects.filter(project => project.status !== 'completed');
+      console.log(`✅ Loaded ${activeProjects.length} active projects for selection (${allProjects.length} total)`);
+      setUserProjects(activeProjects);
     } catch (error) {
       console.error('Error loading projects:', error);
+      setUserProjects([]);
     }
   };
 
@@ -274,86 +489,67 @@ export default function ProductsScreen() {
   };
 
   const handleAddToExistingProject = async (projectId: string) => {
-    if (!selectedProduct || !auth?.user || !supabase) return;
+    if (!selectedProduct || !auth?.user) return;
 
     try {
-      // Hier könntest du später eine project_products Tabelle verwenden
-      // Für jetzt fügen wir das Produkt zu den project_notes hinzu
-      const { data: project, error: fetchError } = await supabase
-        .from('user_projects')
-        .select('project_notes')
-        .eq('id', projectId)
-        .single();
-
-      if (fetchError) {
-        Alert.alert('Error', `Failed to fetch project: ${fetchError.message}`);
+      console.log(`➕ Adding ${quantity}x ${selectedProduct.vysnName} to project ${projectId}`);
+      
+      // Get current project
+      const project = await projectService.getProject(projectId);
+      if (!project) {
+        Alert.alert(t('common.error'), 'Project not found');
         return;
       }
 
-      const existingNotes = project?.project_notes || '';
+      const existingNotes = project.project_notes || '';
       const productInfo = `${quantity}x ${selectedProduct.vysnName} (${selectedProduct.itemNumberVysn})`;
       const updatedNotes = existingNotes 
         ? `${existingNotes}\n• ${productInfo}`
         : `Products:\n• ${productInfo}`;
 
-      const { error } = await supabase
-        .from('user_projects')
-        .update({ 
-          project_notes: updatedNotes,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', projectId);
+      // Update project via API service
+      await projectService.updateProject(projectId, { 
+        project_notes: updatedNotes
+      });
 
-      if (error) {
-        Alert.alert('Error', `Failed to add product to project: ${error.message}`);
-        return;
-      }
-
-      Alert.alert('Success', `${quantity}x ${selectedProduct.vysnName} added to project successfully!`);
+      Alert.alert(t('common.success'), t('products.productAddedSuccess', { quantity, productName: selectedProduct.vysnName }));
       setShowProjectModal(false);
       setSelectedProduct(null);
       setQuantity(1);
     } catch (error) {
       console.error('Error adding to project:', error);
-      Alert.alert('Error', 'Failed to add product to project');
+      Alert.alert(t('common.error'), t('products.failedToAddProduct'));
     }
   };
 
   const handleCreateNewProject = async () => {
-    if (!newProjectName.trim() || !selectedProduct || !auth?.user || !supabase) {
-      Alert.alert('Error', 'Please enter a project name');
+    if (!newProjectName.trim() || !selectedProduct || !auth?.user) {
+      Alert.alert(t('common.error'), t('products.enterProjectName'));
       return;
     }
 
     try {
+      console.log(`🏗️ Creating new project: ${newProjectName.trim()}`);
+      
       const productInfo = `${quantity}x ${selectedProduct.vysnName} (${selectedProduct.itemNumberVysn})`;
       const projectData = {
-        user_id: auth.user.id,
         project_name: newProjectName.trim(),
         project_notes: `Products:\n• ${productInfo}`,
         status: 'planning' as const,
         priority: 'medium' as const
       };
 
-      const { data, error } = await supabase
-        .from('user_projects')
-        .insert([projectData])
-        .select()
-        .single();
+      // Create project via API service
+      const newProject = await projectService.createProject(projectData);
 
-      if (error) {
-        Alert.alert('Error', `Failed to create project: ${error.message}`);
-        return;
-      }
-
-      Alert.alert('Success', 'Project created and product added successfully!');
+      Alert.alert(t('common.success'), t('products.projectCreatedSuccess'));
       setShowProjectModal(false);
       setSelectedProduct(null);
       setNewProjectName('');
       setQuantity(1);
     } catch (error) {
       console.error('Error creating project:', error);
-      Alert.alert('Error', 'Failed to create project');
+      Alert.alert(t('common.error'), t('products.failedToCreateProject'));
     }
   };
 
@@ -365,42 +561,29 @@ export default function ProductsScreen() {
       <Card style={styles.productCard}>
         <CardContent style={styles.productContent}>
           <View style={styles.productImageContainer}>
-            {item.product_picture_1 ? (
+            {(item.productPicture1 || item.product_picture_1) ? (
               <Image
-                source={{ uri: item.product_picture_1 }}
+                source={{ uri: item.productPicture1 || item.product_picture_1 }}
                 style={styles.productImage}
                 resizeMode="contain"
               />
             ) : (
-              <Text style={styles.productSpecGray}>No image</Text>
+              <Text style={styles.productSpecGray}>{t('common.noImage')}</Text>
             )}
           </View>
           
           <View style={{ flex: 1 }}>
             <Text style={styles.productName} numberOfLines={2}>
-              {item.vysnName}
+              {item.vysnName || item.vysn_name || 'Produktname nicht verfügbar'}
             </Text>
             
             <Text style={styles.productNumber}>
-              {item.itemNumberVysn}
+              {item.itemNumberVysn || item.item_number_vysn || 'Artikelnummer nicht verfügbar'}
             </Text>
             
-            <Text style={styles.productDescription} numberOfLines={2}>
-              {item.shortDescription}
+            <Text style={styles.productDescription} numberOfLines={3}>
+              {item.shortDescription || item.short_description || 'Beschreibung nicht verfügbar'}
             </Text>
-            
-            <View style={styles.productSpecs}>
-              {item.wattage && (
-                <Text style={styles.productSpec}>
-                  {item.wattage}W
-                </Text>
-              )}
-              {item.cct && (
-                <Text style={styles.productSpecGray}>
-                  {" • " + item.cct}K
-                </Text>
-              )}
-            </View>
 
             <View style={styles.productActions}>
               <TouchableOpacity
@@ -408,7 +591,7 @@ export default function ProductsScreen() {
                 onPress={() => handleAddToProject(item)}
               >
                 <ShoppingCart size={16} color="#ffffff" />
-                <Text style={styles.addToProjectText}>Add to Project</Text>
+                <Text style={styles.addToProjectText}>{t('products.addToProject')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -422,7 +605,7 @@ export default function ProductsScreen() {
       <View style={styles.container}>
         <Header onSettingsPress={() => navigation.navigate('Settings' as any)} />
         <View style={styles.emptyState}>
-          <Text style={styles.emptyStateText}>Loading products...</Text>
+          <Text style={styles.emptyStateText}>{t('products.loadingProducts')}</Text>
         </View>
       </View>
     );
@@ -435,36 +618,74 @@ export default function ProductsScreen() {
       <View style={styles.searchContainer}>
         <View style={styles.searchInputContainer}>
           <Search 
-            size={20} 
-            color="#9CA3AF" 
+            size={24} 
+            color="#000000" 
             style={styles.searchIcon}
           />
           <Input
             value={searchQuery}
             onChangeText={setSearchQuery}
-            placeholder="Search products..."
+            placeholder={t('products.searchPlaceholder')}
+            placeholderTextColor="#000000"
             style={styles.searchInput}
           />
         </View>
+        
+        {/* Filter Button */}
+        <View style={styles.filterButtonContainer}>
+          <TouchableOpacity 
+            style={[styles.filterButton, activeFiltersCount > 0 ? styles.filterButtonActive : null]}
+            onPress={handleShowFilterModal}
+          >
+            <Filter size={24} color={activeFiltersCount > 0 ? "#ffffff" : "#000000"} />
+            {activeFiltersCount > 0 && (
+              <View style={styles.filterBadge}>
+                <Text style={styles.filterBadgeText}>{activeFiltersCount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          
+          {activeFiltersCount > 0 && (
+            <TouchableOpacity style={styles.clearFiltersButton} onPress={handleClearFilters}>
+              <X size={16} color="#6b7280" />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
-      {filteredProducts.length === 0 ? (
+      {isSearching ? (
+        <View style={styles.emptyState}>
+          <ActivityIndicator size="large" color="#1f2937" />
+          <Text style={styles.emptyStateText}>
+            {t('products.searching')}...
+          </Text>
+        </View>
+      ) : filteredProducts.length === 0 ? (
         <View style={styles.emptyState}>
           <Search size={64} color="#d1d5db" />
           <Text style={styles.emptyStateText}>
-            {searchQuery ? 'No products found matching your search.' : 'No products available.'}
+            {searchQuery ? t('products.noProductsFound') : t('products.noProductsAvailable')}
           </Text>
         </View>
       ) : (
         <FlatList
           data={filteredProducts}
           renderItem={renderProduct}
-          keyExtractor={(item) => item.itemNumberVysn}
+          keyExtractor={(item, index) => item.itemNumberVysn || item.id?.toString() || `product-${index}`}
           numColumns={1}
           contentContainerStyle={styles.productList}
           showsVerticalScrollIndicator={false}
         />
       )}
+
+      {/* Filter Modal */}
+      <ProductFilterBar
+        visible={showFilterModal}
+        onClose={() => setShowFilterModal(false)}
+        onApplyFilters={handleApplyFilters}
+        filterOptions={filterOptions}
+        currentFilters={currentFilters}
+      />
 
       {/* Project Selection Modal */}
       <Modal
@@ -476,7 +697,7 @@ export default function ProductsScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add to Project</Text>
+              <Text style={styles.modalTitle}>{t('products.addToProjectTitle')}</Text>
               <TouchableOpacity
                 style={styles.closeButton}
                 onPress={() => setShowProjectModal(false)}
@@ -497,7 +718,7 @@ export default function ProductsScreen() {
                 {/* Quantity Selection */}
                 <View style={{ marginTop: 16 }}>
                   <Text style={{ fontSize: 14, fontWeight: '500', color: '#374151', marginBottom: 8 }}>
-                    Quantity:
+                    {t('common.quantity')}:
                   </Text>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                     <TouchableOpacity 
@@ -569,14 +790,14 @@ export default function ProductsScreen() {
                 >
                   <Text style={styles.projectName}>{project.project_name}</Text>
                   <Text style={styles.projectDescription}>
-                    {project.project_description || 'No description'}
+                    {project.project_description || t('products.noDescription')}
                   </Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
 
             <View style={styles.createProjectContainer}>
-              <Text style={styles.createProjectTitle}>Create New Project</Text>
+              <Text style={styles.createProjectTitle}>{t('products.createNewProject')}</Text>
               
               <Button onPress={() => {
                 setShowProjectModal(false);
@@ -591,7 +812,7 @@ export default function ProductsScreen() {
                   }
                 });
               }}>
-                Vollständiges Projekt erstellen
+                {t('products.createFullProject')}
               </Button>
             </View>
           </View>

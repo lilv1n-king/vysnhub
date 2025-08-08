@@ -13,6 +13,7 @@ export interface Project {
   actual_cost?: number;
   project_notes?: string;
   tags?: string[];
+  customer_discount?: number;
   created_at: string;
   updated_at: string;
 }

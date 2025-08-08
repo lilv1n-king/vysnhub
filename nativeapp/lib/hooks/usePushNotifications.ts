@@ -1,85 +1,121 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
+import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 
-// VAPID Public Key (du musst einen generieren - siehe unten)
-const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || 'BG1zW8l9d9KqZ5QK9QK9QK9QK9QK9QK9QK9QK9QK9QK9QK9QK9QK9QK9QK9QK9QK9QK9QK9QK9QK9QK9Q';
+// Konfiguriere wie Notifications gehandhabt werden sollen
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
 
 export function usePushNotifications() {
-  const [isSupported, setIsSupported] = useState(false);
-  const [subscription, setSubscription] = useState<PushSubscription | null>(null);
-  const [isSubscribed, setIsSubscribed] = useState(false);
+  const [expoPushToken, setExpoPushToken] = useState<string | null>(null);
+  const [notification, setNotification] = useState<Notifications.Notification | null>(null);
+  const [isRegistered, setIsRegistered] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const notificationListener = useRef<any>();
+  const responseListener = useRef<any>();
 
   useEffect(() => {
-    // Check if push notifications are supported
-    if ('serviceWorker' in navigator && 'PushManager' in window) {
-      setIsSupported(true);
-      checkExistingSubscription();
-    }
+    registerForPushNotificationsAsync().then(token => {
+      setExpoPushToken(token);
+      if (token) setIsRegistered(true);
+    });
+
+    // Listener für eingehende Notifications
+    notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
+      setNotification(notification);
+    });
+
+    // Listener für Notification responses (wenn User darauf tippt)
+    responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
+      console.log('Notification response:', response);
+      // Hier kannst du Navigation oder andere Aktionen implementieren
+    });
+
+    return () => {
+      if (notificationListener.current) {
+        Notifications.removeNotificationSubscription(notificationListener.current);
+      }
+      if (responseListener.current) {
+        Notifications.removeNotificationSubscription(responseListener.current);
+      }
+    };
   }, []);
 
-  const checkExistingSubscription = async () => {
-    try {
-      const registration = await navigator.serviceWorker.ready;
-      const existingSubscription = await registration.pushManager.getSubscription();
-      
-      if (existingSubscription) {
-        setSubscription(existingSubscription);
-        setIsSubscribed(true);
-      }
-    } catch (error) {
-      console.error('Error checking subscription:', error);
+  // Push Token registrieren
+  async function registerForPushNotificationsAsync() {
+    let token;
+
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'default',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#FF231F7C',
+      });
     }
-  };
 
-  const requestPermission = async (): Promise<boolean> => {
-    if (!isSupported) return false;
+    if (Device.isDevice) {
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+      
+      if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+      
+      if (finalStatus !== 'granted') {
+        alert('Push Notifications sind deaktiviert! Bitte aktiviere sie in den Einstellungen.');
+        return null;
+      }
+      
+      try {
+        const projectId = Constants.expoConfig?.extra?.eas?.projectId || 'your-expo-project-id';
+        token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+        console.log('📱 Expo Push Token:', token);
+      } catch (error) {
+        console.error('Error getting push token:', error);
+        return null;
+      }
+    } else {
+      alert('Push Notifications funktionieren nur auf echten Geräten!');
+    }
 
-    const permission = await Notification.requestPermission();
-    return permission === 'granted';
-  };
+    return token;
+  }
 
+  // Token an deinen Server senden
   const subscribeToPush = async (): Promise<boolean> => {
-    if (!isSupported) return false;
+    if (!expoPushToken) return false;
 
     setIsLoading(true);
 
     try {
-      // Request permission first
-      const hasPermission = await requestPermission();
-      if (!hasPermission) {
-        setIsLoading(false);
-        return false;
-      }
-
-      // Get service worker registration
-      const registration = await navigator.serviceWorker.ready;
-
-      // Subscribe to push notifications
-      const newSubscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
-      });
-
-      // Send subscription to server
-      const response = await fetch('/api/push/subscribe', {
+      const response = await fetch('http://your-backend-url/api/push/subscribe', {
         method: 'POST',
         headers: {
+          'Accept': 'application/json',
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          subscription: newSubscription.toJSON(),
-          userAgent: navigator.userAgent,
+          token: expoPushToken,
+          deviceType: Platform.OS,
           timestamp: new Date().toISOString()
         }),
       });
 
       if (response.ok) {
-        setSubscription(newSubscription);
-        setIsSubscribed(true);
+        setIsRegistered(true);
         setIsLoading(false);
         return true;
       } else {
-        throw new Error('Failed to save subscription');
+        throw new Error('Failed to register token with server');
       }
     } catch (error) {
       console.error('Error subscribing to push:', error);
@@ -88,81 +124,58 @@ export function usePushNotifications() {
     }
   };
 
-  const unsubscribeFromPush = async (): Promise<boolean> => {
-    if (!subscription) return false;
-
-    setIsLoading(true);
-
-    try {
-      // Unsubscribe from browser
-      await subscription.unsubscribe();
-
-      // Remove subscription from server
-      await fetch('/api/push/unsubscribe', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          endpoint: subscription.endpoint
-        }),
-      });
-
-      setSubscription(null);
-      setIsSubscribed(false);
-      setIsLoading(false);
-      return true;
-    } catch (error) {
-      console.error('Error unsubscribing from push:', error);
-      setIsLoading(false);
-      return false;
-    }
-  };
-
+  // Test Notification senden
   const sendTestNotification = async () => {
-    if (!isSubscribed) return;
+    if (!expoPushToken) {
+      alert('Kein Push Token verfügbar!');
+      return;
+    }
 
     try {
-      await fetch('/api/push/send', {
+      const response = await fetch('http://your-backend-url/api/push/send', {
         method: 'POST',
         headers: {
+          'Accept': 'application/json',
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          type: 'test',
-          title: 'Test Benachrichtigung',
-          body: 'Das ist eine Test-Push-Notification von VYSN Hub!',
-          url: '/',
+          to: expoPushToken,
+          title: 'VYSN Hub 🔔',
+          body: 'Test Notification von VYSN Hub! Neue Produkte verfügbar.',
+          data: { 
+            type: 'test',
+            url: '/products' 
+          },
         }),
       });
+
+      if (response.ok) {
+        console.log('✅ Test notification sent successfully');
+      }
     } catch (error) {
       console.error('Error sending test notification:', error);
     }
   };
 
+  // Lokale Notification senden (für Tests)
+  const sendLocalNotification = async () => {
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: "VYSN Hub 🔔",
+        body: 'Lokale Test Notification!',
+        data: { data: 'goes here' },
+      },
+      trigger: { seconds: 2 },
+    });
+  };
+
   return {
-    isSupported,
-    isSubscribed,
+    expoPushToken,
+    notification,
+    isRegistered,
     isLoading,
     subscribeToPush,
-    unsubscribeFromPush,
     sendTestNotification,
-    subscription
+    sendLocalNotification,
   };
-}
-
-// Helper function to convert VAPID key
-function urlBase64ToUint8Array(base64String: string): Uint8Array {
-  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding)
-    .replace(/-/g, '+')
-    .replace(/_/g, '/');
-
-  const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
-  }
-  return outputArray;
 } 

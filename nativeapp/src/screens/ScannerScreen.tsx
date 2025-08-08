@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, Alert, StyleSheet, Platform, TextInput, ScrollView } from 'react-native';
 import { QrCode, Zap, Camera as CameraIcon, X, Keyboard, Search, Check } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import Header from '../components/Header';
 import Button from '../components/ui/Button';
@@ -259,7 +260,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
-  content: {
+  contentWithPadding: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -359,6 +360,7 @@ const styles = StyleSheet.create({
 
 export default function ScannerScreen() {
   const navigation = useNavigation();
+  const { t } = useTranslation();
   const [showManualInput, setShowManualInput] = useState(false);
   const [scanned, setScanned] = useState(false);
   const [flashlight, setFlashlight] = useState(false);
@@ -439,24 +441,24 @@ export default function ScannerScreen() {
         }
       } else {
         await trackScan(code, scanType, false, 0);
-        setError(`Kein Produkt gefunden für "${code}"`);
+        setError(t('scanner.noProductFound', { code }));
       }
     } catch (error: any) {
       console.error('Error processing scanned code:', error);
       
       // Specific error messages based on error type
-      let errorMessage = 'Fehler beim Suchen des Produkts';
+      let errorMessage = t('scanner.searchError');
       
       if (error?.status === 404) {
-        errorMessage = `Kein Produkt gefunden für "${code}"`;
+        errorMessage = t('scanner.noProductFound', { code });
       } else if (error?.status === 500) {
-        errorMessage = 'Server-Fehler. Bitte versuchen Sie es später erneut.';
+        errorMessage = t('scanner.serverError');
       } else if (error?.status === 0 || error?.message?.includes('Network request failed')) {
-        errorMessage = 'Keine Verbindung zum Server. Prüfen Sie Ihre Internetverbindung.';
+        errorMessage = t('scanner.connectionError');
       } else if (error?.status === 408 || error?.message?.includes('timeout')) {
-        errorMessage = 'Zeitüberschreitung. Bitte versuchen Sie es erneut.';
+        errorMessage = t('scanner.timeoutError');
       } else if (error?.message) {
-        errorMessage = `Fehler: ${error.message}`;
+        errorMessage = `${t('common.error')}: ${error.message}`;
       }
       
       setError(errorMessage);
@@ -512,8 +514,8 @@ export default function ScannerScreen() {
   const handleProductFound = (product: VysnProduct) => {
     // Show success message or handle product found
     Alert.alert(
-      'Produkt gefunden!', 
-      `${product.vysnName}\nArtikelnummer: ${product.itemNumberVysn}`,
+      t('scanner.productFound'), 
+      `${product.vysnName}\n${t('scanner.itemNumber', { itemNumber: product.itemNumberVysn })}`,
       [{ text: 'OK' }]
     );
   };
@@ -560,7 +562,7 @@ export default function ScannerScreen() {
             
             {/* Instruction Text */}
             <Text style={styles.instructionText}>
-              {scanned ? 'Verarbeitung...' : isLoading ? 'Suche läuft...' : 'Barcode in den Rahmen halten'}
+              {scanned ? t('scanner.processing') : isLoading ? t('scanner.searching') : t('scanner.holdInFrame')}
             </Text>
             
             {/* Bottom Controls */}
@@ -570,7 +572,7 @@ export default function ScannerScreen() {
                   onPress={startNewScan}
                   style={styles.scanAgainButton}
                 >
-                  <Text style={styles.scanAgainText}>Erneut scannen</Text>
+                  <Text style={styles.scanAgainText}>{t('scanner.scanAgain')}</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -587,7 +589,7 @@ export default function ScannerScreen() {
           {searchResults.length > 0 && (
             <View style={styles.cameraResultsContainer}>
               <ScrollView style={styles.cameraResults}>
-                <Text style={styles.resultsTitle}>Suchergebnisse:</Text>
+                <Text style={styles.resultsTitle}>{t('scanner.searchResults')}</Text>
                 {searchResults.map((product) => (
                   <TouchableOpacity
                     key={product.itemNumberVysn}
@@ -615,11 +617,11 @@ export default function ScannerScreen() {
             {showManualInput ? (
               // Manual input mode
               <View style={styles.manualContainer}>
-                <View style={styles.content}>
+                <View style={styles.contentWithPadding}>
                   <Search size={64} color="#000000" style={styles.scanIcon} />
-                  <Text style={styles.title}>Manuelle Eingabe</Text>
+                  <Text style={styles.title}>{t('scanner.manualInput')}</Text>
                   <Text style={styles.description}>
-                    Geben Sie eine Barcode-Nummer oder Artikelnummer ein
+                    {t('scanner.scanToFindProduct')}
                   </Text>
                   
                   <View style={styles.buttonContainer}>
@@ -628,7 +630,7 @@ export default function ScannerScreen() {
                         style={styles.textInput}
                         value={manualInput}
                         onChangeText={setManualInput}
-                        placeholder="Barcode oder Artikelnummer eingeben"
+                        placeholder={t('scanner.enterCode')}
                         placeholderTextColor="#999"
                         onSubmitEditing={handleManualSearch}
                       />
@@ -646,12 +648,12 @@ export default function ScannerScreen() {
                       onPress={toggleMode}
                     >
                       <CameraIcon size={20} color="#000000" />
-                      <Text style={styles.secondaryButtonText}>Zur Kamera wechseln</Text>
+                      <Text style={styles.secondaryButtonText}>{t('scanner.useCamera')}</Text>
                     </TouchableOpacity>
                   </View>
 
                   {isLoading && (
-                    <Text style={styles.loadingText}>Suche läuft...</Text>
+                    <Text style={styles.loadingText}>{t('scanner.searching')}</Text>
                   )}
 
                   {error && (
@@ -660,7 +662,7 @@ export default function ScannerScreen() {
 
                   {searchResults.length > 0 && (
                     <ScrollView style={styles.resultsContainer}>
-                      <Text style={styles.featuresTitle}>Suchergebnisse:</Text>
+                      <Text style={styles.featuresTitle}>{t('scanner.searchResults')}</Text>
                       {searchResults.map((product) => (
                         <TouchableOpacity
                           key={product.itemNumberVysn}
@@ -679,7 +681,7 @@ export default function ScannerScreen() {
                             )}
                           </View>
                           <TouchableOpacity style={styles.selectButton}>
-                            <Text style={styles.selectButtonText}>Auswählen</Text>
+                            <Text style={styles.selectButtonText}>{t('common.select')}</Text>
                           </TouchableOpacity>
                         </TouchableOpacity>
                       ))}
@@ -691,24 +693,24 @@ export default function ScannerScreen() {
               // Loading permission
               <View style={styles.content}>
                 <CameraIcon size={120} color="#000000" style={styles.scanIcon} />
-                <Text style={styles.title}>Kamera wird vorbereitet...</Text>
+                <Text style={styles.title}>{t('common.loading')}</Text>
                 <Text style={styles.description}>
-                  Kamera-Berechtigung wird angefragt...
+                  {t('scanner.cameraPermission')}
                 </Text>
               </View>
             ) : !permission.granted ? (
               // Permission denied
               <View style={styles.content}>
                 <CameraIcon size={120} color="#ff3b30" style={styles.scanIcon} />
-                <Text style={styles.title}>Kamera-Berechtigung erforderlich</Text>
+                <Text style={styles.title}>{t('scanner.permissionRequired')}</Text>
                 <Text style={styles.description}>
-                  Wir benötigen Zugriff auf Ihre Kamera, um Barcodes und QR-Codes zu scannen.
+                  {t('scanner.needCameraAccess')}
                 </Text>
                 
                 <View style={styles.buttonContainer}>
                   <TouchableOpacity style={styles.primaryButton} onPress={requestPermission}>
                     <CameraIcon size={24} color="#fff" />
-                    <Text style={styles.primaryButtonText}>Berechtigung erteilen</Text>
+                    <Text style={styles.primaryButtonText}>{t('scanner.grantPermission')}</Text>
                   </TouchableOpacity>
                   
                   <TouchableOpacity 
@@ -716,7 +718,7 @@ export default function ScannerScreen() {
                     onPress={() => setShowManualInput(true)}
                   >
                     <Keyboard size={20} color="#000000" />
-                    <Text style={styles.secondaryButtonText}>Manuelle Eingabe verwenden</Text>
+                    <Text style={styles.secondaryButtonText}>{t('scanner.manualInput')}</Text>
                   </TouchableOpacity>
                 </View>
               </View>

@@ -463,7 +463,7 @@ export default function RegisterScreen() {
               disabled={loading}
             >
               <Text style={styles.registerButtonText}>
-                {loading ? 'Creating Account...' : 'Create Account'}
+                {loading ? t('auth.creatingAccount') : t('auth.createAccount')}
               </Text>
             </TouchableOpacity>
 

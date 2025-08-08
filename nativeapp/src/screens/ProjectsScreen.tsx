@@ -4,13 +4,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { ProjectsStackParamList } from '../navigation/ProjectsStackNavigator';
-import { Calendar, Package, ArrowRight, Plus } from 'lucide-react-native';
+import { Calendar, Package, ArrowRight, Plus, History } from 'lucide-react-native';
 import { Card, CardContent } from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Header from '../components/Header';
 import { useAuth } from '../../lib/contexts/AuthContext';
-import { supabase } from '../../lib/utils/supabase';
 import { Project } from '../../lib/types/project';
+import { projectService } from '../../lib/services/projectService';
+import { useTranslation } from 'react-i18next';
 
 
 type ProjectsScreenNavigationProp = StackNavigationProp<ProjectsStackParamList, 'ProjectsList'>;
@@ -39,9 +40,16 @@ const styles = StyleSheet.create({
     color: '#6b7280',
   },
   projectCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: '#f1f5f9',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   projectHeader: {
     padding: 16,
@@ -134,28 +142,46 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     lineHeight: 24,
   },
-  headerActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    marginBottom: 32,
+  header: {
+    marginBottom: 16,
   },
-  headerText: {
-    flex: 1,
-  },
-  createButton: {
-    flexDirection: 'row',
+  createButtonFullWidth: {
+    height: 48,
+    justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#000000',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    flexDirection: 'row',
     borderRadius: 8,
+    borderWidth: 1,
+    backgroundColor: '#000000',
+    borderColor: '#000000',
+    marginBottom: 24,
   },
   createButtonText: {
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '500',
-    marginLeft: 8,
+    marginRight: 8,
+  },
+  historyButton: {
+    height: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexDirection: 'row',
+    backgroundColor: '#f3f4f6',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+  },
+  historyButtonText: {
+    color: '#374151',
+    fontSize: 16,
+    fontWeight: '500',
+    marginRight: 8,
+  },
+  historySection: {
+    marginTop: 4,
+    marginBottom: 40,
+    paddingHorizontal: 0,
   },
   loadingText: {
     fontSize: 16,
@@ -168,6 +194,7 @@ const styles = StyleSheet.create({
 export default function ProjectsScreen() {
   const navigation = useNavigation<ProjectsScreenNavigationProp>();
   const auth = useAuth();
+  const { t } = useTranslation();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -176,9 +203,9 @@ export default function ProjectsScreen() {
   if (!auth) {
     return (
       <View style={styles.container}>
-        <Header />
+        <Header onSettingsPress={() => navigation.navigate('Settings' as any)} />
         <View style={styles.emptyState}>
-          <Text style={styles.loadingText}>Authentication required</Text>
+          <Text style={styles.loadingText}>{t('projects.authenticationRequired')}</Text>
         </View>
       </View>
     );
@@ -187,31 +214,19 @@ export default function ProjectsScreen() {
   const { user } = auth;
 
   const loadProjects = useCallback(async () => {
-    if (!user || !supabase) return;
+    if (!user) return;
 
     try {
-      const { data, error } = await supabase
-        .from('user_projects')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('updated_at', { ascending: false });
-
-      if (error) {
-        // Only show alert if it's not a "table doesn't exist" error
-        if (error.code !== '42P01') {
-          Alert.alert('Error', `Failed to load projects: ${error.message}`);
-        }
-        setProjects([]);
-        return;
-      }
-
-      setProjects(data || []);
+      const projects = await projectService.getUserProjects();
+      // Filter out completed projects
+      const activeProjects = projects.filter(project => project.status !== 'completed');
+      setProjects(activeProjects);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      Alert.alert('Error', `Failed to load projects: ${errorMessage}`);
+      Alert.alert(t('projects.error'), `${t('projects.errorLoadingProjects')}: ${errorMessage}`);
       setProjects([]);
     }
-  }, [user]);
+  }, [user, t]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -237,11 +252,15 @@ export default function ProjectsScreen() {
     navigation.navigate('ProjectDetail', { id: projectId });
   };
 
+  const handleViewHistory = () => {
+    navigation.navigate('ProjectHistory');
+  };
+
 
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
+    return date.toLocaleDateString('de-DE', {
       year: 'numeric',
       month: 'long',
       day: 'numeric'
@@ -265,12 +284,29 @@ export default function ProjectsScreen() {
     }
   };
 
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return t('projects.completed');
+      case 'active':
+        return t('projects.active');
+      case 'planning':
+        return t('projects.planning');
+      case 'on_hold':
+        return t('projects.onHold');
+      case 'cancelled':
+        return t('projects.cancelled');
+      default:
+        return t('projects.planning');
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.container}>
-        <Header />
+        <Header onSettingsPress={() => navigation.navigate('Settings' as any)} />
         <View style={styles.emptyState}>
-          <Text style={styles.loadingText}>Loading projects...</Text>
+          <Text style={styles.loadingText}>{t('projects.loadingProjects')}</Text>
         </View>
       </View>
     );
@@ -278,24 +314,21 @@ export default function ProjectsScreen() {
 
   return (
     <View style={styles.container}>
-      <Header />
+      <Header onSettingsPress={() => navigation.navigate('Settings' as any)} />
       <ScrollView 
         style={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
-        {/* Header with Create Button */}
-        <View style={styles.headerActions}>
-          <View style={styles.headerText}>
-            <Text style={styles.title}>My Projects</Text>
-            <Text style={styles.subtitle}>
-              Create and manage your lighting projects.
-            </Text>
-          </View>
-          <TouchableOpacity style={styles.createButton} onPress={handleCreateProject}>
-            <Plus size={20} color="#ffffff" />
-            <Text style={styles.createButtonText}>New Project</Text>
-          </TouchableOpacity>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.title}>{t('projects.activeProjects')}</Text>
         </View>
+
+        {/* Create Button - Full Width */}
+        <TouchableOpacity style={styles.createButtonFullWidth} onPress={handleCreateProject}>
+          <Text style={styles.createButtonText}>{t('projects.newProject')}</Text>
+          <Plus size={20} color="#ffffff" />
+        </TouchableOpacity>
 
         {/* Projects List */}
         {projects.length > 0 ? (
@@ -319,16 +352,16 @@ export default function ProjectsScreen() {
                       <View style={styles.projectDetail}>
                         <Package size={20} color="#6b7280" />
                         <Text style={styles.projectDetailText}>
-                          {project.priority || 'medium'} priority
+                          {t(project.priority || 'medium')} {t('priority')}
                         </Text>
                       </View>
                     </View>
                     
-                    <View style={[styles.statusBadge, { backgroundColor: statusColors.bg }]}>
-                      <Text style={[styles.statusText, { color: statusColors.text }]}>
-                        {project.status.charAt(0).toUpperCase() + project.status.slice(1)}
-                      </Text>
-                    </View>
+                                      <View style={[styles.statusBadge, { backgroundColor: statusColors.bg }]}>
+                    <Text style={[styles.statusText, { color: statusColors.text }]}>
+                      {getStatusText(project.status)}
+                    </Text>
+                  </View>
                   </View>
                 </View>
 
@@ -342,7 +375,7 @@ export default function ProjectsScreen() {
                   >
                     <ArrowRight size={16} color="#ffffff" />
                     <Text style={[styles.actionButtonText, styles.primaryActionButtonText]}>
-                      View Details
+                      {t('projects.viewDetails')}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -353,16 +386,30 @@ export default function ProjectsScreen() {
           /* Empty State */
           <View style={styles.emptyState}>
             <Package size={48} color="#d1d5db" />
-            <Text style={styles.emptyStateTitle}>No Projects Yet</Text>
+            <Text style={styles.emptyStateTitle}>{t('projects.noProjectsYet')}</Text>
             <Text style={styles.emptyStateText}>
-              Create your first lighting project to get started.
+              {t('projects.createFirstProjectDescription')}
             </Text>
-            <TouchableOpacity style={styles.createButton} onPress={handleCreateProject}>
+            <TouchableOpacity style={styles.createButtonFullWidth} onPress={handleCreateProject}>
+              <Text style={styles.createButtonText}>{t('projects.newProject')}</Text>
               <Plus size={20} color="#ffffff" />
-              <Text style={styles.createButtonText}>Neues Projekt</Text>
+            </TouchableOpacity>
+            
+            {/* History Button auch bei Empty State */}
+            <TouchableOpacity style={styles.historyButton} onPress={handleViewHistory}>
+              <Text style={styles.historyButtonText}>{t('projects.viewHistory')}</Text>
+              <History size={20} color="#374151" />
             </TouchableOpacity>
           </View>
         )}
+
+        {/* History Button - unten platziert */}
+        <View style={styles.historySection}>
+          <TouchableOpacity style={styles.historyButton} onPress={handleViewHistory}>
+            <Text style={styles.historyButtonText}>{t('projects.viewHistory')}</Text>
+            <History size={20} color="#374151" />
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </View>
   );

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { ScrollView, View, Text, Image, TouchableOpacity, StyleSheet, Linking, Alert, Modal, ActivityIndicator, TextInput, FlatList } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
+import type { StackNavigationProp } from '@react-navigation/stack';
+import type { RootStackParamList } from '../navigation/RootNavigator';
 import { ArrowLeft, Download, Plus, Minus, ShoppingCart, RefreshCw, MessageCircle, Send, Eye, X } from 'lucide-react-native';
 import { Card, CardContent } from '../components/ui/Card';
 import Button from '../components/ui/Button';
@@ -10,7 +12,9 @@ import { VysnProduct } from '../../lib/types/product';
 import { Project } from '../../lib/types/project';
 import { getProductByItemNumber } from '../../lib/utils/product-data';
 import { useAuth } from '../../lib/contexts/AuthContext';
-import { supabase } from '../../lib/utils/supabase';
+import { useCart } from '../../lib/contexts/CartContext';
+import { projectService } from '../../lib/services/projectService';
+import { useTranslation } from 'react-i18next';
 
 const styles = StyleSheet.create({
   container: {
@@ -23,14 +27,21 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
   backButton: {
-    flexDirection: 'row',
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: '#000000',
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 24,
-  },
-  backText: {
-    marginLeft: 8,
-    fontSize: 16,
-    color: '#6b7280',
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   // Image section
   imageSection: {
@@ -258,6 +269,24 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#059669',
   },
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flexWrap: 'wrap',
+  },
+  discountPriceInline: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#047857',
+    backgroundColor: '#f0f9f0',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#d1fae5',
+  },
+
   // Action buttons
   actionButton: {
     height: 56,
@@ -347,9 +376,16 @@ const styles = StyleSheet.create({
   },
   // Spec cards
   specCard: {
-    borderColor: '#e5e7eb',
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    borderColor: '#f1f5f9',
     borderWidth: 1,
     marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   specCardHeader: {
     fontSize: 18,
@@ -454,8 +490,9 @@ const styles = StyleSheet.create({
 
 export default function ProductDetailScreen() {
   const route = useRoute();
-  const navigation = useNavigation();
+  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const auth = useAuth();
+  const { t } = useTranslation();
   const { id } = route.params as { id: string };
   
   // Product state
@@ -467,7 +504,8 @@ export default function ProductDetailScreen() {
   // Quantity and order state
   const [quantity, setQuantity] = useState(1);
   const [isAddingToProject, setIsAddingToProject] = useState(false);
-  const [isReordering, setIsReordering] = useState(false);
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
+  const { addToCart } = useCart();
   
   // Chat state
   const [showChat, setShowChat] = useState(false);
@@ -501,11 +539,11 @@ export default function ProductDetailScreen() {
         if (foundProduct) {
           setProduct(foundProduct);
         } else {
-          setError('Produkt nicht gefunden');
+          setError(t('products.productNotFound'));
         }
       } catch (err) {
         console.error('Error loading product:', err);
-        setError('Fehler beim Laden des Produkts');
+        setError(t('auth.errorLoadingProduct'));
       } finally {
         setLoading(false);
       }
@@ -529,11 +567,11 @@ export default function ProductDetailScreen() {
   };
 
   const getStockStatus = () => {
-    if (!inventoryData.inStock) return { text: "Nicht verfügbar", color: "#dc2626", bgColor: "#fef2f2" };
+    if (!inventoryData.inStock) return { text: t('products.notAvailable'), color: "#dc2626", bgColor: "#fef2f2" };
     if (inventoryData.stockQuantity <= inventoryData.lowStockThreshold) {
-      return { text: "Wenig Lager", color: "#d97706", bgColor: "#fffbeb" };
+      return { text: t('products.lowStock'), color: "#d97706", bgColor: "#fffbeb" };
     }
-    return { text: "Verfügbar", color: "#059669", bgColor: "#f0fdf4" };
+    return null; // Kein Status bei ausreichendem Lager
   };
 
   const getMaxQuantity = () => {
@@ -544,34 +582,26 @@ export default function ProductDetailScreen() {
     if (value < 1) return;
     const maxQty = getMaxQuantity();
     if (value > maxQty) {
-      Alert.alert('Warnung', `Nur ${maxQty} Stück verfügbar`);
+      Alert.alert(t('products.warning'), t('products.onlyXPiecesAvailable', { count: maxQty }));
       return;
     }
     setQuantity(value);
   };
 
   const loadProjects = async () => {
-    if (!auth?.user || !supabase) return;
+    if (!auth?.user) return;
     
     setLoadingProjects(true);
     try {
-      const { data, error } = await supabase
-        .from('user_projects')
-        .select('*')
-        .eq('user_id', auth.user.id)
-        .order('updated_at', { ascending: false });
-
-      if (error) {
-        console.error('Error loading projects:', error);
-        Alert.alert('Fehler', `Projekte konnten nicht geladen werden: ${error.message}`);
-        setProjects([]);
-        return;
-      }
-
-      setProjects(data || []);
+      console.log('📂 Loading active projects for ProductDetailScreen...');
+      const allProjects = await projectService.getUserProjects();
+      // Nur aktive Projekte (nicht completed) anzeigen
+      const activeProjects = allProjects.filter(project => project.status !== 'completed');
+      console.log(`✅ Loaded ${activeProjects.length} active projects for ProductDetailScreen (${allProjects.length} total)`);
+      setProjects(activeProjects);
     } catch (error) {
       console.error('Error loading projects:', error);
-      Alert.alert('Fehler', 'Projekte konnten nicht geladen werden');
+      Alert.alert(t('projects.error'), t('projects.errorLoadingProjects'));
       setProjects([]);
     } finally {
       setLoadingProjects(false);
@@ -580,11 +610,11 @@ export default function ProductDetailScreen() {
 
   const handleAddToProject = async () => {
     if (!inventoryData.inStock) {
-      Alert.alert('Nicht verfügbar', 'Produkt ist derzeit nicht verfügbar');
+      Alert.alert(t('products.notAvailable'), t('products.notAvailable'));
       return;
     }
     if (quantity > inventoryData.stockQuantity) {
-      Alert.alert('Nicht genug Lager', `Nur ${inventoryData.stockQuantity} Stück verfügbar`);
+      Alert.alert(t('products.notEnoughStock'), t('products.onlyXPiecesAvailable', { count: inventoryData.stockQuantity }));
       return;
     }
     
@@ -593,100 +623,99 @@ export default function ProductDetailScreen() {
   };
 
   const addToProject = async (projectId: string) => {
-    if (!product || !auth?.user || !supabase) return;
+    if (!product || !auth?.user) return;
     
     setIsAddingToProject(true);
     try {
-      // Hole das aktuelle Projekt
-      const { data: project, error: fetchError } = await supabase
-        .from('user_projects')
-        .select('project_notes')
-        .eq('id', projectId)
-        .single();
-
-      if (fetchError) {
-        Alert.alert('Fehler', `Projekt konnte nicht gefunden werden: ${fetchError.message}`);
+      console.log(`➕ Adding ${quantity}x ${product.vysnName} to project ${projectId}`);
+      
+      // Get current project
+      const project = await projectService.getProject(projectId);
+      if (!project) {
+        Alert.alert(t('projects.error'), t('auth.projectCouldNotBeFound'));
         return;
       }
 
-      // Füge Produkt zu den Projekt-Notizen hinzu
-      const existingNotes = project?.project_notes || '';
+      // Add product to project notes
+      const existingNotes = project.project_notes || '';
       const productInfo = `${quantity}x ${product.vysnName} (${product.itemNumberVysn})`;
       const updatedNotes = existingNotes 
         ? `${existingNotes}\n• ${productInfo}`
         : `Products:\n• ${productInfo}`;
 
-      const { error } = await supabase
-        .from('user_projects')
-        .update({ 
-          project_notes: updatedNotes,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', projectId);
+      // Update project via API service
+      await projectService.updateProject(projectId, { 
+        project_notes: updatedNotes
+      });
 
-      if (error) {
-        Alert.alert('Fehler', `Produkt konnte nicht hinzugefügt werden: ${error.message}`);
-        return;
-      }
-
-      Alert.alert('Erfolg', `${quantity}x ${product.vysnName} zum Projekt hinzugefügt!`);
+      Alert.alert(t('auth.success'), `${quantity}x ${product.vysnName} ${t('auth.projectAddedSuccess')}`);
       setShowProjectModal(false);
     } catch (error) {
       console.error('Error adding to project:', error);
-      Alert.alert('Fehler', 'Produkt konnte nicht zum Projekt hinzugefügt werden');
+      Alert.alert(t('projects.error'), t('auth.couldNotAddToProject'));
     } finally {
       setIsAddingToProject(false);
     }
   };
 
   const createNewProject = async () => {
-    if (!newProjectName.trim() || !product || !auth?.user || !supabase) return;
+    if (!newProjectName.trim() || !product || !auth?.user) return;
     
     setIsCreatingProject(true);
     try {
+      console.log(`🏗️ Creating new project: ${newProjectName.trim()}`);
+      
       const productInfo = `${quantity}x ${product.vysnName} (${product.itemNumberVysn})`;
       const projectData = {
-        user_id: auth.user.id,
         project_name: newProjectName.trim(),
-
         project_notes: `Products:\n• ${productInfo}`,
         status: 'planning' as const,
         priority: 'medium' as const
       };
 
-      const { data, error } = await supabase
-        .from('user_projects')
-        .insert([projectData])
-        .select()
-        .single();
+      // Create project via API service
+      const newProject = await projectService.createProject(projectData);
 
-      if (error) {
-        Alert.alert('Fehler', `Projekt konnte nicht erstellt werden: ${error.message}`);
-        return;
-      }
-
-      Alert.alert('Erfolg', 'Projekt erstellt und Produkt hinzugefügt!');
+      Alert.alert(t('auth.success'), t('auth.projectCreatedAndAdded'));
       setShowProjectModal(false);
       setNewProjectName('');
     } catch (error) {
       console.error('Error creating project:', error);
-      Alert.alert('Fehler', 'Projekt konnte nicht erstellt werden');
+      Alert.alert(t('projects.error'), t('auth.couldNotCreateProject'));
     } finally {
       setIsCreatingProject(false);
     }
   };
 
-  const handleReorder = async () => {
+  const handleAddToCart = async () => {
+    if (!product) return;
+    
     if (!inventoryData.inStock) {
-      Alert.alert('Nicht verfügbar', 'Produkt ist derzeit nicht verfügbar');
+      Alert.alert(t('products.notAvailable'), t('products.notAvailable'));
       return;
     }
     
-    setIsReordering(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    Alert.alert('Erfolg', `${quantity}x ${product?.vysnName} nachbestellt!`);
-    setIsReordering(false);
+    setIsAddingToCart(true);
+    try {
+      addToCart(product, quantity);
+      Alert.alert(
+        t('cart.addedToCart'), 
+        `${quantity}x ${product.vysnName} ${t('cart.addedToCartMessage')}`,
+        [
+          { text: t('common.ok'), style: 'default' },
+          { 
+            text: t('cart.viewCart'), 
+            style: 'default',
+            onPress: () => navigation.navigate('Checkout')
+          }
+        ]
+      );
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      Alert.alert(t('cart.error'), t('cart.addError'));
+    } finally {
+      setIsAddingToCart(false);
+    }
   };
 
   const handleAskQuestion = async () => {
@@ -702,12 +731,12 @@ export default function ProductDetailScreen() {
       await new Promise(resolve => setTimeout(resolve, 1500));
       setChatHistory(prev => [...prev, { 
         role: 'assistant', 
-        content: `Hier ist Information über ${product.vysnName}. Leider kann ich noch keine echten Antworten geben, aber das Feature wird bald verfügbar sein!` 
+        content: t('products.productInfoResponse', { productName: product.vysnName }) 
       }]);
     } catch (error) {
       setChatHistory(prev => [...prev, { 
         role: 'assistant', 
-        content: 'Entschuldigung, es gab einen Fehler bei der Verarbeitung Ihrer Frage.' 
+        content: t('products.sorryError') 
       }]);
     } finally {
       setIsChatLoading(false);
@@ -721,7 +750,7 @@ export default function ProductDetailScreen() {
         <Header onSettingsPress={() => navigation.navigate('Settings' as any)} />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#000000" />
-          <Text style={styles.loadingText}>Lade Produkt...</Text>
+          <Text style={styles.loadingText}>{t('auth.loadingProduct')}</Text>
         </View>
       </View>
     );
@@ -734,16 +763,15 @@ export default function ProductDetailScreen() {
         <Header onSettingsPress={() => navigation.navigate('Settings' as any)} />
         <View style={styles.content}>
           <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <ArrowLeft size={20} color="#6b7280" />
-            <Text style={styles.backText}>Zurück zu Produkten</Text>
+            <ArrowLeft size={20} color="#ffffff" />
           </TouchableOpacity>
           
           <View style={styles.loadingContainer}>
             <Text style={styles.errorText}>
-              {error || 'Produkt nicht gefunden'}
+              {error || t('products.productNotFound')}
             </Text>
             <Button variant="outline" onPress={() => navigation.goBack()}>
-              Zurück zu den Produkten
+{t('products.backToProducts')}
             </Button>
           </View>
         </View>
@@ -775,8 +803,7 @@ export default function ProductDetailScreen() {
       >
         {/* Back button */}
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <ArrowLeft size={20} color="#6b7280" />
-          <Text style={styles.backText}>Zurück zu Produkten</Text>
+          <ArrowLeft size={20} color="#ffffff" />
         </TouchableOpacity>
 
         {/* Image Section */}
@@ -790,7 +817,7 @@ export default function ProductDetailScreen() {
             ) : (
               <View style={styles.noImageContainer}>
                 <Eye size={96} color="#d1d5db" />
-                <Text style={styles.noImageText}>Kein Bild verfügbar</Text>
+                <Text style={styles.noImageText}>{t('products.noImageAvailable')}</Text>
               </View>
             )}
           </View>
@@ -828,7 +855,7 @@ export default function ProductDetailScreen() {
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
                 <Download size={24} color="#ffffff" style={{ marginRight: 12 }} />
-                <Text style={styles.downloadButtonText}>Manual herunterladen</Text>
+                <Text style={styles.downloadButtonText}>{t('products.downloadManual')}</Text>
               </View>
             </Button>
           )}
@@ -837,53 +864,62 @@ export default function ProductDetailScreen() {
         {/* Product Info */}
         <View style={styles.productInfo}>
           <Text style={styles.productTitle}>
-            {product.vysnName || 'Unnamed Product'}
+            {product.vysnName || t('products.unnamedProduct')}
           </Text>
           
           <Text style={styles.productNumber}>
-            Item: #{product.itemNumberVysn}
+            {t('products.item')}: #{product.itemNumberVysn}
           </Text>
           
           {product.grossPrice && (
-            <Text style={styles.priceText}>
-              {formatPrice(product.grossPrice)}
-            </Text>
+            <View style={styles.priceRow}>
+              <Text style={styles.priceText}>
+                {formatPrice(product.grossPrice)}
+              </Text>
+              {auth?.user?.profile?.discount_percentage && auth.user.profile.discount_percentage > 0 && (
+                <Text style={styles.discountPriceInline}>
+                  {formatPrice(product.grossPrice * (1 - auth.user.profile.discount_percentage / 100))} (-{auth.user.profile.discount_percentage}%)
+                </Text>
+              )}
+            </View>
           )}
 
           {/* Stock Status */}
-          <View style={[styles.stockStatus, { backgroundColor: stockStatus.bgColor }]}>
-            <View style={[styles.stockStatusDot, { backgroundColor: stockStatus.color }]} />
-            <Text style={[styles.stockStatusText, { color: stockStatus.color }]}>
-              {stockStatus.text}
-            </Text>
-          </View>
+          {stockStatus && (
+            <View style={[styles.stockStatus, { backgroundColor: stockStatus.bgColor }]}>
+              <View style={[styles.stockStatusDot, { backgroundColor: stockStatus.color }]} />
+              <Text style={[styles.stockStatusText, { color: stockStatus.color }]}>
+                {stockStatus.text}
+              </Text>
+            </View>
+          )}
 
           {inventoryData.inStock && (
             <View style={styles.stockInfo}>
               <View style={styles.stockInfoRow}>
-                <Text style={styles.stockInfoLabel}>Lager:</Text>
-                <Text style={styles.stockInfoValue}>{inventoryData.stockQuantity} Stück verfügbar</Text>
+                <Text style={styles.stockInfoLabel}>{t('products.stock')}:</Text>
+                <Text style={styles.stockInfoValue}>{inventoryData.stockQuantity} {t('products.piecesAvailable')}</Text>
               </View>
               <View style={styles.stockInfoRow}>
-                <Text style={styles.stockInfoLabel}>Lieferung:</Text>
+                <Text style={styles.stockInfoLabel}>{t('products.delivery')}:</Text>
                 <Text style={styles.stockInfoValue}>{inventoryData.estimatedDelivery}</Text>
               </View>
               <View style={styles.stockInfoRow}>
-                <Text style={styles.stockInfoLabel}>Lager:</Text>
+                <Text style={styles.stockInfoLabel}>{t('products.warehouse')}:</Text>
                 <Text style={styles.stockInfoValue}>{inventoryData.warehouse}</Text>
               </View>
             </View>
           )}
           
           <Text style={styles.description}>
-            {product.longDescription || product.shortDescription || 'Keine Beschreibung verfügbar'}
+            {product.longDescription || product.shortDescription || 'No description available'}
           </Text>
         </View>
 
         {/* Quantity and Order Section */}
         <View style={styles.quantitySection}>
           <View style={styles.quantityRow}>
-            <Text style={styles.quantityLabel}>Menge:</Text>
+            <Text style={styles.quantityLabel}>{t('products.quantity')}:</Text>
             <View style={styles.quantityControls}>
               <TouchableOpacity 
                 style={styles.quantityButton}
@@ -914,7 +950,7 @@ export default function ProductDetailScreen() {
           {inventoryData.inStock && quantity > inventoryData.stockQuantity && (
             <View style={styles.stockWarning}>
               <Text style={styles.stockWarningText}>
-                ⚠️ Nur {inventoryData.stockQuantity} Stück verfügbar
+                ⚠️ {t('products.onlyXPiecesAvailable', { count: inventoryData.stockQuantity })}
               </Text>
             </View>
           )}
@@ -923,7 +959,7 @@ export default function ProductDetailScreen() {
           {inventoryData.inStock && inventoryData.stockQuantity <= inventoryData.lowStockThreshold && (
             <View style={styles.lowStockWarning}>
               <Text style={styles.lowStockWarningText}>
-                🔥 Nur noch {inventoryData.stockQuantity} Stück auf Lager
+                🔥 {t('products.onlyXPiecesLeft', { count: inventoryData.stockQuantity })}
               </Text>
             </View>
           )}
@@ -931,16 +967,19 @@ export default function ProductDetailScreen() {
           {/* Available Quantity Info */}
           {inventoryData.inStock && (
             <Text style={styles.maxQuantityText}>
-              Maximal {getMaxQuantity()} Stück bestellbar
+              {t('products.maximumPiecesOrderable', { count: getMaxQuantity() })}
             </Text>
           )}
 
           {/* Total Price */}
           {product.grossPrice && (
             <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Gesamt:</Text>
+              <Text style={styles.totalLabel}>{t('products.total')}:</Text>
               <Text style={styles.totalPrice}>
-                {formatPrice(product.grossPrice * quantity)}
+                {auth?.user?.profile?.discount_percentage && auth.user.profile.discount_percentage > 0 
+                  ? formatPrice(product.grossPrice * quantity * (1 - auth.user.profile.discount_percentage / 100))
+                  : formatPrice(product.grossPrice * quantity)
+                }
               </Text>
             </View>
           )}
@@ -960,32 +999,32 @@ export default function ProductDetailScreen() {
             )}
             <Text style={{ color: '#ffffff', fontWeight: '600', fontSize: 16 }}>
               {!inventoryData.inStock 
-                ? 'Nicht verfügbar' 
+                ? t('products.notAvailable') 
                 : isAddingToProject 
-                ? 'Wird hinzugefügt...' 
-                : 'Zum Projekt hinzufügen'}
+                ? t('products.adding') 
+                : t('products.addToProject')}
             </Text>
           </View>
         </Button>
         
         <Button 
           variant="outline"
-          onPress={handleReorder}
-          disabled={isReordering || !inventoryData.inStock || quantity > inventoryData.stockQuantity}
+          onPress={handleAddToCart}
+          disabled={isAddingToCart || !inventoryData.inStock || quantity > inventoryData.stockQuantity}
           style={styles.actionButtonSecondary}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-            {isReordering ? (
+            {isAddingToCart ? (
               <ActivityIndicator size="small" color="#374151" style={{ marginRight: 8 }} />
             ) : (
-              <RefreshCw size={20} color="#374151" style={{ marginRight: 8 }} />
+              <ShoppingCart size={20} color="#374151" style={{ marginRight: 8 }} />
             )}
             <Text style={{ color: '#374151', fontWeight: '600', fontSize: 16 }}>
               {!inventoryData.inStock 
-                ? 'Nicht verfügbar' 
-                : isReordering 
-                ? 'Wird nachbestellt...' 
-                : 'Nachbestellen'}
+                ? t('products.notAvailable') 
+                : isAddingToCart 
+                ? t('cart.adding') 
+                : t('cart.addToCart')}
             </Text>
           </View>
         </Button>
@@ -1000,7 +1039,7 @@ export default function ProductDetailScreen() {
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
               <MessageCircle size={20} color="#374151" style={{ marginRight: 8 }} />
               <Text style={{ color: '#374151', fontWeight: '600', fontSize: 16 }}>
-                {showChat ? 'Chat schließen' : 'Produktfragen stellen'}
+                {showChat ? t('products.closechat') : t('products.askProductQuestions')}
               </Text>
             </View>
           </Button>
@@ -1012,7 +1051,7 @@ export default function ProductDetailScreen() {
                   <View style={styles.chatTitle}>
                     <MessageCircle size={20} color="#000000" />
                     <Text style={[styles.chatTitleText, { fontSize: 18, fontWeight: 'bold' }]}>
-                      Produkt-Assistent
+                      {t('products.productAssistant')}
                     </Text>
                   </View>
                 </View>
@@ -1020,7 +1059,7 @@ export default function ProductDetailScreen() {
                 <ScrollView style={styles.chatHistory} showsVerticalScrollIndicator={false}>
                   {chatHistory.length === 0 && (
                     <Text style={{ color: '#6b7280', fontSize: 14 }}>
-                      Fragen Sie mich alles über dieses Produkt...
+                      {t('products.askAnything')}
                     </Text>
                   )}
                   {chatHistory.map((message, index) => (
@@ -1047,7 +1086,7 @@ export default function ProductDetailScreen() {
                   {isChatLoading && (
                     <View style={styles.chatMessageAssistant}>
                       <View style={styles.chatBubbleAssistant}>
-                        <Text style={styles.chatTextAssistant}>Denke nach...</Text>
+                        <Text style={styles.chatTextAssistant}>{t('products.thinking')}</Text>
                       </View>
                     </View>
                   )}
@@ -1055,7 +1094,7 @@ export default function ProductDetailScreen() {
                 
                 <View style={styles.chatInputContainer}>
                   <Input
-                    placeholder="Fragen zu Spezifikationen, Kompatibilität, Installation..."
+                    placeholder={t('products.questionsPlaceholder')}
                     value={question}
                     onChangeText={setQuestion}
                     onSubmitEditing={handleAskQuestion}
@@ -1075,55 +1114,354 @@ export default function ProductDetailScreen() {
           )}
         </View>
 
-        {/* Technical Specifications */}
-        <Card style={styles.specCard}>
-          <CardContent>
-            <Text style={styles.specCardHeader}>Technische Daten</Text>
-            
-            {product.wattage && (
-              <View style={styles.specRow}>
-                <Text style={styles.specLabel}>Leistung:</Text>
-                <Text style={styles.specValue}>{product.wattage}W</Text>
-              </View>
-            )}
-            {product.lumen && (
-              <View style={styles.specRow}>
-                <Text style={styles.specLabel}>Lichtstrom:</Text>
-                <Text style={styles.specValue}>{product.lumen} lm</Text>
-              </View>
-            )}
-            {product.cct && (
-              <View style={styles.specRow}>
-                <Text style={styles.specLabel}>Farbtemperatur:</Text>
-                <Text style={styles.specValue}>{product.cct}K</Text>
-              </View>
-            )}
-            {product.beamAngle && (
-              <View style={styles.specRow}>
-                <Text style={styles.specLabel}>Abstrahlwinkel:</Text>
-                <Text style={styles.specValue}>{product.beamAngle}°</Text>
-              </View>
-            )}
-            {product.ingressProtection && (
-              <View style={styles.specRow}>
-                <Text style={styles.specLabel}>IP-Schutzklasse:</Text>
-                <Text style={styles.specValue}>{product.ingressProtection}</Text>
-              </View>
-            )}
-            {product.energyClass && (
-              <View style={styles.specRow}>
-                <Text style={styles.specLabel}>Energieklasse:</Text>
-                <Text style={styles.specValue}>{product.energyClass}</Text>
-              </View>
-            )}
-            {product.steering && (
-              <View style={[styles.specRow, styles.specRowLast]}>
-                <Text style={styles.specLabel}>Steuerung:</Text>
-                <Text style={styles.specValue}>{product.steering}</Text>
-              </View>
-            )}
-          </CardContent>
-        </Card>
+{/* Dimensions */}
+        {(product.diameterMm || product.lengthMm || product.widthMm || product.heightMm || product.weightKg || product.installationDiameter || product.cableLengthMm) && (
+          <Card style={styles.specCard}>
+            <CardContent>
+              <Text style={styles.specCardHeader}>{t('products.dimensions')}</Text>
+              
+              {product.diameterMm && (
+                <View style={styles.specRow}>
+                  <Text style={styles.specLabel}>{t('products.diameter')}:</Text>
+                  <Text style={styles.specValue}>{product.diameterMm} mm</Text>
+                </View>
+              )}
+              {product.lengthMm && (
+                <View style={styles.specRow}>
+                  <Text style={styles.specLabel}>{t('products.length')}:</Text>
+                  <Text style={styles.specValue}>{product.lengthMm} mm</Text>
+                </View>
+              )}
+              {product.widthMm && (
+                <View style={styles.specRow}>
+                  <Text style={styles.specLabel}>{t('products.width')}:</Text>
+                  <Text style={styles.specValue}>{product.widthMm} mm</Text>
+                </View>
+              )}
+              {product.heightMm && (
+                <View style={styles.specRow}>
+                  <Text style={styles.specLabel}>{t('products.height')}:</Text>
+                  <Text style={styles.specValue}>{product.heightMm} mm</Text>
+                </View>
+              )}
+              {product.weightKg && (
+                <View style={styles.specRow}>
+                  <Text style={styles.specLabel}>{t('products.weight')}:</Text>
+                  <Text style={styles.specValue}>{product.weightKg} kg</Text>
+                </View>
+              )}
+              {product.installationDiameter && (
+                <View style={styles.specRow}>
+                  <Text style={styles.specLabel}>{t('products.installationDiameter')}:</Text>
+                  <Text style={styles.specValue}>{product.installationDiameter} mm</Text>
+                </View>
+              )}
+              {product.cableLengthMm && (
+                <View style={[styles.specRow, styles.specRowLast]}>
+                  <Text style={styles.specLabel}>{t('products.cableLength')}:</Text>
+                  <Text style={styles.specValue}>{product.cableLengthMm} mm</Text>
+                </View>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Light Details */}
+        {(product.lumen || product.cct || product.cri || product.beamAngle || product.beamAngleRange || product.lightDirection || product.lightsource || product.ledType || product.driverInfo || product.lumenPerWatt || product.luminosityDecrease || product.ledChipLifetime || product.ugr) && (
+          <Card style={styles.specCard}>
+            <CardContent>
+              <Text style={styles.specCardHeader}>{t('products.lightDetails')}</Text>
+              
+              {product.lumen && (
+                <View style={styles.specRow}>
+                  <Text style={styles.specLabel}>{t('products.luminousFlux')}:</Text>
+                  <Text style={styles.specValue}>{product.lumen} lm</Text>
+                </View>
+              )}
+              {product.cct && (
+                <View style={styles.specRow}>
+                  <Text style={styles.specLabel}>{t('products.colorTemperature')}:</Text>
+                  <Text style={styles.specValue}>{product.cct}K</Text>
+                </View>
+              )}
+              {product.cri && (
+                <View style={styles.specRow}>
+                  <Text style={styles.specLabel}>{t('products.cri')}:</Text>
+                  <Text style={styles.specValue}>{product.cri}</Text>
+                </View>
+              )}
+              {product.beamAngle && (
+                <View style={styles.specRow}>
+                  <Text style={styles.specLabel}>{t('products.beamAngle')}:</Text>
+                  <Text style={styles.specValue}>{product.beamAngle}°</Text>
+                </View>
+              )}
+              {product.beamAngleRange && (
+                <View style={styles.specRow}>
+                  <Text style={styles.specLabel}>{t('products.beamAngleRange')}:</Text>
+                  <Text style={styles.specValue}>{product.beamAngleRange}</Text>
+                </View>
+              )}
+              {product.lightDirection && (
+                <View style={styles.specRow}>
+                  <Text style={styles.specLabel}>{t('products.lightDirection')}:</Text>
+                  <Text style={styles.specValue}>{product.lightDirection}</Text>
+                </View>
+              )}
+              {product.lightsource && (
+                <View style={styles.specRow}>
+                  <Text style={styles.specLabel}>{t('products.lightSource')}:</Text>
+                  <Text style={styles.specValue}>{product.lightsource}</Text>
+                </View>
+              )}
+              {product.ledType && (
+                <View style={styles.specRow}>
+                  <Text style={styles.specLabel}>{t('products.ledType')}:</Text>
+                  <Text style={styles.specValue}>{product.ledType}</Text>
+                </View>
+              )}
+              {product.driverInfo && (
+                <View style={styles.specRow}>
+                  <Text style={styles.specLabel}>{t('products.driverInfo')}:</Text>
+                  <Text style={styles.specValue}>{product.driverInfo}</Text>
+                </View>
+              )}
+              {product.lumenPerWatt && (
+                <View style={styles.specRow}>
+                  <Text style={styles.specLabel}>{t('products.lumenPerWatt')}:</Text>
+                  <Text style={styles.specValue}>{product.lumenPerWatt} lm/W</Text>
+                </View>
+              )}
+              {product.luminosityDecrease && (
+                <View style={styles.specRow}>
+                  <Text style={styles.specLabel}>{t('products.luminosityDecrease')}:</Text>
+                  <Text style={styles.specValue}>{product.luminosityDecrease}</Text>
+                </View>
+              )}
+              {product.ledChipLifetime && (
+                <View style={styles.specRow}>
+                  <Text style={styles.specLabel}>{t('products.ledChipLifetime')}:</Text>
+                  <Text style={styles.specValue}>{product.ledChipLifetime}</Text>
+                </View>
+              )}
+              {product.ugr && (
+                <View style={[styles.specRow, styles.specRowLast]}>
+                  <Text style={styles.specLabel}>{t('products.ugr')}:</Text>
+                  <Text style={styles.specValue}>{product.ugr}</Text>
+                </View>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Electrical Data */}
+        {(product.wattage || product.energyClass || product.operatingMode || product.cctSwitchValue || product.powerSwitchValue || product.sdcm || product.steering) && (
+          <Card style={styles.specCard}>
+            <CardContent>
+              <Text style={styles.specCardHeader}>{t('products.electrical')}</Text>
+              
+              {product.wattage && (
+                <View style={styles.specRow}>
+                  <Text style={styles.specLabel}>{t('products.power')}:</Text>
+                  <Text style={styles.specValue}>{product.wattage}W</Text>
+                </View>
+              )}
+              {product.energyClass && (
+                <View style={styles.specRow}>
+                  <Text style={styles.specLabel}>{t('products.energyClass')}:</Text>
+                  <Text style={styles.specValue}>{product.energyClass}</Text>
+                </View>
+              )}
+              {product.operatingMode && (
+                <View style={styles.specRow}>
+                  <Text style={styles.specLabel}>{t('products.operatingMode')}:</Text>
+                  <Text style={styles.specValue}>{product.operatingMode}</Text>
+                </View>
+              )}
+              {product.cctSwitchValue && (
+                <View style={styles.specRow}>
+                  <Text style={styles.specLabel}>{t('products.cctSwitchValue')}:</Text>
+                  <Text style={styles.specValue}>{product.cctSwitchValue}</Text>
+                </View>
+              )}
+              {product.powerSwitchValue && (
+                <View style={styles.specRow}>
+                  <Text style={styles.specLabel}>{t('products.powerSwitchValue')}:</Text>
+                  <Text style={styles.specValue}>{product.powerSwitchValue}</Text>
+                </View>
+              )}
+              {product.sdcm && (
+                <View style={styles.specRow}>
+                  <Text style={styles.specLabel}>{t('products.sdcm')}:</Text>
+                  <Text style={styles.specValue}>{product.sdcm}</Text>
+                </View>
+              )}
+              {product.steering && (
+                <View style={[styles.specRow, styles.specRowLast]}>
+                  <Text style={styles.specLabel}>{t('products.control')}:</Text>
+                  <Text style={styles.specValue}>{product.steering}</Text>
+                </View>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Installation & Safety */}
+        {(product.installation || product.baseSocket || product.numberOfSockets || product.replaceableLightSource || product.coverable || product.ingressProtection || product.protectionClass || product.impactResistance) && (
+          <Card style={styles.specCard}>
+            <CardContent>
+              <Text style={styles.specCardHeader}>{t('products.installation')} & {t('products.safety')}</Text>
+              
+              {product.installation && (
+                <View style={styles.specRow}>
+                  <Text style={styles.specLabel}>{t('products.installationType')}:</Text>
+                  <Text style={styles.specValue}>{product.installation}</Text>
+                </View>
+              )}
+              {product.baseSocket && (
+                <View style={styles.specRow}>
+                  <Text style={styles.specLabel}>{t('products.baseSocket')}:</Text>
+                  <Text style={styles.specValue}>{product.baseSocket}</Text>
+                </View>
+              )}
+              {product.numberOfSockets && (
+                <View style={styles.specRow}>
+                  <Text style={styles.specLabel}>{t('products.numberOfSockets')}:</Text>
+                  <Text style={styles.specValue}>{product.numberOfSockets}</Text>
+                </View>
+              )}
+              {product.replaceableLightSource !== undefined && (
+                <View style={styles.specRow}>
+                  <Text style={styles.specLabel}>{t('products.replaceableLightSource')}:</Text>
+                  <Text style={styles.specValue}>{product.replaceableLightSource ? 'Ja' : 'Nein'}</Text>
+                </View>
+              )}
+              {product.coverable !== undefined && (
+                <View style={styles.specRow}>
+                  <Text style={styles.specLabel}>{t('products.coverable')}:</Text>
+                  <Text style={styles.specValue}>{product.coverable ? 'Ja' : 'Nein'}</Text>
+                </View>
+              )}
+              {product.ingressProtection && (
+                <View style={styles.specRow}>
+                  <Text style={styles.specLabel}>{t('products.ipProtection')}:</Text>
+                  <Text style={styles.specValue}>{product.ingressProtection}</Text>
+                </View>
+              )}
+              {product.protectionClass && (
+                <View style={styles.specRow}>
+                  <Text style={styles.specLabel}>{t('products.protectionClass')}:</Text>
+                  <Text style={styles.specValue}>{product.protectionClass}</Text>
+                </View>
+              )}
+              {product.impactResistance && (
+                <View style={[styles.specRow, styles.specRowLast]}>
+                  <Text style={styles.specLabel}>{t('products.impactResistance')}:</Text>
+                  <Text style={styles.specValue}>{product.impactResistance}</Text>
+                </View>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Additional Information */}
+        {(product.material || product.housingColor || product.category1 || product.category2 || product.groupName || product.countryOfOrigin || product.hsCode || product.barcodeNumber || product.packagingUnits) && (
+          <Card style={styles.specCard}>
+            <CardContent>
+              <Text style={styles.specCardHeader}>{t('products.additional')}</Text>
+              
+              {product.material && (
+                <View style={styles.specRow}>
+                  <Text style={styles.specLabel}>{t('products.material')}:</Text>
+                  <Text style={styles.specValue}>{product.material}</Text>
+                </View>
+              )}
+              {product.housingColor && (
+                <View style={styles.specRow}>
+                  <Text style={styles.specLabel}>{t('products.housingColor')}:</Text>
+                  <Text style={styles.specValue}>{product.housingColor}</Text>
+                </View>
+              )}
+              {product.category1 && (
+                <View style={styles.specRow}>
+                  <Text style={styles.specLabel}>{t('products.category')} 1:</Text>
+                  <Text style={styles.specValue}>{product.category1}</Text>
+                </View>
+              )}
+              {product.category2 && (
+                <View style={styles.specRow}>
+                  <Text style={styles.specLabel}>{t('products.category')} 2:</Text>
+                  <Text style={styles.specValue}>{product.category2}</Text>
+                </View>
+              )}
+              {product.groupName && (
+                <View style={styles.specRow}>
+                  <Text style={styles.specLabel}>{t('products.groupName')}:</Text>
+                  <Text style={styles.specValue}>{product.groupName}</Text>
+                </View>
+              )}
+              {product.countryOfOrigin && (
+                <View style={styles.specRow}>
+                  <Text style={styles.specLabel}>{t('products.countryOfOrigin')}:</Text>
+                  <Text style={styles.specValue}>{product.countryOfOrigin}</Text>
+                </View>
+              )}
+              {product.hsCode && (
+                <View style={styles.specRow}>
+                  <Text style={styles.specLabel}>{t('products.hsCode')}:</Text>
+                  <Text style={styles.specValue}>{product.hsCode}</Text>
+                </View>
+              )}
+              {product.barcodeNumber && (
+                <View style={styles.specRow}>
+                  <Text style={styles.specLabel}>{t('products.barcodeNumber')}:</Text>
+                  <Text style={styles.specValue}>{product.barcodeNumber}</Text>
+                </View>
+              )}
+              {product.packagingUnits && (
+                <View style={[styles.specRow, styles.specRowLast]}>
+                  <Text style={styles.specLabel}>{t('products.packagingUnits')}:</Text>
+                  <Text style={styles.specValue}>{product.packagingUnits}</Text>
+                </View>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Packaging Information */}
+        {(product.packagingWeightKg || product.grossWeightKg || product.packagingWidthMm || product.packagingLengthMm || product.packagingHeightMm) && (
+          <Card style={styles.specCard}>
+            <CardContent>
+              <Text style={styles.specCardHeader}>{t('products.packaging')}</Text>
+              
+              {product.packagingWeightKg && (
+                <View style={styles.specRow}>
+                  <Text style={styles.specLabel}>{t('products.packagingWeight')}:</Text>
+                  <Text style={styles.specValue}>{product.packagingWeightKg} kg</Text>
+                </View>
+              )}
+              {product.grossWeightKg && (
+                <View style={styles.specRow}>
+                  <Text style={styles.specLabel}>{t('products.grossWeight')}:</Text>
+                  <Text style={styles.specValue}>{product.grossWeightKg} kg</Text>
+                </View>
+              )}
+              {(product.packagingWidthMm || product.packagingLengthMm || product.packagingHeightMm) && (
+                <View style={[styles.specRow, styles.specRowLast]}>
+                  <Text style={styles.specLabel}>{t('products.packagingDimensions')}:</Text>
+                  <Text style={styles.specValue}>
+                    {product.packagingWidthMm && `${product.packagingWidthMm}`}
+                    {product.packagingWidthMm && product.packagingLengthMm && ' × '}
+                    {product.packagingLengthMm && `${product.packagingLengthMm}`}
+                    {(product.packagingWidthMm || product.packagingLengthMm) && product.packagingHeightMm && ' × '}
+                    {product.packagingHeightMm && `${product.packagingHeightMm}`}
+                    {(product.packagingWidthMm || product.packagingLengthMm || product.packagingHeightMm) && ' mm'}
+                  </Text>
+                </View>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </ScrollView>
 
       {/* Project Selection Modal */}
@@ -1136,7 +1474,7 @@ export default function ProductDetailScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Projekt auswählen</Text>
+              <Text style={styles.modalTitle}>{t('products.selectProject')}</Text>
               <TouchableOpacity 
                 style={styles.closeButton}
                 onPress={() => setShowProjectModal(false)}
@@ -1148,7 +1486,7 @@ export default function ProductDetailScreen() {
             {loadingProjects ? (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color="#000000" />
-                <Text style={styles.loadingText}>Lade Projekte...</Text>
+                <Text style={styles.loadingText}>{t('products.loadingProjects')}</Text>
               </View>
             ) : (
               <>
@@ -1173,7 +1511,7 @@ export default function ProductDetailScreen() {
 
                 {/* Create New Project */}
                 <View style={styles.createProjectContainer}>
-                  <Text style={styles.createProjectTitle}>Neues Projekt erstellen</Text>
+                  <Text style={styles.createProjectTitle}>{t('products.createNewProject')}</Text>
                   
                   <Button
                     onPress={() => {
@@ -1190,7 +1528,7 @@ export default function ProductDetailScreen() {
                       });
                     }}
                   >
-                    Vollständiges Projekt erstellen
+                    {t('products.createCompleteProject')}
                   </Button>
                 </View>
               </>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ScrollView, View, Text, TextInput, StyleSheet, Alert, TouchableOpacity } from 'react-native';
+import { ScrollView, View, Text, TextInput, StyleSheet, Alert, TouchableOpacity, Platform } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RouteProp } from '@react-navigation/native';
@@ -9,7 +9,9 @@ import { Card, CardContent } from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Header from '../components/Header';
 import { useAuth } from '../../lib/contexts/AuthContext';
-import { supabase } from '../../lib/utils/supabase';
+import { projectService } from '../../lib/services/projectService';
+import { useTranslation } from 'react-i18next';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 const styles = StyleSheet.create({
   container: {
@@ -21,21 +23,36 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 32,
   },
-  backButton: {
+  headerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 32,
   },
-  backText: {
-    marginLeft: 8,
-    fontSize: 16,
-    color: '#6b7280',
+  backButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: '#000000',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  titleContainer: {
+    flex: 1,
   },
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: 'bold',
     color: '#000000',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   subtitle: {
     fontSize: 16,
@@ -147,10 +164,17 @@ const styles = StyleSheet.create({
   },
 
   productInfo: {
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
     padding: 16,
-    borderRadius: 8,
     marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   productText: {
     fontSize: 16,
@@ -161,12 +185,17 @@ const styles = StyleSheet.create({
     height: 56,
     marginTop: 32,
   },
+  createButtonText: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
 });
 
 type CreateProjectScreenNavigationProp = StackNavigationProp<ProjectsStackParamList, 'CreateProject'>;
 type CreateProjectScreenRouteProp = RouteProp<ProjectsStackParamList, 'CreateProject'>;
 
 export default function CreateProjectScreen() {
+  const { t } = useTranslation();
   const route = useRoute<CreateProjectScreenRouteProp>();
   const navigation = useNavigation<CreateProjectScreenNavigationProp>();
   const auth = useAuth();
@@ -186,57 +215,74 @@ export default function CreateProjectScreen() {
   });
 
   const [isCreating, setIsCreating] = useState(false);
+  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
+  const [showTargetDatePicker, setShowTargetDatePicker] = useState(false);
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [targetDate, setTargetDate] = useState<Date | null>(null);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString('de-DE');
+  };
+
+  const handleStartDateChange = (event: any, selectedDate?: Date) => {
+    setShowStartDatePicker(false);
+    if (selectedDate) {
+      setStartDate(selectedDate);
+      handleInputChange('start_date', selectedDate.toISOString().split('T')[0]);
+    }
+  };
+
+  const handleTargetDateChange = (event: any, selectedDate?: Date) => {
+    setShowTargetDatePicker(false);
+    if (selectedDate) {
+      setTargetDate(selectedDate);
+      handleInputChange('target_completion_date', selectedDate.toISOString().split('T')[0]);
+    }
+  };
+
   const handleCreateProject = async () => {
-    if (!formData.name.trim() || !auth?.user || !supabase) {
-      Alert.alert('Fehler', 'Bitte geben Sie mindestens einen Projektnamen ein');
+    if (!formData.name.trim() || !auth?.user) {
+      Alert.alert(t('auth.error'), t('auth.createProjectError'));
       return;
     }
+    
+    console.log('🏗️ Creating project with name:', formData.name.trim());
 
     setIsCreating(true);
     try {
       const projectData = {
-        user_id: auth.user.id,
         project_name: formData.name.trim(),
-        project_description: formData.description.trim() || null,
-        project_location: formData.location.trim() || null,
+        project_description: formData.description.trim() || undefined,
+        project_location: formData.location.trim() || undefined,
         status: formData.status,
         priority: formData.priority,
-        start_date: formData.start_date || null,
-        target_completion_date: formData.target_completion_date || null,
-        estimated_budget: formData.estimated_budget ? parseFloat(formData.estimated_budget) : null,
+        start_date: formData.start_date || undefined,
+        target_completion_date: formData.target_completion_date || undefined,
+        estimated_budget: formData.estimated_budget ? parseFloat(formData.estimated_budget) : undefined,
         customer_discount: parseFloat(formData.customer_discount) || 0,
-        project_notes: formData.notes.trim() || null,
+        project_notes: formData.notes.trim() || undefined,
       };
 
-      const { data, error } = await supabase
-        .from('user_projects')
-        .insert([projectData])
-        .select()
-        .single();
+      // Create project via API service
+      const newProject = await projectService.createProject(projectData);
 
-      if (error) {
-        Alert.alert('Fehler', `Projekt konnte nicht erstellt werden: ${error.message}`);
-        return;
-      }
-
-      Alert.alert('Erfolg', 'Projekt wurde erfolgreich erstellt!', [
+      Alert.alert(t('auth.success'), t('auth.projectCreatedSuccessfully'), [
         {
-          text: 'OK',
+          text: t('auth.ok'),
           onPress: () => {
             navigation.goBack();
             // Navigate to the new project detail
-            navigation.navigate('ProjectDetail', { id: data.id });
+            navigation.navigate('ProjectDetail', { id: newProject.id });
           }
         }
       ]);
     } catch (error) {
       console.error('Error creating project:', error);
-      Alert.alert('Fehler', 'Projekt konnte nicht erstellt werden');
+      Alert.alert(t('auth.error'), t('auth.projectCouldNotBeCreated'));
     } finally {
       setIsCreating(false);
     }
@@ -247,17 +293,15 @@ export default function CreateProjectScreen() {
       <Header onSettingsPress={() => navigation.navigate('Settings' as any)} />
       
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        {/* Back Button */}
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <ArrowLeft size={20} color="#6b7280" />
-          <Text style={styles.backText}>Zurück</Text>
-        </TouchableOpacity>
-
-        {/* Title */}
-        <Text style={styles.title}>Neues Projekt erstellen</Text>
-        <Text style={styles.subtitle}>
-          Erstellen Sie ein neues Projekt mit allen wichtigen Details
-        </Text>
+        {/* Header with Back Button and Title */}
+        <View style={styles.headerContainer}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <ArrowLeft size={20} color="#ffffff" />
+          </TouchableOpacity>
+          <View style={styles.titleContainer}>
+            <Text style={styles.title}>{t('projects.createNewProjectTitle')}</Text>
+          </View>
+        </View>
 
         {/* Product Info (if coming from product) */}
         {productInfo && (
@@ -272,33 +316,33 @@ export default function CreateProjectScreen() {
         <View style={styles.section}>
           <View style={styles.sectionTitleContainer}>
             <Target size={24} color="#000000" />
-            <Text style={styles.sectionTitle}>Grundinformationen</Text>
+            <Text style={styles.sectionTitle}>{t('projects.basicInformation')}</Text>
           </View>
           
-          <Text style={styles.label}>Projektname *</Text>
+          <Text style={styles.label}>{t('projects.projectNameRequired')}</Text>
           <TextInput
             style={styles.input}
             value={formData.name}
             onChangeText={(text) => handleInputChange('name', text)}
-            placeholder="z.B. Bürobeleuchtung Modernisierung"
+            placeholder={t('projects.projectNamePlaceholder')}
           />
 
-          <Text style={styles.label}>Beschreibung</Text>
+          <Text style={styles.label}>{t('projects.description')}</Text>
           <TextInput
             style={[styles.input, styles.textArea]}
             value={formData.description}
             onChangeText={(text) => handleInputChange('description', text)}
-            placeholder="Detaillierte Projektbeschreibung..."
+            placeholder={t('projects.descriptionPlaceholder')}
             multiline
             numberOfLines={4}
           />
 
-          <Text style={styles.label}>Standort</Text>
+          <Text style={styles.label}>{t('projects.location')}</Text>
           <TextInput
             style={styles.input}
             value={formData.location}
             onChangeText={(text) => handleInputChange('location', text)}
-            placeholder="z.B. Berlin, Deutschland"
+            placeholder={t('projects.locationPlaceholder')}
           />
         </View>
 
@@ -308,49 +352,61 @@ export default function CreateProjectScreen() {
         <View style={styles.section}>
           <View style={styles.sectionTitleContainer}>
             <Calendar size={24} color="#000000" />
-            <Text style={styles.sectionTitle}>Zeitplan</Text>
+            <Text style={styles.sectionTitle}>{t('projects.timeline')}</Text>
           </View>
 
           <View style={styles.dateInputContainer}>
             <View style={styles.dateInput}>
-              <Text style={styles.label}>Startdatum</Text>
+              <Text style={styles.label}>{t('projects.startDate')}</Text>
               <TouchableOpacity 
                 style={styles.input}
-                onPress={() => {
-                  // TODO: DatePicker implementieren
-                  Alert.alert('Info', 'DatePicker wird noch implementiert');
-                }}
+                onPress={() => setShowStartDatePicker(true)}
               >
-                <Text style={{ color: formData.start_date ? '#000000' : '#9ca3af' }}>
-                  {formData.start_date || 'Datum auswählen'}
+                <Text style={{ color: startDate ? '#000000' : '#9ca3af' }}>
+                  {startDate ? formatDate(startDate) : t('projects.selectDate')}
                 </Text>
               </TouchableOpacity>
             </View>
             <View style={styles.dateInput}>
-              <Text style={styles.label}>Zieldatum</Text>
+              <Text style={styles.label}>{t('projects.targetDate')}</Text>
               <TouchableOpacity 
                 style={styles.input}
-                onPress={() => {
-                  // TODO: DatePicker implementieren
-                  Alert.alert('Info', 'DatePicker wird noch implementiert');
-                }}
+                onPress={() => setShowTargetDatePicker(true)}
               >
-                <Text style={{ color: formData.target_completion_date ? '#000000' : '#9ca3af' }}>
-                  {formData.target_completion_date || 'Datum auswählen'}
+                <Text style={{ color: targetDate ? '#000000' : '#9ca3af' }}>
+                  {targetDate ? formatDate(targetDate) : t('projects.selectDate')}
                 </Text>
               </TouchableOpacity>
             </View>
           </View>
+
+          {showStartDatePicker && (
+            <DateTimePicker
+              value={startDate || new Date()}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={handleStartDateChange}
+            />
+          )}
+
+          {showTargetDatePicker && (
+            <DateTimePicker
+              value={targetDate || new Date()}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={handleTargetDateChange}
+            />
+          )}
         </View>
 
         {/* Financial Information */}
         <View style={styles.section}>
           <View style={styles.sectionTitleContainer}>
             <DollarSign size={24} color="#000000" />
-            <Text style={styles.sectionTitle}>Finanzplanung</Text>
+            <Text style={styles.sectionTitle}>{t('projects.financialPlanning')}</Text>
           </View>
 
-          <Text style={styles.label}>Geschätztes Budget</Text>
+          <Text style={styles.label}>{t('projects.estimatedBudget')}</Text>
           <View style={styles.budgetInput}>
             <Text style={styles.currencySymbol}>€</Text>
             <TextInput
@@ -362,7 +418,7 @@ export default function CreateProjectScreen() {
             />
           </View>
 
-          <Text style={[styles.label, { marginTop: 16 }]}>Endkundenrabatt</Text>
+          <Text style={[styles.label, { marginTop: 16 }]}>{t('projects.customerDiscount')}</Text>
           <View style={styles.discountInput}>
             <TextInput
               style={styles.discountTextInput}
@@ -374,7 +430,7 @@ export default function CreateProjectScreen() {
             <Text style={styles.percentSymbol}>%</Text>
           </View>
           <Text style={{ fontSize: 12, color: '#6b7280', marginTop: 4 }}>
-            Zusätzlicher Rabatt für Endkunden (z.B. 5%)
+            {t('projects.customerDiscountHint')}
           </Text>
         </View>
 
@@ -382,15 +438,15 @@ export default function CreateProjectScreen() {
         <View style={styles.section}>
           <View style={styles.sectionTitleContainer}>
             <Tag size={24} color="#000000" />
-            <Text style={styles.sectionTitle}>Zusätzliche Informationen</Text>
+            <Text style={styles.sectionTitle}>{t('projects.additionalInformation')}</Text>
           </View>
 
-          <Text style={styles.label}>Notizen</Text>
+          <Text style={styles.label}>{t('projects.notes')}</Text>
           <TextInput
             style={[styles.input, styles.textArea]}
             value={formData.notes}
             onChangeText={(text) => handleInputChange('notes', text)}
-            placeholder="Zusätzliche Projektnotizen, Produkte, etc..."
+            placeholder={t('projects.notesPlaceholder')}
             multiline
             numberOfLines={4}
           />
@@ -401,8 +457,9 @@ export default function CreateProjectScreen() {
           onPress={handleCreateProject}
           disabled={isCreating || !formData.name.trim()}
           style={styles.createButton}
+          textStyle={styles.createButtonText}
         >
-          {isCreating ? 'Projekt wird erstellt...' : 'Projekt erstellen'}
+          {isCreating ? t('projects.creating') : t('projects.createProject')}
         </Button>
       </ScrollView>
     </View>

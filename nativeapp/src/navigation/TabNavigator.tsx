@@ -1,5 +1,6 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { useTranslation } from 'react-i18next';
 import { Home, Search, QrCode, Bot, FolderOpen } from 'lucide-react-native';
 
 // Import aller echten Screens
@@ -14,6 +15,7 @@ import ProjectsStackNavigator from './ProjectsStackNavigator';
 const Tab = createBottomTabNavigator();
 
 export default function TabNavigator() {
+  const { t } = useTranslation();
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -51,11 +53,31 @@ export default function TabNavigator() {
         headerShown: false,
       })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Products" component={ProductsStackNavigator} />
-      <Tab.Screen name="Scanner" component={ScannerStackNavigator} />
-      <Tab.Screen name="AI Chat" component={AIChatScreen} />
-      <Tab.Screen name="Projects" component={ProjectsStackNavigator} />
+      <Tab.Screen 
+        name="Home" 
+        component={HomeScreen} 
+        options={{ tabBarLabel: 'Home' }}
+      />
+      <Tab.Screen 
+        name="Products" 
+        component={ProductsStackNavigator} 
+        options={{ tabBarLabel: t('products.title') }}
+      />
+      <Tab.Screen 
+        name="Scanner" 
+        component={ScannerStackNavigator} 
+        options={{ tabBarLabel: t('scanner.title') }}
+      />
+      <Tab.Screen 
+        name="AI Chat" 
+        component={AIChatScreen} 
+        options={{ tabBarLabel: t('chat.title') }}
+      />
+      <Tab.Screen 
+        name="Projects" 
+        component={ProjectsStackNavigator} 
+        options={{ tabBarLabel: t('projects.title') }}
+      />
     </Tab.Navigator>
   );
 }

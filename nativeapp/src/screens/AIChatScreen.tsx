@@ -11,8 +11,9 @@ import {
   Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Audio } from 'expo-av';
 import { Bot, Send, User, Mic, MicOff, Keyboard, X, WifiOff, Headphones } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
+import { useNavigation } from '@react-navigation/native';
 import Button from '../components/ui/Button';
 import Header from '../components/Header';
 import { chatService, ChatMessage } from '../../lib/services/chatService';
@@ -252,10 +253,12 @@ const styles = StyleSheet.create({
 
 export default function AIChatScreen() {
   const auth = useAuth();
+  const navigation = useNavigation();
+  const { t } = useTranslation();
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '1',
-      content: 'Hey! 👋 I\'m your VYSN Lighting Assistant. Feel free to ask me anything about LED lighting, product details, installation or technical questions!',
+      content: t('chat.welcome'),
       sender: 'ai',
       timestamp: new Date()
     }
@@ -267,7 +270,7 @@ export default function AIChatScreen() {
   const [isOnline, setIsOnline] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const [recording, setRecording] = useState<any>(null);
   const [isProcessingVoice, setIsProcessingVoice] = useState(false);
   
   const scrollViewRef = useRef<ScrollView>(null);
@@ -346,102 +349,52 @@ export default function AIChatScreen() {
     }, 100);
   };
 
-  // Request permissions for audio recording
-  useEffect(() => {
-    const requestPermissions = async () => {
-      const { status } = await Audio.requestPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission needed', 'Please allow microphone access to use voice features.');
-      }
-    };
-    requestPermissions();
-  }, []);
+  // Audio recording temporarily disabled
+  // useEffect(() => {
+  //   const requestPermissions = async () => {
+  //     Alert.alert(t('chat.permissionNeeded'), t('chat.microphoneAccess'));
+  //   };
+  //   requestPermissions();
+  // }, []);
 
   const startVoiceRecording = async () => {
-    try {
-      if (isRecording) {
-        await stopVoiceRecording();
-        return;
-      }
-
-      setIsRecording(true);
-      setError(null);
-
-      // Configure audio recording
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-      });
-
-      const { recording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
-      );
-      
-      setRecording(recording);
-    } catch (error) {
-      console.error('Failed to start recording:', error);
-      setIsRecording(false);
-      Alert.alert('Recording Error', 'Could not start voice recording. Please try again.');
-    }
+    // Voice recording temporarily disabled to prevent crashes
+    Alert.alert(t('chat.voiceProcessing'), t('chat.voiceProcessingDescription'), [
+      {
+        text: t('chat.sendTestMessage'),
+        onPress: () => sendMessage(t('chat.testVoiceMessage'))
+      },
+      { text: t('common.cancel'), style: 'cancel' }
+    ]);
   };
 
   const stopVoiceRecording = async () => {
-    try {
-      if (!recording) return;
-
-      setIsRecording(false);
-      setIsProcessingVoice(true);
-      
-      await recording.stopAndUnloadAsync();
-      const uri = recording.getURI();
-      setRecording(null);
-
-      if (uri) {
-        // For now, just show a placeholder message since we'd need a speech-to-text service
-        // In a real implementation, you'd send the audio to a speech-to-text API
-        Alert.alert(
-          'Voice Processing', 
-          'Voice message recorded! In a real implementation, this would be converted to text and sent to the chat.',
-          [
-            {
-              text: 'Send Test Message',
-              onPress: () => sendMessage('This is a test voice message converted to text.')
-            },
-            { text: 'Cancel', style: 'cancel' }
-          ]
-        );
-      }
-    } catch (error) {
-      console.error('Failed to stop recording:', error);
-      Alert.alert('Recording Error', 'Could not process voice recording.');
-    } finally {
-      setIsProcessingVoice(false);
-    }
+    // Voice recording functionality disabled
+    setIsRecording(false);
+    setIsProcessingVoice(false);
   };
 
 
   // Support contact function
   const contactSupport = () => {
     Alert.alert(
-      'Support kontaktieren',
-      'Wie möchten Sie uns kontaktieren?',
+      t('chat.contactSupport'),
+      t('chat.howToContact'),
       [
         {
-          text: 'E-Mail',
+          text: t('chat.email'),
           onPress: () => {
-            // In einer echten App würde hier ein E-Mail-Client geöffnet
-            Alert.alert('E-Mail Support', 'support@vysn.de\n\nBitte beschreiben Sie Ihr Problem detailliert.');
+            Alert.alert(t('chat.emailSupport'), t('chat.emailAddress'));
           }
         },
         {
-          text: 'Telefon',
+          text: t('chat.phone'),
           onPress: () => {
-            // In einer echten App würde hier die Telefon-App geöffnet
-            Alert.alert('Telefon Support', '+49 123 456 789\n\nMontag bis Freitag, 9:00 - 17:00 Uhr');
+            Alert.alert(t('chat.phoneSupport'), t('chat.phoneNumber'));
           }
         },
         {
-          text: 'Abbrechen',
+          text: t('common.cancel'),
           style: 'cancel'
         }
       ]
@@ -486,7 +439,7 @@ export default function AIChatScreen() {
       // Add fallback AI response
       const errorMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
-        content: 'I apologize, but I\'m currently having trouble connecting to the backend service. This might be a temporary issue. Please check your internet connection and try again. In the meantime, I can still help with basic questions about VYSN lighting products.',
+        content: t('chat.offlineResponse'),
         sender: 'ai',
         timestamp: new Date()
       };
@@ -508,7 +461,7 @@ export default function AIChatScreen() {
         <View style={styles.offlineIndicator}>
           <WifiOff size={16} color="#d97706" />
           <Text style={styles.offlineText}>
-            Offline Mode - Limited functionality
+            {t('chat.offlineMode')}
           </Text>
         </View>
       )}
@@ -524,7 +477,7 @@ export default function AIChatScreen() {
               style={{ marginTop: 8, alignSelf: 'center' }}
             >
               <Text style={{ color: '#dc2626', fontWeight: '600', fontSize: 12 }}>
-                {isLoading ? 'Retrying...' : 'Retry Connection'}
+                {isLoading ? t('chat.retrying') : t('chat.retryConnection')}
               </Text>
             </TouchableOpacity>
           )}
@@ -544,7 +497,7 @@ export default function AIChatScreen() {
         >
           {/* Debug: Show message count */}
           <Text style={{ fontSize: 12, color: '#999', textAlign: 'center', marginBottom: 10 }}>
-            Messages: {messages.length}
+            {t('chat.messagesCount', { count: messages.length })}
           </Text>
           
           {messages.map((message) => (
@@ -588,7 +541,7 @@ export default function AIChatScreen() {
                       onPress={contactSupport}
                     >
                       <Headphones size={16} color="#ffffff" />
-                      <Text style={styles.supportButtonText}>Support kontaktieren</Text>
+                      <Text style={styles.supportButtonText}>{t('chat.contactSupport')}</Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -605,7 +558,7 @@ export default function AIChatScreen() {
                 </View>
                 <View style={[styles.messageBubble, styles.messageBubbleBot]}>
                   <View style={styles.loadingDots}>
-                    <Text style={[styles.messageText, styles.messageTextBot]}>Thinking</Text>
+                    <Text style={[styles.messageText, styles.messageTextBot]}>{t('chat.thinking')}</Text>
                     <View style={styles.loadingDot} />
                     <View style={styles.loadingDot} />
                     <View style={styles.loadingDot} />
@@ -633,7 +586,7 @@ export default function AIChatScreen() {
               </TouchableOpacity>
               
               <Text style={[styles.voiceStatus, isRecording ? styles.voiceStatusRecording : {}]}>
-                {isProcessingVoice ? 'Processing...' : isRecording ? 'Tap to stop recording' : 'Tap to speak'}
+                {isProcessingVoice ? t('chat.processing') : isRecording ? t('chat.tapToStop') : t('chat.tapToSpeak')}
               </Text>
               
               <TouchableOpacity 
@@ -642,7 +595,7 @@ export default function AIChatScreen() {
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
                   <Keyboard size={16} color="#6b7280" />
-                  <Text style={[styles.keyboardToggle, { marginLeft: 8 }]}>Use keyboard</Text>
+                  <Text style={[styles.keyboardToggle, { marginLeft: 8 }]}>{t('chat.useKeyboard')}</Text>
                 </View>
               </TouchableOpacity>
             </View>
@@ -655,7 +608,7 @@ export default function AIChatScreen() {
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
                   <Mic size={16} color="#6b7280" />
-                  <Text style={[styles.keyboardToggle, { marginLeft: 8 }]}>Use voice</Text>
+                  <Text style={[styles.keyboardToggle, { marginLeft: 8 }]}>{t('chat.useVoice')}</Text>
                 </View>
               </TouchableOpacity>
               
@@ -664,7 +617,7 @@ export default function AIChatScreen() {
                   style={styles.textInput}
                   value={inputText}
                   onChangeText={setInputText}
-                  placeholder="Message VYSN Assistant..."
+                  placeholder={t('chat.messagePlaceholder')}
                   placeholderTextColor="#9ca3af"
                   multiline
                   textAlignVertical="center"

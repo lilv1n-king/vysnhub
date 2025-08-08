@@ -39,16 +39,22 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   backButton: {
-    flexDirection: 'row',
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: '#000000',
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginBottom: 8,
-  },
-  backButtonText: {
-    fontSize: 16,
-    color: '#6b7280',
-    marginLeft: 8,
+    marginBottom: 20,
+    marginHorizontal: 16,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   section: {
     marginBottom: 24,
@@ -343,12 +349,11 @@ export default function SettingsScreen() {
           style={styles.backButton} 
           onPress={() => navigation.goBack()}
         >
-          <ArrowLeft size={20} color="#6b7280" />
-          <Text style={styles.backButtonText}>Zurück</Text>
+          <ArrowLeft size={20} color="#ffffff" />
         </TouchableOpacity>
         
         <View style={styles.scrollContent}>
-          <Text style={styles.loadingText}>Please sign in to view settings</Text>
+          <Text style={styles.loadingText}>{t('auth.pleaseSignInToViewSettings')}</Text>
         </View>
       </View>
     );
@@ -359,13 +364,12 @@ export default function SettingsScreen() {
       <Header onSettingsPress={() => navigation.goBack()} />
       
       {/* Back Button */}
-      <TouchableOpacity 
-        style={styles.backButton} 
-        onPress={() => navigation.goBack()}
-      >
-        <ArrowLeft size={20} color="#6b7280" />
-        <Text style={styles.backButtonText}>Zurück</Text>
-      </TouchableOpacity>
+              <TouchableOpacity 
+          style={styles.backButton} 
+          onPress={() => navigation.goBack()}
+        >
+          <ArrowLeft size={20} color="#ffffff" />
+        </TouchableOpacity>
       
       <ScrollView style={styles.scrollContent}>
         {/* Profile Section */}

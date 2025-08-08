@@ -15,12 +15,32 @@ export interface UpdateProjectItemData {
   notes?: string;
 }
 
+export interface ProjectOrderStatus {
+  hasOrders: boolean;
+  lastOrder?: any;
+  orderedItems: { productId: number; totalQuantity: number }[];
+  availableToOrder: { productId: number; availableQuantity: number }[];
+}
+
 class ProjectService {
   
   // Get all user projects
   async getUserProjects(): Promise<Project[]> {
-    const response = await apiService.get<Project[]>(API_ENDPOINTS.USER_PROJECTS);
-    return response.data || [];
+    try {
+      console.log('📋 Fetching user projects...');
+      const response = await apiService.get<Project[]>(API_ENDPOINTS.USER_PROJECTS);
+      
+      if (response.success && response.data) {
+        console.log(`✅ Loaded ${response.data.length} projects`);
+        return response.data;
+      } else {
+        console.error('❌ Failed to load projects:', response.error);
+        return [];
+      }
+    } catch (error) {
+      console.error('❌ Error in getUserProjects:', error);
+      return [];
+    }
   }
 
   // Get single project by ID
@@ -127,6 +147,25 @@ class ProjectService {
         quantity: quantity,
         unit_price: unitPrice
       });
+    }
+  }
+
+  // Get project order status
+  async getProjectOrderStatus(projectId: string): Promise<ProjectOrderStatus> {
+    try {
+      console.log('📦 Checking project order status for:', projectId);
+      const response = await apiService.get<ProjectOrderStatus>(`${API_ENDPOINTS.USER_PROJECTS}/${projectId}/order-status`);
+      
+      if (response.success && response.data) {
+        console.log('✅ Project order status loaded:', response.data);
+        return response.data;
+      } else {
+        console.error('❌ Failed to load project order status:', response.error);
+        throw new Error(response.error || 'Failed to load project order status');
+      }
+    } catch (error) {
+      console.error('❌ Error checking project order status:', error);
+      throw error;
     }
   }
 }

@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
+  Keyboard,
   StyleSheet,
   Alert,
   KeyboardAvoidingView,
@@ -13,6 +15,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import { Eye, EyeOff, LogIn, UserPlus } from 'lucide-react-native';
 import { useAuth } from '../../lib/contexts/AuthContext';
 import Button from '../components/ui/Button';
@@ -146,6 +149,7 @@ const styles = StyleSheet.create({
 export default function LoginScreen() {
   const navigation = useNavigation();
   const auth = useAuth();
+  const { t } = useTranslation();
   
   // Safety check - if auth context is not available, show error
   if (!auth) {
@@ -166,6 +170,9 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
   const [focusedField, setFocusedField] = useState<string | null>(null);
+
+  const emailRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInput>(null);
 
   const validateForm = () => {
     const newErrors: { email?: string; password?: string } = {};
@@ -195,10 +202,10 @@ export default function LoginScreen() {
       const { error } = await signIn({ email: email.trim(), password });
       
       if (error) {
-        Alert.alert('Login Failed', error.message);
+        Alert.alert(t('auth.loginError'), error.message);
       }
     } catch (error) {
-      Alert.alert('Error', 'An unexpected error occurred');
+      Alert.alert(t('common.error'), 'An unexpected error occurred');
     } finally {
       setLoading(false);
     }
@@ -222,7 +229,7 @@ export default function LoginScreen() {
         );
       }
     } catch (error) {
-      Alert.alert('Error', 'An unexpected error occurred');
+      Alert.alert(t('common.error'), 'An unexpected error occurred');
     }
   };
 
@@ -235,11 +242,15 @@ export default function LoginScreen() {
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
       >
-        <ScrollView 
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-        >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <ScrollView 
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            bounces={false}
+          >
           <View style={styles.logoContainer}>
             <Image 
               source={require('../../assets/logo.png')} 
@@ -247,7 +258,7 @@ export default function LoginScreen() {
             />
           </View>
           
-          <Text style={styles.title}>Welcome Back</Text>
+          <Text style={styles.title}>{t('auth.loginTitle')}</Text>
           <Text style={styles.subtitle}>
             Sign in to your VYSN account to access your projects, orders, and exclusive lighting solutions.
           </Text>
@@ -255,8 +266,9 @@ export default function LoginScreen() {
 
           <View style={styles.form}>
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>Email Address</Text>
+              <Text style={styles.label}>{t('auth.email')}</Text>
               <TextInput
+                ref={emailRef}
                 style={[
                   styles.textInput,
                   focusedField === 'email' && styles.textInputFocused,
@@ -269,19 +281,27 @@ export default function LoginScreen() {
                 }}
                 onFocus={() => setFocusedField('email')}
                 onBlur={() => setFocusedField(null)}
-                placeholder="Enter your email"
+                onSubmitEditing={() => passwordRef.current?.focus()}
+                placeholder={t('auth.email')}
                 placeholderTextColor="#9ca3af"
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoComplete="email"
+                autoCorrect={false}
+                autoFocus={false}
+                editable={true}
+                selectTextOnFocus={true}
+                returnKeyType="next"
+                blurOnSubmit={false}
               />
               {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>Password</Text>
+              <Text style={styles.label}>{t('auth.password')}</Text>
               <View style={styles.passwordContainer}>
                 <TextInput
+                  ref={passwordRef}
                   style={[
                     styles.textInput,
                     { paddingRight: 56 },
@@ -295,10 +315,17 @@ export default function LoginScreen() {
                   }}
                   onFocus={() => setFocusedField('password')}
                   onBlur={() => setFocusedField(null)}
-                  placeholder="Enter your password"
+                  onSubmitEditing={handleLogin}
+                  placeholder={t('auth.password')}
                   placeholderTextColor="#9ca3af"
                   secureTextEntry={!showPassword}
                   autoComplete="password"
+                  autoCorrect={false}
+                  autoCapitalize="none"
+                  editable={true}
+                  selectTextOnFocus={true}
+                  returnKeyType="done"
+                  blurOnSubmit={true}
                 />
                 <TouchableOpacity
                   style={styles.passwordToggle}
@@ -327,24 +354,25 @@ export default function LoginScreen() {
               disabled={loading}
             >
               <Text style={styles.loginButtonText}>
-                {loading ? 'Signing In...' : 'Sign In'}
+                {loading ? t('common.loading') : t('auth.signIn')}
               </Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.registerSection}>
             <Text style={styles.registerText}>
-              Don't have an account yet?
+              {t('auth.noAccountYet')}
             </Text>
             <TouchableOpacity
               style={styles.registerButton}
               onPress={navigateToRegister}
             >
               <UserPlus size={20} color="#374151" />
-              <Text style={styles.registerButtonText}>Create Account</Text>
+              <Text style={styles.registerButtonText}>{t('auth.signUp')}</Text>
             </TouchableOpacity>
           </View>
-        </ScrollView>
+          </ScrollView>
+        </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

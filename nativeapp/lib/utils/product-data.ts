@@ -1,172 +1,127 @@
 import { VysnProduct, VysnProductDB, convertDbToClientProduct } from '../types/product';
-import { supabase } from './supabase';
+import { apiService } from '../services/apiService';
 
 /**
- * Get all products from Supabase (alias for getAllProducts for Expo compatibility)
+ * Get all products via backend API (alias for getAllProducts for Expo compatibility)
  */
 export async function getProducts(): Promise<VysnProduct[]> {
   return getAllProducts();
 }
 
 /**
- * Get all products from Supabase
+ * Get all products via backend API
  */
 export async function getAllProducts(): Promise<VysnProduct[]> {
   try {
-    const { data, error } = await supabase
-      .from('products')
-      .select('*')
-      .eq('availability', true)
-      .order('vysn_name');
+    console.log('📦 Fetching products via backend API...');
+    const response = await apiService.get<{ products: VysnProductDB[] }>('/api/products');
 
-    if (error) {
-      console.error('Error fetching products:', error);
+    if (!response.success || !response.data?.products) {
+      console.error('❌ Error fetching products:', response.error);
       return [];
     }
 
-    return (data as VysnProductDB[]).map(convertDbToClientProduct);
+    // Convert all products from database format to client format
+    const convertedProducts = response.data.products.map(convertDbToClientProduct);
+    console.log(`✅ Loaded ${convertedProducts.length} products from API`);
+    return convertedProducts;
   } catch (error) {
-    console.error('Error in getAllProducts:', error);
+    console.error('❌ Error in getAllProducts:', error);
     return [];
   }
 }
 
 /**
- * Get product by item number from Supabase
+ * Get product by item number via backend API
  */
 export async function getProductByItemNumber(itemNumber: string): Promise<VysnProduct | null> {
   try {
-    const { data, error } = await supabase
-      .from('products')
-      .select('*')
-      .eq('item_number_vysn', itemNumber)
-      .eq('availability', true)
-      .single();
+    console.log(`🔍 Fetching product by item number: ${itemNumber}`);
+    const response = await apiService.get<{ product: VysnProductDB }>(`/api/products/item/${itemNumber}`);
 
-    if (error) {
-      console.error('Error fetching product by item number:', error);
+    if (!response.success || !response.data?.product) {
+      console.log(`❌ Product not found for item number: ${itemNumber}`);
       return null;
     }
 
-    return convertDbToClientProduct(data as VysnProductDB);
+    // Convert database format to client format
+    const convertedProduct = convertDbToClientProduct(response.data.product);
+    console.log(`✅ Found product: ${convertedProduct.vysnName} (${convertedProduct.itemNumberVysn})`);
+    console.log(`💰 Price: ${convertedProduct.grossPrice || 'No price'}`);
+    
+    return convertedProduct;
   } catch (error) {
-    console.error('Error in getProductByItemNumber:', error);
+    console.error('❌ Error in getProductByItemNumber:', error);
     return null;
   }
 }
 
 /**
- * Get products by category from Supabase
+ * Get products by category - DEPRECATED: Use backend API instead
  */
 export async function getProductsByCategory(category1?: string, category2?: string): Promise<VysnProduct[]> {
-  try {
-    let query = supabase
-      .from('products')
-      .select('*')
-      .eq('availability', true);
-
-    if (category1 && category2) {
-      query = query.eq('category_1', category1).eq('category_2', category2);
-    } else if (category1) {
-      query = query.eq('category_1', category1);
-    } else if (category2) {
-      query = query.eq('category_2', category2);
-    }
-
-    const { data, error } = await query.order('vysn_name');
-
-    if (error) {
-      console.error('Error fetching products by category:', error);
-      return [];
-    }
-
-    return (data as VysnProductDB[]).map(convertDbToClientProduct);
-  } catch (error) {
-    console.error('Error in getProductsByCategory:', error);
-    return [];
-  }
+  console.warn('⚠️ getProductsByCategory deprecated - use searchProducts or getAllProducts');
+  return getAllProducts();
 }
 
 /**
- * Get products by group name from Supabase
+ * Get products by group name - DEPRECATED: Use backend API instead
  */
 export async function getProductsByGroup(groupName: string): Promise<VysnProduct[]> {
-  try {
-    const { data, error } = await supabase
-      .from('products')
-      .select('*')
-      .eq('group_name', groupName)
-      .eq('availability', true)
-      .order('vysn_name');
-
-    if (error) {
-      console.error('Error fetching products by group:', error);
-      return [];
-    }
-
-    return (data as VysnProductDB[]).map(convertDbToClientProduct);
-  } catch (error) {
-    console.error('Error in getProductsByGroup:', error);
-    return [];
-  }
+  console.warn('⚠️ getProductsByGroup deprecated - use searchProducts instead');
+  return searchProducts(groupName);
 }
 
 /**
- * Search products by name, description, barcode, or item number using Supabase
+ * Search products by name, description, barcode, or item number via backend API
  */
 export async function searchProducts(query: string): Promise<VysnProduct[]> {
   try {
     const searchTerm = query.toLowerCase().trim();
+    console.log(`🔍 Searching products for: ${searchTerm}`);
     
-    const { data, error } = await supabase
-      .from('products')
-      .select('*')
-      .or(`vysn_name.ilike.%${searchTerm}%,short_description.ilike.%${searchTerm}%,long_description.ilike.%${searchTerm}%,item_number_vysn.ilike.%${searchTerm}%,barcode_number.ilike.%${searchTerm}%`)
-      .eq('availability', true)
-      .order('vysn_name')
-      .limit(50);
+    const response = await apiService.get<{ products: VysnProductDB[] }>('/api/products/search', {
+      q: searchTerm,
+      limit: 100
+    });
 
-    if (error) {
-      console.error('Error searching products:', error);
+    if (!response.success || !response.data?.products) {
+      console.log(`❌ No products found for: ${searchTerm}`);
       return [];
     }
 
-    return (data as VysnProductDB[]).map(convertDbToClientProduct);
+    // Convert database format to client format
+    const convertedProducts = response.data.products.map(convertDbToClientProduct);
+    console.log(`✅ Found ${convertedProducts.length} products for: ${searchTerm}`);
+    return convertedProducts;
   } catch (error) {
-    console.error('Error in searchProducts:', error);
+    console.error('❌ Error in searchProducts:', error);
     return [];
   }
 }
 
 /**
- * Get unique categories from Supabase
+ * Get unique categories via backend API
  */
 export async function getCategories(): Promise<{ category1: string[]; category2: string[] }> {
   try {
-    const { data, error } = await supabase
-      .from('products')
-      .select('category_1, category_2')
-      .eq('availability', true);
+    console.log('📋 Fetching categories via backend API...');
+    const response = await apiService.get<{ categories: string[] }>('/api/products/categories');
 
-    if (error) {
-      console.error('Error fetching categories:', error);
+    if (!response.success || !response.data?.categories) {
+      console.error('❌ Error fetching categories');
       return { category1: [], category2: [] };
     }
 
-    const category1Set = new Set<string>();
-    const category2Set = new Set<string>();
-    
-    data.forEach((product: any) => {
-      if (product.category_1) category1Set.add(product.category_1);
-      if (product.category_2) category2Set.add(product.category_2);
-    });
-    
+    // For now, return all categories as category1
+    // Backend should provide separate category1/category2 if needed
+    console.log(`✅ Loaded ${response.data.categories.length} categories`);
     return {
-      category1: Array.from(category1Set).sort(),
-      category2: Array.from(category2Set).sort()
+      category1: response.data.categories,
+      category2: []
     };
   } catch (error) {
-    console.error('Error in getCategories:', error);
+    console.error('❌ Error in getCategories:', error);
     return { category1: [], category2: [] };
   }
 }
@@ -200,27 +155,24 @@ export async function getGroupNames(): Promise<string[]> {
 }
 
 /**
- * Search product by exact barcode number from Supabase
+ * Search product by exact barcode number via backend API
  */
 export async function getProductByBarcode(barcodeNumber: string | number): Promise<VysnProduct | null> {
   try {
     const barcode = barcodeNumber.toString();
+    console.log(`🔍 Fetching product by barcode: ${barcode}`);
     
-    const { data, error } = await supabase
-      .from('products')
-      .select('*')
-      .eq('barcode_number', barcode)
-      .eq('availability', true)
-      .single();
+    const response = await apiService.get<{ product: VysnProduct }>(`/api/products/barcode/${barcode}`);
 
-    if (error) {
-      console.error('Error fetching product by barcode:', error);
+    if (!response.success || !response.data?.product) {
+      console.log(`❌ Product not found for barcode: ${barcode}`);
       return null;
     }
 
-    return convertDbToClientProduct(data as VysnProductDB);
+    console.log(`✅ Found product: ${response.data.product.vysnName}`);
+    return response.data.product;
   } catch (error) {
-    console.error('Error in getProductByBarcode:', error);
+    console.error('❌ Error in getProductByBarcode:', error);
     return null;
   }
 }

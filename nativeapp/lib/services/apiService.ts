@@ -1,4 +1,5 @@
 import { API_BASE_URL, ApiResponse, ApiError, API_CONFIG } from '../config/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export class ApiService {
   private baseURL: string;
@@ -25,6 +26,11 @@ export class ApiService {
   getAuthToken(): string | null {
     const authHeader = this.defaultHeaders['Authorization'];
     return authHeader ? authHeader.replace('Bearer ', '') : null;
+  }
+
+  // Get base URL
+  getBaseURL(): string {
+    return this.baseURL;
   }
 
   // Retry logic
@@ -56,12 +62,19 @@ export class ApiService {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
-  // Generic request method
+  // Generic request method with automatic token refresh
   private async request<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
+    isRetry: boolean = false
   ): Promise<ApiResponse<T>> {
     const url = `${this.baseURL}${endpoint}`;
+
+    // Check if token needs refresh before making request (unless it's a refresh call)
+    if (!isRetry && !endpoint.includes('/auth/refresh') && await this.shouldRefreshToken()) {
+      console.log('⏰ Token expiring soon, refreshing...');
+      await this.refreshAccessToken();
+    }
 
     const requestOptions: RequestInit = {
       ...options,
@@ -70,6 +83,13 @@ export class ApiService {
         ...options.headers,
       },
     };
+
+    // Debug logging
+    console.log(`🌐 API Request: ${options.method || 'GET'} ${url}`);
+    console.log(`📋 Headers:`, requestOptions.headers);
+    if (options.body) {
+      console.log(`📦 Body:`, options.body);
+    }
 
     // Add timeout
     const controller = new AbortController();
@@ -83,6 +103,9 @@ export class ApiService {
         
         if (!res.ok) {
           const errorData = await res.json().catch(() => ({}));
+          console.error(`❌ API Error: ${res.status} ${res.statusText}`);
+          console.error(`❌ Error Data:`, errorData);
+          
           throw new ApiError(
             errorData.message || `HTTP ${res.status}: ${res.statusText}`,
             res.status,
@@ -90,6 +113,7 @@ export class ApiService {
           );
         }
         
+        console.log(`✅ API Success: ${res.status} ${res.statusText}`);
         return res;
       });
 
@@ -103,6 +127,16 @@ export class ApiService {
       }
       
       if (error instanceof ApiError) {
+        // Handle 401 errors with token refresh
+        if (error.status === 401 && !isRetry && !endpoint.includes('/auth/refresh')) {
+          console.log('🔄 401 error, attempting token refresh...');
+          const refreshSuccess = await this.refreshAccessToken();
+          if (refreshSuccess) {
+            console.log('✅ Token refreshed, retrying request...');
+            // Retry the request with the new token
+            return this.request<T>(endpoint, options, true);
+          }
+        }
         throw error;
       }
       
@@ -158,6 +192,129 @@ export class ApiService {
     return this.request<T>(endpoint, {
       method: 'DELETE',
     });
+  }
+
+  // Token storage methods
+  async storeToken(token: string): Promise<void> {
+    try {
+      await AsyncStorage.setItem('auth_token', token);
+    } catch (error) {
+      console.error('Failed to store token:', error);
+    }
+  }
+
+  async storeRefreshToken(refreshToken: string): Promise<void> {
+    try {
+      await AsyncStorage.setItem('refresh_token', refreshToken);
+    } catch (error) {
+      console.error('Failed to store refresh token:', error);
+    }
+  }
+
+  async storeTokenExpiry(expiresAt: number): Promise<void> {
+    try {
+      await AsyncStorage.setItem('token_expires_at', expiresAt.toString());
+    } catch (error) {
+      console.error('Failed to store token expiry:', error);
+    }
+  }
+
+  async getStoredToken(): Promise<string | null> {
+    try {
+      return await AsyncStorage.getItem('auth_token');
+    } catch (error) {
+      console.error('Failed to get stored token:', error);
+      return null;
+    }
+  }
+
+  async getStoredRefreshToken(): Promise<string | null> {
+    try {
+      return await AsyncStorage.getItem('refresh_token');
+    } catch (error) {
+      console.error('Failed to get stored refresh token:', error);
+      return null;
+    }
+  }
+
+  async getStoredTokenExpiry(): Promise<number | null> {
+    try {
+      const expiry = await AsyncStorage.getItem('token_expires_at');
+      return expiry ? parseInt(expiry, 10) : null;
+    } catch (error) {
+      console.error('Failed to get stored token expiry:', error);
+      return null;
+    }
+  }
+
+  async clearStoredToken(): Promise<void> {
+    try {
+      await AsyncStorage.multiRemove(['auth_token', 'refresh_token', 'token_expires_at']);
+    } catch (error) {
+      console.error('Failed to clear stored tokens:', error);
+    }
+  }
+
+  // Token refresh callback for AuthContext synchronization
+  private tokenRefreshCallback?: (newToken: string) => void;
+
+  // Set token refresh callback
+  setTokenRefreshCallback(callback: (newToken: string) => void) {
+    this.tokenRefreshCallback = callback;
+  }
+
+  // Refresh access token using refresh token
+  async refreshAccessToken(): Promise<boolean> {
+    try {
+      const refreshToken = await this.getStoredRefreshToken();
+      if (!refreshToken) {
+        console.log('❌ No refresh token available');
+        return false;
+      }
+
+      console.log('🔄 Attempting to refresh access token...');
+      
+      const response = await this.post<{
+        user: any;
+        token: string;
+        refreshToken: string;
+        expiresAt: number;
+      }>('/api/auth/refresh', { refreshToken });
+
+      if (response.success && response.data) {
+        // Update tokens
+        this.setAuthToken(response.data.token);
+        await this.storeToken(response.data.token);
+        await this.storeRefreshToken(response.data.refreshToken);
+        await this.storeTokenExpiry(response.data.expiresAt);
+        
+        // Notify AuthContext about the new token
+        if (this.tokenRefreshCallback) {
+          this.tokenRefreshCallback(response.data.token);
+        }
+        
+        console.log('✅ Access token refreshed successfully');
+        return true;
+      } else {
+        console.log('❌ Failed to refresh token:', response.error);
+        return false;
+      }
+    } catch (error) {
+      console.error('❌ Error refreshing token:', error);
+      return false;
+    }
+  }
+
+  // Check if token needs refresh (5 minutes before expiry)
+  async shouldRefreshToken(): Promise<boolean> {
+    const expiresAt = await this.getStoredTokenExpiry();
+    if (!expiresAt) return false;
+    
+    const now = Math.floor(Date.now() / 1000);
+    const timeUntilExpiry = expiresAt - now;
+    
+    // Refresh if less than 5 minutes remaining
+    return timeUntilExpiry < 300; // 5 minutes = 300 seconds
   }
 
   // Health check

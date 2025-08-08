@@ -19,6 +19,7 @@ import Input from './ui/Input';
 import { searchProducts, getProductByBarcode } from '../../lib/services/productService';
 import { scanTrackingService } from '../../lib/services/scanTrackingService';
 import { VysnProduct } from '../../lib/types/product';
+import { useTranslation } from 'react-i18next';
 
 interface BarcodeScannerModalProps {
   visible: boolean;
@@ -35,6 +36,7 @@ export default function BarcodeScannerModal({
   onProductFound, 
   onNavigateToProduct 
 }: BarcodeScannerModalProps) {
+  const { t } = useTranslation();
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const [showManualInput, setShowManualInput] = useState(false);
@@ -126,11 +128,11 @@ export default function BarcodeScannerModal({
         }
       } else {
         await trackScan(code, scanType, false, 0);
-        setError(`Kein Produkt gefunden für "${code}"`);
+        setError(`${t('scanner.noProductFound', { code })}`);
       }
     } catch (error) {
       console.error('Error processing scanned code:', error);
-      setError('Fehler beim Suchen des Produkts');
+              setError(t('scanner.errorSearchingProduct'));
       await trackScan(code, scanType, false, 0);
     } finally {
       setIsLoading(false);
@@ -277,16 +279,16 @@ export default function BarcodeScannerModal({
                 onPress={handleManualSearch}
                 style={styles.searchButton}
               >
-                Suchen
+{t('scanner.search')}
               </Button>
             </View>
 
             <Text style={styles.helpText}>
-              Geben Sie eine Barcode-Nummer oder Artikelnummer ein, um das Produkt zu finden
+{t('scanner.enterBarcodeHelp')}
             </Text>
 
             {isLoading && (
-              <Text style={styles.loadingText}>Suche läuft...</Text>
+              <Text style={styles.loadingText}>{t('scanner.searchRunning')}</Text>
             )}
 
             {error && (
@@ -306,7 +308,7 @@ export default function BarcodeScannerModal({
                         <Text style={styles.productNumber}>#{product.itemNumberVysn}</Text>
                         {product.barcodeNumber && (
                           <Text style={styles.productBarcode}>
-                            Barcode: {product.barcodeNumber}
+                            {t('scanner.barcode')}: {product.barcodeNumber}
                           </Text>
                         )}
                       </View>
@@ -314,7 +316,7 @@ export default function BarcodeScannerModal({
                         onPress={() => selectProduct(product)}
                         style={styles.selectButton}
                       >
-                        Auswählen
+{t('scanner.selectProduct')}
                       </Button>
                     </CardContent>
                   </Card>
@@ -325,10 +327,10 @@ export default function BarcodeScannerModal({
             {manualInput && searchResults.length === 0 && !isLoading && (
               <View style={styles.noResultsContainer}>
                 <Text style={styles.noResultsText}>
-                  Keine Produkte gefunden für "{manualInput}"
+{t('scanner.noProductsFoundFor')} "{manualInput}"
                 </Text>
                 <Text style={styles.noResultsSubtext}>
-                  Versuchen Sie es mit einer anderen Barcode-Nummer oder Artikelnummer
+{t('scanner.tryDifferentCode')}
                 </Text>
               </View>
             )}
@@ -371,7 +373,7 @@ export default function BarcodeScannerModal({
               
               {/* Instruction Text */}
               <Text style={styles.instructionText}>
-                {scanned ? 'Verarbeitung...' : isLoading ? 'Suche läuft...' : 'Barcode in den Rahmen halten'}
+{scanned ? t('scanner.processing') : isLoading ? t('scanner.searchRunning') : t('scanner.holdInFrame')}
               </Text>
               
               {/* Bottom Controls */}
@@ -686,9 +688,16 @@ const styles = StyleSheet.create({
     color: '#000000',
   },
   productCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
     marginBottom: 12,
-    borderColor: '#e5e7eb',
+    borderColor: '#f1f5f9',
     borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   productContent: {
     flexDirection: 'row',

@@ -1,8 +1,9 @@
 import Constants from 'expo-constants';
 
 // Backend API Configuration
-const API_BASE_URL_DEV = 'http://192.168.2.188:3001'; // Current computer IP
-const API_BASE_URL_PROD = 'https://your-backend-api.com'; // Später durch echte URL ersetzen
+// ⚠️ SICHERHEITSWARNUNG: Development URL sollte nicht hardcoded sein!
+const API_BASE_URL_DEV = 'http://192.168.2.128:3001'; // Development URL (use local IP for Expo)
+const API_BASE_URL_PROD = 'https://your-backend-api.com'; // Production URL
 
 // Versuche Umgebungsvariablen zu laden, fallback auf Development-Werte
 export const API_BASE_URL = Constants.expoConfig?.extra?.apiBaseUrl || 
@@ -27,6 +28,14 @@ export const API_ENDPOINTS = {
   // Chat (existing - bleibt unverändert)
   CHAT: '/api/chat',
   CHAT_FAST: '/api/chat-fast',
+  
+  // Cart (Warenkorb)
+  CART: '/api/cart',
+  CART_ADD: '/api/cart/add',
+  CART_UPDATE: '/api/cart/update',
+  CART_REMOVE: '/api/cart/remove',
+  CART_CLEAR: '/api/cart/clear',
+  CART_MIGRATE: '/api/cart/migrate',
 } as const;
 
 // API Response Types

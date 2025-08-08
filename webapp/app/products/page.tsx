@@ -11,6 +11,8 @@ import Header from '@/components/header';
 import { getAllProducts, getCategories } from '@/lib/utils/product-data';
 import { formatPrice } from '@/lib/utils';
 import { VysnProduct } from '@/lib/types/product';
+import ProductFilterBar, { ProductFilters, FilterOptions } from '@/components/ProductFilterBar';
+import { filterService } from '@/lib/services/filterService';
 
 export default function ProductsPage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -20,19 +22,26 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
+  // Filter-related state
+  const [currentFilters, setCurrentFilters] = useState<ProductFilters>({});
+  const [filterOptions, setFilterOptions] = useState<FilterOptions | undefined>();
+  const [isFilteredSearch, setIsFilteredSearch] = useState(false);
+  
   // Load products and categories from Supabase
   useEffect(() => {
     const loadData = async () => {
       try {
         setLoading(true);
-        const [productsData, categoriesData] = await Promise.all([
+        const [productsData, categoriesData, filterOpts] = await Promise.all([
           getAllProducts(),
-          getCategories()
+          getCategories(),
+          filterService.getFilterOptions().catch(() => undefined) // Don't fail if filter options can't be loaded
         ]);
         
         setProducts(productsData);
         const allCategories = [...new Set([...categoriesData.category1, ...categoriesData.category2])];
         setCategories(allCategories.sort());
+        setFilterOptions(filterOpts);
       } catch (err) {
         console.error('Error loading products:', err);
         setError('Fehler beim Laden der Produkte. Bitte versuchen Sie es später erneut.');
@@ -43,6 +52,79 @@ export default function ProductsPage() {
 
     loadData();
   }, []);
+
+  // Filter handling functions
+  const handleApplyFilters = async (filters: ProductFilters) => {
+    try {
+      setLoading(true);
+      setIsFilteredSearch(true);
+      
+      // Include search query in filters if present
+      const filtersWithSearch = {
+        ...filters,
+        searchQuery: searchQuery.trim() || undefined
+      };
+      
+      const result = await filterService.searchProductsWithFilters(filtersWithSearch);
+      
+      // Convert backend products to VysnProduct format
+      const convertedProducts = result.products.map((product: any) => ({
+        id: product.id,
+        vysnName: product.vysn_name || '',
+        itemNumberVysn: product.item_number_vysn || '',
+        shortDescription: product.short_description || '',
+        longDescription: product.long_description || '',
+        grossPrice: product.gross_price,
+        category1: product.category_1,
+        category2: product.category_2,
+        groupName: product.group_name,
+        ingressProtection: product.ingress_protection,
+        material: product.material,
+        housingColor: product.housing_color,
+        energyClass: product.energy_class,
+        ledType: product.led_type,
+        lumen: product.lumen,
+        wattage: product.wattage,
+        cct: product.cct,
+        cri: product.cri,
+        availability: product.availability,
+        productPicture1: product.product_picture_1,
+        productPicture2: product.product_picture_2,
+        productPicture3: product.product_picture_3,
+        productPicture4: product.product_picture_4,
+        productPicture5: product.product_picture_5,
+        productPicture6: product.product_picture_6,
+        productPicture7: product.product_picture_7,
+        productPicture8: product.product_picture_8,
+      }));
+      
+      setProducts(convertedProducts);
+      setCurrentFilters(filters);
+    } catch (err) {
+      console.error('Error applying filters:', err);
+      setError('Fehler beim Anwenden der Filter');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleClearFilters = () => {
+    setCurrentFilters({});
+    setIsFilteredSearch(false);
+    // Reload original products
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        const productsData = await getAllProducts();
+        setProducts(productsData);
+      } catch (err) {
+        console.error('Error reloading products:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  };
   
   const filteredProducts = useMemo(() => {
     return products.filter(product => {
@@ -107,7 +189,7 @@ export default function ProductsPage() {
           </p>
         </div>
 
-        {/* Mobile-optimierte Suche und Filter */}
+        {/* Suche und Filter */}
         <div className="space-y-4 mb-6 md:mb-8">
           {/* Suchfeld */}
           <div className="relative">
@@ -120,29 +202,12 @@ export default function ProductsPage() {
             />
           </div>
           
-          {/* Kategorie-Filter - Mobile scrollbar */}
-          <div className="space-y-3">
-            <p className="text-sm font-medium text-gray-700">Categories:</p>
-            <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4">
-              <Button
-                variant={selectedCategory === '' ? 'default' : 'outline'}
-                onClick={() => setSelectedCategory('')}
-                className="flex-shrink-0 h-12 px-6 text-base md:h-8 md:px-4 md:text-sm font-medium"
-              >
-                All
-              </Button>
-              {categories.map(category => (
-                <Button
-                  key={category}
-                  variant={selectedCategory === category ? 'default' : 'outline'}
-                  onClick={() => setSelectedCategory(category)}
-                  className="flex-shrink-0 h-12 px-6 text-base md:h-8 md:px-4 md:text-sm font-medium whitespace-nowrap"
-                >
-                  {category}
-                </Button>
-              ))}
-            </div>
-          </div>
+          {/* Enhanced Filter Bar */}
+          <ProductFilterBar
+            onApplyFilters={handleApplyFilters}
+            filterOptions={filterOptions}
+            currentFilters={currentFilters}
+          />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
