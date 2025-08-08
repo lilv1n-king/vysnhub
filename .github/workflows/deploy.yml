@@ -1,0 +1,63 @@
+name: 🚀 Deploy vysnhub
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:  # Manueller Trigger
+
+jobs:
+  deploy:
+    runs-on: self-hosted  # Nutzt deinen vysnserver!
+    
+    steps:
+    - name: 📥 Checkout Code
+      uses: actions/checkout@v4
+      
+    - name: 🔧 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+        cache: 'npm'
+        cache-dependency-path: |
+          backend/package-lock.json
+          webapp/package-lock.json
+    
+    - name: 📦 Install Backend Dependencies
+      working-directory: ./backend
+      run: npm ci
+      
+    - name: 📦 Install Frontend Dependencies  
+      working-directory: ./webapp
+      run: npm ci
+      
+    - name: 🏗️ Build Backend
+      working-directory: ./backend
+      run: npm run build
+      
+    - name: 🏗️ Build Frontend
+      working-directory: ./webapp
+      run: npm run build
+      
+    - name: 🔄 Restart Backend with PM2
+      run: |
+        sudo pm2 restart vysnhub-backend || sudo pm2 start npm --name "vysnhub-backend" -- start
+        
+    - name: 🔄 Restart Frontend with PM2
+      working-directory: ./webapp
+      run: |
+        sudo pm2 restart vysnhub-frontend || sudo pm2 start npm --name "vysnhub-frontend" -- start
+        
+    - name: 💾 Save PM2 Configuration
+      run: sudo pm2 save
+      
+    - name: ✅ Deployment Complete
+      run: |
+        echo "🎉 Deployment successful!"
+        echo "🌐 Frontend: https://app.vysnlighting.com"
+        echo "🔧 Backend: https://api.vysnlighting.com"
+        
+    - name: 🏥 Health Check
+      run: |
+        sleep 5
+        curl -f https://app.vysnlighting.com/health
+        curl -f https://api.vysnlighting.com/health
