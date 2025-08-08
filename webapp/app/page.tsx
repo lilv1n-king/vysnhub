@@ -18,6 +18,14 @@ export default function Home() {
       <Header />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 md:pt-36 pb-4 md:pb-8">
+        
+        {/* Debug Box */}
+        <div className="mb-8 p-4 bg-yellow-100 border-2 border-yellow-500 rounded-lg">
+          <h2 className="text-xl font-bold text-red-600 mb-2">DEBUG BOX - ÄNDERUNG AKTIV!</h2>
+          <p className="text-black">Diese Box zeigt, dass Änderungen funktionieren!</p>
+          <p className="text-sm text-gray-700">Zeitstempel: {new Date().toLocaleString()}</p>
+        </div>
+
         {/* New Catalog - Full Width */}
         <div className="mb-8 md:mb-12">
                       <Card className="border-gray-200 overflow-hidden hover:shadow-lg transition-all cursor-pointer">

@@ -23,6 +23,7 @@ export const viewport = {
 };
 
 import MobileNav from '@/components/mobile-nav';
+import AuthWrapper from '@/components/auth-wrapper';
 
 export default function RootLayout({
   children,
@@ -43,8 +44,10 @@ export default function RootLayout({
             }
           `
         }} />
-        {children}
-        <MobileNav />
+        <AuthWrapper>
+          {children}
+          <MobileNav />
+        </AuthWrapper>
       </body>
     </html>
   );
