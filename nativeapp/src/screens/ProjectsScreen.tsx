@@ -332,7 +332,8 @@ export default function ProjectsScreen() {
 
         {/* Projects List */}
         {projects.length > 0 ? (
-          projects.map((project) => {
+          <>
+          {projects.map((project) => {
             const statusColors = getStatusColor(project.status);
             return (
               <Card key={project.id} style={styles.projectCard}>
@@ -381,7 +382,16 @@ export default function ProjectsScreen() {
                 </View>
               </Card>
             );
-          })
+          })}
+          
+          {/* History Button - nur anzeigen wenn Projekte vorhanden sind */}
+          <View style={styles.historySection}>
+            <TouchableOpacity style={styles.historyButton} onPress={handleViewHistory}>
+              <Text style={styles.historyButtonText}>{t('projects.viewHistory')}</Text>
+              <History size={20} color="#374151" />
+            </TouchableOpacity>
+          </View>
+          </>
         ) : (
           /* Empty State */
           <View style={styles.emptyState}>
@@ -394,22 +404,8 @@ export default function ProjectsScreen() {
               <Text style={styles.createButtonText}>{t('projects.newProject')}</Text>
               <Plus size={20} color="#ffffff" />
             </TouchableOpacity>
-            
-            {/* History Button auch bei Empty State */}
-            <TouchableOpacity style={styles.historyButton} onPress={handleViewHistory}>
-              <Text style={styles.historyButtonText}>{t('projects.viewHistory')}</Text>
-              <History size={20} color="#374151" />
-            </TouchableOpacity>
           </View>
         )}
-
-        {/* History Button - unten platziert */}
-        <View style={styles.historySection}>
-          <TouchableOpacity style={styles.historyButton} onPress={handleViewHistory}>
-            <Text style={styles.historyButtonText}>{t('projects.viewHistory')}</Text>
-            <History size={20} color="#374151" />
-          </TouchableOpacity>
-        </View>
       </ScrollView>
     </View>
   );

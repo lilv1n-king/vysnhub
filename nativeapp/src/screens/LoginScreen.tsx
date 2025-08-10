@@ -15,6 +15,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import type { StackNavigationProp } from '@react-navigation/stack';
+import type { AuthStackParamList } from '../navigation/AuthNavigator';
 import { useTranslation } from 'react-i18next';
 import { Eye, EyeOff, LogIn, UserPlus } from 'lucide-react-native';
 import { useAuth } from '../../lib/contexts/AuthContext';
@@ -146,8 +148,10 @@ const styles = StyleSheet.create({
   },
 });
 
+type LoginScreenNavigationProp = StackNavigationProp<AuthStackParamList, 'Login'>;
+
 export default function LoginScreen() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<LoginScreenNavigationProp>();
   const auth = useAuth();
   const { t } = useTranslation();
   
@@ -234,7 +238,7 @@ export default function LoginScreen() {
   };
 
   const navigateToRegister = () => {
-    navigation.navigate('Register' as never);
+    navigation.navigate('Registration' as never);
   };
 
   return (

@@ -241,7 +241,12 @@ export class EmailController {
         
         try {
           // Produktdaten vom Service laden
-          const productData = await productService.getProductByItemNumber(itemNumber.trim());
+          // Entferne temporäre Suffixe aus Artikelnummern (z.B. _new_<timestamp>)
+          const cleanItemNumber = itemNumber.trim()
+            .replace(/_new_\d+$/i, '')
+            .replace(/_ordered$/i, '');
+          
+          const productData = await productService.getProductByItemNumber(cleanItemNumber);
           
           if (productData) {
             const unitPrice = productData.gross_price || 0;
@@ -250,7 +255,7 @@ export class EmailController {
             const totalPrice = customerPrice * quantity;
 
             products.push({
-              itemNumber: itemNumber.trim(),
+              itemNumber: cleanItemNumber,
               name: productName.trim(),
               quantity,
               unitPrice: customerPrice,
@@ -258,10 +263,10 @@ export class EmailController {
               productId: productData.id
             });
           } else {
-            console.warn(`⚠️ Product not found: ${itemNumber}`);
+            console.warn(`⚠️ Product not found: ${cleanItemNumber} (original: ${itemNumber})`);
             // Fallback: Produkt ohne Preise hinzufügen
             products.push({
-              itemNumber: itemNumber.trim(),
+              itemNumber: cleanItemNumber,
               name: productName.trim(),
               quantity,
               unitPrice: 0,
@@ -271,8 +276,11 @@ export class EmailController {
         } catch (error) {
           console.error(`❌ Error loading product ${itemNumber}:`, error);
           // Fallback: Produkt ohne Preise hinzufügen
+          const cleanItemNumber = itemNumber.trim()
+            .replace(/_new_\d+$/i, '')
+            .replace(/_ordered$/i, '');
           products.push({
-            itemNumber: itemNumber.trim(),
+            itemNumber: cleanItemNumber,
             name: productName.trim(),
             quantity,
             unitPrice: 0,
@@ -312,7 +320,12 @@ export class EmailController {
     for (const item of reorderItems) {
       try {
         // Produktdaten vom Service laden
-        const productData = await productService.getProductByItemNumber(item.itemNumber.trim());
+        // Entferne temporäre Suffixe aus Artikelnummern (z.B. _new_<timestamp>)
+        const cleanItemNumber = item.itemNumber.trim()
+          .replace(/_new_\d+$/i, '')
+          .replace(/_ordered$/i, '');
+        
+        const productData = await productService.getProductByItemNumber(cleanItemNumber);
         
         if (productData) {
           const unitPrice = productData.gross_price || 0;
@@ -321,19 +334,19 @@ export class EmailController {
           const totalPrice = customerPrice * item.quantity;
 
           products.push({
-            itemNumber: item.itemNumber.trim(),
-            name: item.name || productData.vysn_name || `Product ${item.itemNumber}`,
+            itemNumber: cleanItemNumber,
+            name: item.name || productData.vysn_name || `Product ${cleanItemNumber}`,
             quantity: item.quantity,
             unitPrice: customerPrice,
             totalPrice,
             productId: productData.id
           });
         } else {
-          console.warn(`⚠️ Reorder product not found: ${item.itemNumber}`);
+          console.warn(`⚠️ Reorder product not found: ${cleanItemNumber} (original: ${item.itemNumber})`);
           // Fallback: Produkt ohne Preise hinzufügen (wird später gefiltert)
           products.push({
-            itemNumber: item.itemNumber.trim(),
-            name: item.name || `Product ${item.itemNumber}`,
+            itemNumber: cleanItemNumber,
+            name: item.name || `Product ${cleanItemNumber}`,
             quantity: item.quantity,
             unitPrice: 0,
             totalPrice: 0,
@@ -343,9 +356,12 @@ export class EmailController {
       } catch (error) {
         console.error(`❌ Error loading reorder product ${item.itemNumber}:`, error);
         // Fallback: Produkt ohne Preise hinzufügen (wird später gefiltert)
+        const cleanItemNumber = item.itemNumber.trim()
+          .replace(/_new_\d+$/i, '')
+          .replace(/_ordered$/i, '');
         products.push({
-          itemNumber: item.itemNumber.trim(),
-          name: item.name || `Product ${item.itemNumber}`,
+          itemNumber: cleanItemNumber,
+          name: item.name || `Product ${cleanItemNumber}`,
           quantity: item.quantity,
           unitPrice: 0,
           totalPrice: 0,

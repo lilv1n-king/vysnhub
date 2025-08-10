@@ -3,12 +3,14 @@ import { AuthUser, Profile, SignUpData, SignInData } from '../types/auth';
 import { apiService } from '../services/apiService';
 import { API_ENDPOINTS } from '../config/api';
 
+
 interface AuthContextType {
   user: AuthUser | null;
   loading: boolean;
   initialized: boolean;
   isAuthenticated: boolean;
   accessToken: string | null;
+
   signUp: (data: SignUpData) => Promise<{ error: Error | null }>;
   signIn: (data: SignInData) => Promise<{ error: Error | null }>;
   signOut: () => Promise<{ error: Error | null }>;
@@ -16,6 +18,20 @@ interface AuthContextType {
   updateProfile: (updates: Partial<Profile>) => Promise<{ error: Error | null }>;
   refreshProfile: () => Promise<void>;
   getApiHeaders: () => Record<string, string>;
+
+  
+  // Registration with Code
+  registerWithCode: (data: {
+    registrationCode: string;
+    email: string;
+    password: string;
+    firstName: string;
+    lastName?: string;
+  }) => Promise<boolean>;
+  
+  // Email Verification
+  verifyEmailCode: (code: string, email: string) => Promise<boolean>;
+  resendVerificationEmail: (email: string) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -41,6 +57,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [refreshToken, setRefreshToken] = useState<string | null>(null);
   const [tokenExpiresAt, setTokenExpiresAt] = useState<number | null>(null);
+
 
   // Load profile from backend API
   const loadProfile = useCallback(async (): Promise<Profile | null> => {
@@ -298,12 +315,100 @@ export function AuthProvider({ children }: AuthProviderProps) {
     };
   }, [loadProfile, handleTokenRefresh]);
 
+  // Registration with Code
+  const registerWithCode = useCallback(async (data: {
+    registrationCode: string;
+    email: string;
+    password: string;
+    firstName: string;
+    lastName?: string;
+  }): Promise<boolean> => {
+    try {
+      console.log('🔄 Registering with code:', data.registrationCode);
+      
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/registration/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Registration failed');
+      }
+
+      console.log('✅ Registration with code successful');
+      return true;
+    } catch (error) {
+      console.error('❌ Registration error:', error);
+      throw error;
+    }
+  }, []);
+
+  // Email Verification with Code
+  const verifyEmailCode = useCallback(async (code: string, email: string): Promise<boolean> => {
+    try {
+      console.log('🔄 Verifying email code:', code, 'for email:', email);
+      
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/registration/verify-code`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ code, email }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Verification failed');
+      }
+
+      const result = await response.json();
+      console.log('✅ Email verification successful');
+      return result.success;
+    } catch (error) {
+      console.error('❌ Email verification error:', error);
+      throw error;
+    }
+  }, []);
+
+  // Resend Verification Email
+  const resendVerificationEmail = useCallback(async (email: string): Promise<boolean> => {
+    try {
+      console.log('🔄 Resending verification email to:', email);
+      
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/registration/resend-verification`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Resend failed');
+      }
+
+      console.log('✅ Verification email resent successfully');
+      return true;
+    } catch (error) {
+      console.error('❌ Resend verification error:', error);
+      throw error;
+    }
+  }, []);
+
+
+
   const value: AuthContextType = {
     user,
     loading,
     initialized,
     isAuthenticated: !!user && !!accessToken,
     accessToken,
+
     signUp,
     signIn,
     signOut,
@@ -311,6 +416,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
     updateProfile,
     refreshProfile,
     getApiHeaders,
+
+    registerWithCode,
+    verifyEmailCode,
+    resendVerificationEmail,
   };
 
   return (

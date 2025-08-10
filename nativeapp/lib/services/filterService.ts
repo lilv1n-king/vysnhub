@@ -1,5 +1,3 @@
-import { apiService } from './apiService';
-
 // Filter-Interfaces (passend zur Backend-API)
 export interface ProductFilters {
   searchQuery?: string;
@@ -60,7 +58,8 @@ class FilterService {
   private baseURL: string;
 
   constructor() {
-    this.baseURL = `${apiService.getBaseURL()}/api/products`;
+    // Use environment variable or fallback to localhost for development
+    this.baseURL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000';
   }
 
   /**
@@ -68,7 +67,7 @@ class FilterService {
    */
   async searchProductsWithFilters(filters: ProductFilters): Promise<FilteredProductsResponse> {
     try {
-      const response = await fetch(`${this.baseURL}/search/filtered`, {
+      const response = await fetch(`${this.baseURL}/api/products/search/filtered`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -98,18 +97,16 @@ class FilterService {
    */
   async getFilterOptions(): Promise<FilterOptions> {
     try {
-      console.log('🎛️ Loading filter options...');
-      const response = await apiService.get<FilterOptions>('/api/products/meta/all');
+      const response = await fetch(`${this.baseURL}/api/products/meta/all`);
 
-      if (!response.success) {
-        console.error('❌ Failed to load filter options:', response.error);
-        throw new Error(response.error || 'Failed to load filter options');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      console.log('✅ Filter options loaded successfully');
-      return response.data!;
+      const result = await response.json();
+      return result;
     } catch (error) {
-      console.error('❌ Error loading filter options:', error);
+      console.error('Fehler beim Laden der Filter-Optionen:', error);
       throw error;
     }
   }
@@ -119,7 +116,7 @@ class FilterService {
    */
   async getCategories(): Promise<string[]> {
     try {
-      const response = await fetch(`${this.baseURL}/meta/categories`);
+      const response = await fetch(`${this.baseURL}/api/products/meta/categories`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -136,7 +133,7 @@ class FilterService {
    */
   async getCategories2(): Promise<string[]> {
     try {
-      const response = await fetch(`${this.baseURL}/meta/categories2`);
+      const response = await fetch(`${this.baseURL}/api/products/meta/categories2`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -153,7 +150,7 @@ class FilterService {
    */
   async getGroups(): Promise<string[]> {
     try {
-      const response = await fetch(`${this.baseURL}/meta/groups`);
+      const response = await fetch(`${this.baseURL}/api/products/meta/groups`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -170,7 +167,7 @@ class FilterService {
    */
   async getIPProtectionClasses(): Promise<string[]> {
     try {
-      const response = await fetch(`${this.baseURL}/meta/ip-protection`);
+      const response = await fetch(`${this.baseURL}/api/products/meta/ip-protection`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -187,7 +184,7 @@ class FilterService {
    */
   async getMaterials(): Promise<string[]> {
     try {
-      const response = await fetch(`${this.baseURL}/meta/materials`);
+      const response = await fetch(`${this.baseURL}/api/products/meta/materials`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -204,7 +201,7 @@ class FilterService {
    */
   async getColors(): Promise<string[]> {
     try {
-      const response = await fetch(`${this.baseURL}/meta/colors`);
+      const response = await fetch(`${this.baseURL}/api/products/meta/colors`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -221,7 +218,7 @@ class FilterService {
    */
   async getEnergyClasses(): Promise<string[]> {
     try {
-      const response = await fetch(`${this.baseURL}/meta/energy-classes`);
+      const response = await fetch(`${this.baseURL}/api/products/meta/energy-classes`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -238,7 +235,7 @@ class FilterService {
    */
   async getLedTypes(): Promise<string[]> {
     try {
-      const response = await fetch(`${this.baseURL}/meta/led-types`);
+      const response = await fetch(`${this.baseURL}/api/products/meta/led-types`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -255,7 +252,7 @@ class FilterService {
    */
   async getInstallationTypes(): Promise<string[]> {
     try {
-      const response = await fetch(`${this.baseURL}/meta/installation-types`);
+      const response = await fetch(`${this.baseURL}/api/products/meta/installation-types`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -277,7 +274,7 @@ class FilterService {
     cctRange: { min: number; max: number };
   }> {
     try {
-      const response = await fetch(`${this.baseURL}/meta/ranges`);
+      const response = await fetch(`${this.baseURL}/api/products/meta/ranges`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }

@@ -44,7 +44,7 @@
     "extra": {
       "supabaseUrl": "PLACEHOLDER_SUPABASE_URL",
       "supabaseAnonKey": "PLACEHOLDER_SUPABASE_ANON_KEY",
-      "apiBaseUrl": "http://192.168.2.128:3001"
+      "apiBaseUrl": "http://192.168.2.188:3001"
     }
   }
 }

@@ -338,6 +338,263 @@ VYSN Hub - Professionelle Beleuchtungslösungen
   }
 
   /**
+   * Sendet eine Willkommens-E-Mail mit E-Mail-Verifikation
+   */
+  async sendWelcomeEmail(data: {
+    email: string;
+    firstName: string;
+    lastName?: string;
+    verificationToken: string;
+    verificationCode: string;
+    registrationCode?: string;
+  }): Promise<boolean> {
+    try {
+      console.log(`📧 Sending welcome email to: ${data.email} with verification code: ${data.verificationCode}`);
+
+      const mailOptions = {
+        from: {
+          name: 'VYSN Hub',
+          address: process.env.SMTP_USER || 'noreply@vysnhub.com'
+        },
+        to: data.email,
+        subject: 'Willkommen bei VYSN Hub - E-Mail bestätigen',
+        html: this.getWelcomeEmailTemplate(data),
+        text: this.getWelcomeEmailTextTemplate(data)
+      };
+
+      const result = await this.transporter.sendMail(mailOptions);
+      console.log(`✅ Welcome email sent successfully to: ${data.email}`);
+      
+      return true;
+    } catch (error) {
+      console.error('❌ Error sending welcome email:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Sendet eine E-Mail-Verifikation (Resend)
+   */
+  async sendVerificationEmail(email: string, firstName: string, verificationCode: string): Promise<boolean> {
+    try {
+      console.log(`📧 Sending verification email to: ${email} with code: ${verificationCode}`);
+
+      const mailOptions = {
+        from: {
+          name: 'VYSN Hub',
+          address: process.env.SMTP_USER || 'noreply@vysnhub.com'
+        },
+        to: email,
+        subject: 'VYSN Hub - E-Mail-Adresse bestätigen',
+        html: this.getVerificationEmailTemplate(firstName, verificationCode),
+        text: `
+Hallo ${firstName},
+
+Ihr Verifikationscode lautet:
+
+${verificationCode}
+
+Geben Sie diesen Code in der App ein, um Ihre E-Mail-Adresse zu bestätigen.
+Der Code ist 24 Stunden gültig.
+
+VYSN GmbH
+www.vysn.de
+        `
+      };
+
+      const result = await this.transporter.sendMail(mailOptions);
+      console.log(`✅ Verification email sent successfully to: ${email}`);
+      
+      return true;
+    } catch (error) {
+      console.error('❌ Error sending verification email:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Willkommens-E-Mail HTML Template
+   */
+  private getWelcomeEmailTemplate(data: {
+    email: string;
+    firstName: string;
+    lastName?: string;
+    verificationCode: string;
+    registrationCode?: string;
+  }): string {
+    return `
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Willkommen bei VYSN Hub</title>
+    <style>
+        body { margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f5f5f5; }
+        .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+        .header { background-color: #000000; color: #ffffff; padding: 30px 20px; text-align: center; }
+        .header h1 { margin: 0; font-size: 28px; font-weight: bold; }
+        .content { padding: 40px 30px; }
+        .cta-button { 
+            display: inline-block; 
+            background-color: #000000; 
+            color: #ffffff; 
+            padding: 15px 30px; 
+            text-decoration: none; 
+            border-radius: 5px; 
+            font-weight: bold; 
+            margin: 20px 0; 
+        }
+        .features { background-color: #f9f9f9; padding: 20px; border-radius: 8px; margin: 20px 0; }
+        .footer { background-color: #f5f5f5; padding: 20px; text-align: center; color: #666666; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>VYSN Hub</h1>
+        </div>
+        
+        <div class="content">
+            <h2>Willkommen bei VYSN Hub, ${data.firstName}!</h2>
+            
+            <p>Vielen Dank für Ihre Registrierung bei VYSN Hub - Ihrer professionellen Plattform für Beleuchtungslösungen.</p>
+            
+            ${data.registrationCode ? `
+            <div style="background-color: #e8f4fd; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                <p><strong>Ihr Registrierungscode:</strong> ${data.registrationCode}</p>
+                <p>Sie wurden erfolgreich mit diesem Code registriert.</p>
+            </div>
+            ` : ''}
+            
+            <p>Um Ihr Konto zu aktivieren, geben Sie bitte den folgenden Verifikationscode in der App ein:</p>
+            
+            <div style="text-align: center; margin: 30px 0;">
+                <div style="background-color: #f0f0f0; padding: 20px; border-radius: 8px; font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #000000;">
+                    ${data.verificationCode}
+                </div>
+                <p style="margin-top: 15px; color: #666666; font-size: 14px;">
+                    Dieser Code ist 24 Stunden gültig
+                </p>
+            </div>
+            
+            <div class="features">
+                <h3>Ihre Vorteile mit VYSN Hub:</h3>
+                <ul>
+                    <li>🏢 Direkter Zugang zum kompletten VYSN Produktkatalog</li>
+                    <li>📋 Persönliche Projektplanung und -verwaltung</li>
+                    <li>🤖 KI-basierte Produktberatung und Lichtplanung</li>
+                    <li>📧 Direkte Bestellabwicklung per E-Mail</li>
+                    <li>📱 Barcode-Scanner für schnelle Produktsuche</li>
+                </ul>
+            </div>
+            
+            <p>Bei Fragen: support@vysn.de</p>
+        </div>
+        
+        <div class="footer">
+            <p><strong>VYSN GmbH</strong><br>
+            <a href="https://vysn.de">www.vysn.de</a></p>
+        </div>
+    </div>
+</body>
+</html>
+    `;
+  }
+
+  /**
+   * Willkommens-E-Mail Text Template
+   */
+  private getWelcomeEmailTextTemplate(data: {
+    firstName: string;
+    verificationCode: string;
+    registrationCode?: string;
+  }): string {
+    return `
+Willkommen bei VYSN Hub, ${data.firstName}!
+
+Vielen Dank für Ihre Registrierung bei VYSN Hub.
+
+${data.registrationCode ? `Ihr Registrierungscode: ${data.registrationCode}` : ''}
+
+Um Ihr Konto zu aktivieren, geben Sie bitte den folgenden Verifikationscode in der App ein:
+
+${data.verificationCode}
+
+Dieser Code ist 24 Stunden gültig.
+
+Ihre Vorteile:
+- Direkter Zugang zum VYSN Produktkatalog
+- Persönliche Projektplanung
+- KI-basierte Produktberatung
+- Direkte Bestellabwicklung per E-Mail
+
+Bei Fragen: support@vysn.de
+
+VYSN GmbH
+www.vysn.de
+    `;
+  }
+
+  /**
+   * Verifikations-E-Mail Template
+   */
+  private getVerificationEmailTemplate(firstName: string, verificationCode: string): string {
+    return `
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>E-Mail bestätigen</title>
+    <style>
+        body { margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f5f5f5; }
+        .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+        .header { background-color: #000000; color: #ffffff; padding: 30px 20px; text-align: center; }
+        .content { padding: 40px 30px; text-align: center; }
+        .code-box {
+            background-color: #f0f0f0; 
+            padding: 20px; 
+            border-radius: 8px; 
+            font-size: 32px; 
+            font-weight: bold; 
+            letter-spacing: 8px; 
+            color: #000000;
+            margin: 20px 0;
+        }
+        .footer { background-color: #f5f5f5; padding: 20px; text-align: center; color: #666666; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>VYSN Hub</h1>
+        </div>
+        
+        <div class="content">
+            <h2>E-Mail-Adresse bestätigen</h2>
+            <p>Hallo ${firstName},</p>
+            <p>Ihr Verifikationscode lautet:</p>
+            
+            <div class="code-box">
+                ${verificationCode}
+            </div>
+            
+            <p style="color: #666666; font-size: 14px;">
+                Geben Sie diesen Code in der App ein.<br>
+                Der Code ist 24 Stunden gültig.
+            </p>
+        </div>
+        
+        <div class="footer">
+            <p><strong>VYSN GmbH</strong><br><a href="https://vysn.de">www.vysn.de</a></p>
+        </div>
+    </div>
+</body>
+</html>
+    `;
+  }
+
+  /**
    * Test-Funktion für Email-Versand
    */
   async sendTestEmail(): Promise<boolean> {

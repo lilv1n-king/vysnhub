@@ -22,6 +22,15 @@ export interface User {
   currency: string;
   newsletter_subscription: boolean;
   marketing_emails: boolean;
+  privacy_consent_given?: boolean;
+  privacy_consent_version?: string;
+  privacy_consent_date?: string;
+  privacy_consent_ip?: string;
+  privacy_consent_user_agent?: string;
+  privacy_withdrawn_date?: string;
+  // Vereinfachte Consent-Felder
+  analytics_consent?: boolean;
+  marketing_consent?: boolean;
   created_at: string;
   updated_at: string;
   last_login_at?: string;

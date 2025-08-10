@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -21,12 +21,17 @@ import {
   Edit3,
   Save,
   X,
-  ArrowLeft
+  ArrowLeft,
+  Shield,
+  FileText,
+  ChevronRight
 } from 'lucide-react-native';
 import { useAuth } from '../../lib/contexts/AuthContext';
 import Header from '../components/Header';
 import Button from '../components/ui/Button';
 import { Card, CardContent } from '../components/ui/Card';
+import { privacyService } from '../../lib/services/privacyService';
+import PrivacyConsentModal from '../components/PrivacyConsentModal';
 
 const styles = StyleSheet.create({
   container: {
@@ -226,8 +231,70 @@ export default function SettingsScreen() {
   const { user, signOut, updateProfile } = auth;
   const [editing, setEditing] = useState<string | null>(null);
   const [editValues, setEditValues] = useState<Record<string, string>>({});
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const [privacyStatus, setPrivacyStatus] = useState<string>('Checking...');
 
   const profile = user?.profile;
+
+  // Privacy status laden
+  useEffect(() => {
+    const loadPrivacyStatus = async () => {
+      try {
+        const status = await privacyService.getConsentStatus();
+        if (status?.hasValidConsent) {
+          setPrivacyStatus('Consent given');
+        } else {
+          setPrivacyStatus('Consent required');
+        }
+      } catch (error) {
+        setPrivacyStatus('Unable to check');
+      }
+    };
+
+    if (user) {
+      loadPrivacyStatus();
+    }
+  }, [user]);
+
+  const handlePrivacyView = () => {
+    setShowPrivacyModal(true);
+  };
+
+  const handlePrivacyWithdraw = () => {
+    Alert.alert(
+      'Withdraw Privacy Consent',
+      'Are you sure you want to withdraw your privacy consent? This will log you out of the app.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Withdraw',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await privacyService.withdrawConsent();
+              await signOut();
+            } catch (error) {
+              Alert.alert('Error', 'Failed to withdraw consent');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handlePrivacyConsent = async (granted: boolean) => {
+    try {
+      await privacyService.recordConsent(granted);
+      setShowPrivacyModal(false);
+      setPrivacyStatus(granted ? 'Consent given' : 'Consent declined');
+      
+      if (!granted) {
+        await signOut();
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to record consent');
+    }
+  };
 
   const handleEdit = (field: string, currentValue: string) => {
     setEditing(field);
@@ -474,6 +541,50 @@ export default function SettingsScreen() {
           </View>
         </View>
 
+        {/* Privacy & Data Protection */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Privacy & Data Protection</Text>
+          <View style={styles.infoGrid}>
+            <TouchableOpacity style={styles.infoItem} onPress={handlePrivacyView}>
+              <View style={styles.infoIcon}>
+                <FileText size={20} color="#6b7280" />
+              </View>
+              <View style={styles.infoText}>
+                <Text style={styles.infoLabel}>Privacy Policy</Text>
+                <Text style={styles.infoValue}>View current privacy policy</Text>
+              </View>
+              <ChevronRight size={20} color="#6b7280" />
+            </TouchableOpacity>
+
+            <View style={styles.infoItem}>
+              <View style={styles.infoIcon}>
+                <Shield size={20} color="#6b7280" />
+              </View>
+              <View style={styles.infoText}>
+                <Text style={styles.infoLabel}>Data Consent Status</Text>
+                <Text style={[styles.infoValue, 
+                  privacyStatus === 'Consent given' ? { color: '#10b981' } : 
+                  privacyStatus === 'Consent required' ? { color: '#f59e0b' } : 
+                  { color: '#6b7280' }
+                ]}>
+                  {privacyStatus}
+                </Text>
+              </View>
+            </View>
+
+            <TouchableOpacity style={styles.infoItem} onPress={handlePrivacyWithdraw}>
+              <View style={styles.infoIcon}>
+                <X size={20} color="#ef4444" />
+              </View>
+              <View style={styles.infoText}>
+                <Text style={[styles.infoLabel, { color: '#ef4444' }]}>Withdraw Consent</Text>
+                <Text style={styles.infoValue}>Revoke data processing consent</Text>
+              </View>
+              <ChevronRight size={20} color="#ef4444" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* Logout */}
         <TouchableOpacity
           style={styles.logoutButton}
@@ -482,6 +593,13 @@ export default function SettingsScreen() {
           <Text style={styles.logoutButtonText}>Sign Out</Text>
         </TouchableOpacity>
       </ScrollView>
+      
+      <PrivacyConsentModal
+        visible={showPrivacyModal}
+        onConsentGiven={handlePrivacyConsent}
+        onClose={() => setShowPrivacyModal(false)}
+        isFirstTime={false}
+      />
     </View>
   );
 }

@@ -11,6 +11,8 @@ import { emailRouter } from './routes/email';
 import { ordersRouter } from './routes/orders';
 import pushNotificationsRouter from './routes/pushNotifications';
 import cartRouter from './routes/cart';
+import privacyRouter from './routes/privacy';
+import registrationRouter from './routes/registration';
 import { errorHandler } from './middleware/errorHandler';
 
 // Lade .env Datei ZUERST
@@ -39,6 +41,8 @@ app.use('/api/email', emailRouter); // Email-Service für Bestellungen
 app.use('/api/orders', ordersRouter); // Order-Management
 app.use('/api/push', pushNotificationsRouter); // Push Notifications
 app.use('/api/cart', cartRouter); // Warenkorb
+app.use('/api/privacy', privacyRouter); // Datenschutz
+app.use('/api/registration', registrationRouter); // Custom Registration
 
 // Error handling
 app.use(errorHandler);

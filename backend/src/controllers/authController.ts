@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import { AuthService } from '../services/authService';
 import { CreateUserData, UpdateUserData } from '../models/User';
+import { emailVerificationService } from '../services/emailVerificationService';
+import { emailService } from '../services/emailService';
 
 export class AuthController {
   private authService: AuthService;
@@ -10,18 +12,67 @@ export class AuthController {
   }
 
   // POST /api/auth/register  
-  // Hinweis: Haupt-Registrierung sollte im Frontend direkt mit Supabase erfolgen
-  // Diese Route ist für Admin-Zwecke oder spezielle Fälle
+  // Registriert einen neuen Benutzer und sendet Willkommens-E-Mail
   register = async (req: Request, res: Response): Promise<void> => {
     try {
-      const userData: CreateUserData = req.body;
+      const { marketing_consent, ...userData }: CreateUserData & { marketing_consent?: boolean } = req.body;
       const user = await this.authService.register(userData);
 
-      res.status(201).json({
-        success: true,
-        message: 'User registered successfully. Please login through the frontend.',
-        data: { user }
-      });
+      // Marketing-Consent verarbeiten wenn bereitgestellt
+      if (user.id && marketing_consent !== undefined) {
+        await this.authService.updateUserConsent(user.id, { marketing_consent });
+      }
+
+      // E-Mail-Verification erstellen (nur wenn User erfolgreich erstellt wurde)
+      if (user.id && user.email) {
+        try {
+          const verification = await emailVerificationService.createVerification({
+            user_id: user.id,
+            email: user.email
+          });
+
+          // Willkommens-E-Mail senden
+          const emailSent = await emailService.sendWelcomeEmail({
+            email: user.email,
+            firstName: user.first_name || '',
+            lastName: user.last_name || '',
+            verificationToken: verification.token,
+            verificationCode: verification.verification_code!
+          });
+
+          if (!emailSent) {
+            console.warn('⚠️ Welcome email could not be sent, but registration was successful');
+          }
+
+          res.status(201).json({
+            success: true,
+            message: 'User registered successfully. Please check your email to verify your account.',
+            data: { 
+              user,
+              emailSent,
+              verificationRequired: true
+            }
+          });
+        } catch (emailError) {
+          console.error('Error sending welcome email:', emailError);
+          // Registrierung war erfolgreich, nur Email-Versand fehlgeschlagen
+          res.status(201).json({
+            success: true,
+            message: 'User registered successfully, but email could not be sent.',
+            data: { 
+              user,
+              emailSent: false,
+              verificationRequired: true
+            }
+          });
+        }
+      } else {
+        res.status(201).json({
+          success: true,
+          message: 'User registered successfully.',
+          data: { user }
+        });
+      }
     } catch (error) {
       console.error('Registration controller error:', error);
       res.status(400).json({

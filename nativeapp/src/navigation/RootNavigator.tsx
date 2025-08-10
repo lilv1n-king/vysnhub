@@ -4,6 +4,7 @@ import TabNavigator from './TabNavigator';
 import SettingsScreen from '../screens/SettingsScreen';
 import CheckoutScreen from '../screens/CheckoutScreen';
 
+
 export type RootStackParamList = {
   Main: undefined;
   Settings: undefined;

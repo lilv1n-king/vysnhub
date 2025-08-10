@@ -56,7 +56,7 @@ export default function TabNavigator() {
       <Tab.Screen 
         name="Home" 
         component={HomeScreen} 
-        options={{ tabBarLabel: 'Home' }}
+        options={{ tabBarLabel: t('home.title') }}
       />
       <Tab.Screen 
         name="Products" 

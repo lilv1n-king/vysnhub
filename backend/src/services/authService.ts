@@ -409,4 +409,26 @@ export class AuthService {
 
     return await this.validateToken(token);
   }
+
+  // Benutzer-Consent aktualisieren
+  async updateUserConsent(userId: string, consent: { marketing_consent?: boolean }): Promise<void> {
+    try {
+      const { error } = await this.supabase
+        .from('profiles')
+        .update({
+          marketing_consent: consent.marketing_consent,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', userId);
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      console.log(`✅ Updated marketing consent for user ${userId}: ${consent.marketing_consent}`);
+    } catch (error) {
+      console.error('Error updating user consent:', error);
+      throw new Error(error instanceof Error ? error.message : 'Failed to update user consent');
+    }
+  }
 }

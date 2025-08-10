@@ -1,9 +1,16 @@
 import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import LoginScreen from '../screens/LoginScreen';
-import RegisterScreen from '../screens/RegisterScreen';
+import RegistrationScreen from '../screens/RegistrationScreen';
+import EmailVerificationScreen from '../screens/EmailVerificationScreen';
 
-const AuthStack = createStackNavigator();
+export type AuthStackParamList = {
+  Login: undefined;
+  Registration: undefined;
+  EmailVerification: { email: string; password?: string };
+};
+
+const AuthStack = createStackNavigator<AuthStackParamList>();
 
 export default function AuthNavigator() {
   return (
@@ -14,7 +21,23 @@ export default function AuthNavigator() {
       }}
     >
       <AuthStack.Screen name="Login" component={LoginScreen} />
-      <AuthStack.Screen name="Register" component={RegisterScreen} />
+      <AuthStack.Screen 
+        name="Registration" 
+        component={RegistrationScreen}
+        options={{ 
+          headerShown: true,
+          title: 'Registrierung',
+          headerBackTitleVisible: false,
+        }}
+      />
+      <AuthStack.Screen 
+        name="EmailVerification" 
+        component={EmailVerificationScreen}
+        options={{ 
+          headerShown: false,
+          gestureEnabled: false, // Verhindert zurück-wischen
+        }}
+      />
     </AuthStack.Navigator>
   );
 }
