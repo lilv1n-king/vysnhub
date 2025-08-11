@@ -378,7 +378,7 @@ export default function ProductDetailPage() {
               {inventoryData.inStock && inventoryData.stockQuantity <= inventoryData.lowStockThreshold && (
                 <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
                   <p className="text-orange-600 text-sm">
-                    🔥 Only {inventoryData.stockQuantity} items left in stock
+                    📦 {inventoryData.stockQuantity}
                   </p>
                 </div>
               )}

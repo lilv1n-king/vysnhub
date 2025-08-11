@@ -26,13 +26,22 @@ export class OrderService {
         throw new Error('Supabase configuration missing');
       }
 
-      const userSupabase = createClient(supabaseUrl, supabaseKey);
-      
-      // Set the session with the access token
+      // Create client with user session
+      const userSupabase = createClient(supabaseUrl, supabaseKey, {
+        global: {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        },
+      });
+
+      // Set session directly
       await userSupabase.auth.setSession({
         access_token: accessToken,
-        refresh_token: 'dummy_refresh_token'
+        refresh_token: '', // Not needed since we're just using access token
       });
+
+      console.log('🔐 User auth set for access token:', accessToken.substring(0, 20) + '...');
       
       return userSupabase;
     } catch (error) {
@@ -176,6 +185,8 @@ export class OrderService {
     statusFilter?: string[]
   ): Promise<{ orders: Order[] }> {
     try {
+      console.log('🔍 getUserOrders called with userId:', userId);
+      
       const userSupabase = await this.setUserAuth(accessToken);
 
       let query = userSupabase
@@ -193,17 +204,35 @@ export class OrderService {
         query = query.in('order_status', statusFilter);
       }
 
+      console.log('📊 Executing Supabase query for orders...');
       const { data, error } = await query.order('created_at', { ascending: false });
 
+      console.log('📊 Supabase query result:', { data, error });
+      console.log('📋 Number of orders found:', data?.length || 0);
+
       if (error) {
-        console.error('Error loading user orders:', error);
+        console.error('❌ Supabase error:', error);
+        
+        // Falls Tabelle nicht existiert, gib leere Liste zurück
+        if (error.message.includes('relation "orders" does not exist')) {
+          console.log('⚠️ Orders table does not exist yet, returning empty list');
+          return { orders: [] };
+        }
+        
         throw new Error(`Failed to load orders: ${error.message}`);
       }
 
-      return { orders: data as Order[] };
+      return { orders: data as Order[] || [] };
 
     } catch (error) {
       console.error('OrderService.getUserOrders error:', error);
+      
+      // Falls die Tabelle noch nicht existiert, gib leere Liste zurück
+      if (error instanceof Error && error.message.includes('relation "orders" does not exist')) {
+        console.log('⚠️ Orders table does not exist yet, returning empty list');
+        return { orders: [] };
+      }
+      
       throw error;
     }
   }
@@ -281,9 +310,9 @@ export class OrderService {
    */
   async isProjectAlreadyOrdered(projectId: string, accessToken: string): Promise<boolean> {
     try {
-      this.setUserAuth(accessToken);
+      const userSupabase = await this.setUserAuth(accessToken);
       
-      const { data, error } = await this.supabase
+      const { data, error } = await userSupabase
         .from('orders')
         .select('id')
         .eq('project_id', projectId)

@@ -21,9 +21,29 @@ export interface HomeHighlight {
   title: string;
   description: string;
   badge_text?: string;
-  badge_type?: 'new_release' | 'new_product';
+  badge_type?: 'new_release' | 'new_product' | 'featured' | 'catalog' | 'event';
   image_url?: string;
   button_text?: string;
+  
+  // Navigation/Action configuration
+  action_type?: 'product' | 'external_link' | 'internal_link' | 'download' | 'none';
+  action_params?: {
+    // For product navigation
+    product_id?: number;
+    item_number?: string;
+    
+    // For external links
+    url?: string;
+    
+    // For internal navigation
+    screen?: string;
+    params?: any;
+    
+    // For downloads
+    filename?: string;
+  };
+  
+  // Legacy field for backward compatibility
   product_id?: number;
   sort_order: number;
   created_at: string;

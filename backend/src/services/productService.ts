@@ -15,7 +15,7 @@ export class ProductService {
   /**
    * Alle Produkte abrufen (mit Paginierung)
    */
-  async getAllProducts(limit: number = 50, offset: number = 0): Promise<Product[]> {
+  async getAllProducts(limit: number = 1000, offset: number = 0): Promise<Product[]> {
     try {
       console.log(`🔍 Getting ${limit} products (offset: ${offset})`);
       

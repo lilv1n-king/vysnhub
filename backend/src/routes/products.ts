@@ -16,7 +16,7 @@ router.use('/meta', optionalAuth); // Filter-Optionen können öffentlich sein
 router.get('/', optionalAuth, async (req: Request, res: Response) => {
   try {
     console.log('📦 Loading all products...');
-    const limit = parseInt(req.query.limit as string) || 50;
+    const limit = parseInt(req.query.limit as string) || 1000; // Erhöht von 50 auf 1000
     const offset = parseInt(req.query.offset as string) || 0;
     
     const products = await productService.getAllProducts(limit, offset);

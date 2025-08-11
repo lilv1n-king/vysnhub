@@ -1,6 +1,6 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { View, Image, Animated } from 'react-native';
+import { View, Image } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { AuthProvider, useAuth } from './lib/contexts/AuthContext';
 import { CartProvider } from './lib/contexts/CartContext';
@@ -9,28 +9,8 @@ import RootNavigator from './src/navigation/RootNavigator';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import './lib/i18n/i18n';
 
-// Loading component with rotating VYSN logo
+// Loading component with static VYSN logo
 function LoadingScreen() {
-  const rotateValue = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    const rotateAnimation = Animated.loop(
-      Animated.timing(rotateValue, {
-        toValue: 1,
-        duration: 2000,
-        useNativeDriver: true,
-      })
-    );
-    rotateAnimation.start();
-    
-    return () => rotateAnimation.stop();
-  }, [rotateValue]);
-
-  const rotate = rotateValue.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
-
   return (
     <View style={{ 
       flex: 1, 
@@ -38,16 +18,14 @@ function LoadingScreen() {
       alignItems: 'center', 
       backgroundColor: '#ffffff' 
     }}>
-      <Animated.View style={{ transform: [{ rotate }] }}>
-        <Image 
-          source={require('./assets/logo.png')} 
-          style={{ 
-            width: 120, 
-            height: 120 
-          }}
-          resizeMode="contain"
-        />
-      </Animated.View>
+      <Image 
+        source={require('./assets/logo.png')} 
+        style={{ 
+          width: 120, 
+          height: 120 
+        }}
+        resizeMode="contain"
+      />
     </View>
   );
 }
@@ -62,15 +40,27 @@ function AppContent() {
     return <LoadingScreen />;
   }
 
-  const { isAuthenticated, loading, initialized } = auth;
+  const { isAuthenticated, loading, initialized, needsConsent, user } = auth;
 
   // Show loading screen while initializing
   if (!initialized || loading) {
     return <LoadingScreen />;
   }
 
-  // Show appropriate navigator based on auth state
-  return isAuthenticated ? <RootNavigator /> : <AuthNavigator />;
+  // Show appropriate navigator based on auth state and consent status
+  const userNeedsConsent = needsConsent();
+  
+  console.log('🏠 AppContent - isAuthenticated:', isAuthenticated, 'needsConsent:', userNeedsConsent);
+  console.log('🏠 AppContent - user profile analytics_consent:', user?.profile?.analytics_consent);
+  
+  if (!isAuthenticated || userNeedsConsent) {
+    console.log('🔐 Showing AuthNavigator');
+    return <AuthNavigator />;
+  }
+
+  // Fully authenticated and consent given - show main app
+  console.log('🏡 Showing RootNavigator (main app)');
+  return <RootNavigator />;
 }
 
 export default function App() {

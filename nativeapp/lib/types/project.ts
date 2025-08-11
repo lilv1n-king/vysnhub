@@ -35,6 +35,10 @@ export interface CreateProjectData {
   project_location?: string;
   status?: 'planning' | 'active';
   priority?: 'low' | 'medium' | 'high' | 'urgent';
+  start_date?: string;
+  target_completion_date?: string;
+  estimated_budget?: number;
+  customer_discount?: number;
   project_notes?: string;
 }
 

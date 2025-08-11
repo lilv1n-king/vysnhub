@@ -68,4 +68,17 @@ export interface UpdateUserData {
   last_name?: string;
   company_name?: string;
   phone?: string;
+  address_line_1?: string;
+  address_line_2?: string;
+  city?: string;
+  postal_code?: string;
+  country?: string;
+  vat_number?: string;
+  analytics_consent?: boolean;
+  marketing_consent?: boolean;
+  privacy_consent_given?: boolean;
+  privacy_consent_version?: string;
+  privacy_consent_date?: string;
+  privacy_consent_ip?: string;
+  privacy_consent_user_agent?: string;
 }

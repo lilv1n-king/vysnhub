@@ -352,9 +352,10 @@ export default function SettingsScreen() {
     );
   };
 
-  const handleViewOrders = () => {
-    navigation.navigate('OrderHistory');
-  };
+  // Order History Navigation - Deaktiviert
+  // const handleViewOrders = () => {
+  //   navigation.navigate('OrderHistory');
+  // };
 
 
 
@@ -705,7 +706,8 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t('settings.account')}</Text>
           
-          <TouchableOpacity style={styles.fieldContainer} onPress={handleViewOrders}>
+          {/* Order History - Deaktiviert */}
+          {/* <TouchableOpacity style={styles.fieldContainer} onPress={handleViewOrders}>
             <View style={styles.fieldRow}>
               <View style={styles.fieldIcon}>
                 <ShoppingBag size={20} color="#6b7280" />
@@ -716,7 +718,7 @@ export default function SettingsScreen() {
               </View>
               <ChevronRight size={20} color="#6b7280" />
             </View>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </View>
 
         {/* Logout */}

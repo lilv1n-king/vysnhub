@@ -165,6 +165,13 @@
     "maximumPiecesOrderable": "Maximum {{count}} pieces can be ordered",
     "onlyXPiecesLeft": "Only {{count}} pieces left in stock",
     "item": "Item",
+    "stock": {
+      "notAvailable": "Not available",
+      "tenPlusAvailable": "10+ available",
+      "twentyPlusAvailable": "20+ available",
+      "thirtyPlusAvailable": "30+ available",
+      "fortyPlusAvailable": "40+ available"
+    },
     "filter": {
       "title": "Filters",
       "reset": "Reset",
@@ -252,6 +259,7 @@
     "description": "Description",
     "tags": "Tags",
     "products": "Products",
+    "noProductsInProject": "No products in this project",
     "showDetails": "Show details",
     "hideDetails": "Hide details",
     "pieces": "pieces",
@@ -364,6 +372,7 @@
     "timeoutError": "Request timeout. Please try again.",
     "processing": "Processing...",
     "searching": "Searching...",
+    "loadingMore": "Loading more products",
     "holdInFrame": "Hold barcode in the frame",
     "scanAgain": "Scan again",
     "searchResults": "Search results:",
@@ -577,5 +586,7 @@
       "refunded": "Refunded"
     },
     "order": "Order"
-  }
+  },
+  "medium": "Medium",
+  "priority": "Priority"
 }

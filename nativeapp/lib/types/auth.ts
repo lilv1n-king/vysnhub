@@ -22,6 +22,8 @@ export interface Profile {
   currency: string;
   newsletter_subscription: boolean;
   marketing_emails: boolean;
+  analytics_consent?: boolean;
+  marketing_consent?: boolean;
   created_at: string;
   updated_at: string;
   last_login_at?: string;

@@ -18,6 +18,7 @@ interface AuthContextType {
   updateProfile: (updates: Partial<Profile>) => Promise<{ error: Error | null }>;
   refreshProfile: () => Promise<void>;
   getApiHeaders: () => Record<string, string>;
+  needsConsent: () => boolean;
 
   
   // Registration with Code
@@ -63,7 +64,30 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const loadProfile = useCallback(async (): Promise<Profile | null> => {
     try {
       const response = await apiService.get<Profile>(API_ENDPOINTS.AUTH_PROFILE);
-      return response.data || null;
+      console.log('🔄 loadProfile: Raw response:', response);
+      console.log('🔍 loadProfile: analytics_consent in response.data:', response.data?.analytics_consent);
+      console.log('🔍 loadProfile: marketing_consent in response.data:', response.data?.marketing_consent);
+      
+      if (response.success && response.data) {
+        console.log('🔄 loadProfile: Returning profile data:', response.data);
+        
+        // Ensure the consent fields are properly mapped
+        const profileData = {
+          ...response.data,
+          analytics_consent: response.data.analytics_consent,
+          marketing_consent: response.data.marketing_consent
+        };
+        
+        console.log('🔍 loadProfile: Final profile with consent fields:', {
+          analytics_consent: profileData.analytics_consent,
+          marketing_consent: profileData.marketing_consent
+        });
+        
+        return profileData;
+      }
+      
+      console.error('🔄 loadProfile: No data in response');
+      return null;
     } catch (error) {
       console.error('Error loading profile:', error);
       return null;
@@ -198,21 +222,41 @@ export function AuthProvider({ children }: AuthProviderProps) {
         return { error: new Error('No user logged in') };
       }
 
+      console.log('🔄 updateProfile: Sending updates:', updates);
       const response = await apiService.put(API_ENDPOINTS.AUTH_PROFILE, updates);
+      console.log('🔄 updateProfile: Response:', response);
       
       if (!response.success) {
         return { error: new Error(response.error || 'Profile update failed') };
       }
 
-      // Update local user state
-      if (user.profile && response.data) {
-        setUser({
-          ...user,
-          profile: {
-            ...user.profile,
-            ...response.data
-          }
+      // Force a fresh profile load since backend now returns complete updated profile
+      console.log('🔄 updateProfile: Loading fresh profile from backend...');
+      const freshProfile = await loadProfile();
+      if (freshProfile) {
+        console.log('🔄 updateProfile: Fresh profile loaded:', freshProfile);
+        console.log('🔄 updateProfile: Setting user with fresh profile...');
+        setUser(currentUser => {
+          const updatedUser = {
+            ...currentUser,
+            profile: freshProfile
+          };
+          console.log('🔄 updateProfile: Updated user state:', updatedUser);
+          return updatedUser;
         });
+      } else {
+        console.error('🔄 updateProfile: Failed to load fresh profile - falling back to response data');
+        // Fallback: use the response data
+        if (response.data) {
+          setUser(currentUser => ({
+            ...currentUser,
+            profile: {
+              ...currentUser.profile,
+              ...response.data,
+              ...updates // Ensure our updates are applied
+            }
+          }));
+        }
       }
 
       return { error: null };
@@ -426,7 +470,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }, []);
 
-
+  // Check if user needs to provide consent
+  const needsConsent = useCallback((): boolean => {
+    if (!user?.profile) {
+      return false;
+    }
+    
+    // Simple check: if analytics_consent is not explicitly set to true, need consent
+    return user.profile.analytics_consent !== true;
+  }, [user]);
 
   const value: AuthContextType = {
     user,
@@ -442,6 +494,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     updateProfile,
     refreshProfile,
     getApiHeaders,
+    needsConsent,
 
     registerWithCode,
     verifyEmailCode,

@@ -93,14 +93,6 @@ const styles = StyleSheet.create({
     top: 12,
     padding: 4,
   },
-  forgotPassword: {
-    alignSelf: 'flex-end',
-    marginTop: -8,
-  },
-  forgotPasswordText: {
-    fontSize: 14,
-    color: '#6b7280',
-  },
   loginButton: {
     backgroundColor: '#000000',
     paddingVertical: 16,
@@ -166,7 +158,7 @@ export default function LoginScreen() {
     );
   }
 
-  const { signIn, resetPassword } = auth;
+  const { signIn } = auth;
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -208,6 +200,7 @@ export default function LoginScreen() {
       if (error) {
         Alert.alert(t('auth.loginError'), error.message);
       }
+      // Navigation is handled by AppContent based on isAuthenticated and needsConsent
     } catch (error) {
       Alert.alert(t('common.error'), 'An unexpected error occurred');
     } finally {
@@ -215,31 +208,11 @@ export default function LoginScreen() {
     }
   };
 
-  const handleForgotPassword = async () => {
-    if (!email.trim()) {
-      Alert.alert('Email Required', 'Please enter your email address first');
-      return;
-    }
 
-    try {
-      const { error } = await resetPassword(email.trim());
-      
-      if (error) {
-        Alert.alert('Error', error.message);
-      } else {
-        Alert.alert(
-          'Check Your Email',
-          'We\'ve sent you a password reset link. Please check your email and follow the instructions.'
-        );
-      }
-    } catch (error) {
-      Alert.alert(t('common.error'), 'An unexpected error occurred');
-    }
-  };
-
-  const navigateToRegister = () => {
-    navigation.navigate('Registration' as never);
-  };
+  // Register Navigation - Deaktiviert
+  // const navigateToRegister = () => {
+  //   navigation.navigate('Registration' as never);
+  // };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -341,12 +314,6 @@ export default function LoginScreen() {
               </View>
               {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
               
-              <TouchableOpacity 
-                style={styles.forgotPassword}
-                onPress={handleForgotPassword}
-              >
-                <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-              </TouchableOpacity>
             </View>
 
             <TouchableOpacity
@@ -360,7 +327,8 @@ export default function LoginScreen() {
             </TouchableOpacity>
           </View>
 
-          <View style={styles.registerSection}>
+          {/* Register Section - Deaktiviert */}
+          {/* <View style={styles.registerSection}>
             <Text style={styles.registerText}>
               {t('auth.noAccountYet')}
             </Text>
@@ -371,7 +339,7 @@ export default function LoginScreen() {
               <UserPlus size={20} color="#374151" />
               <Text style={styles.registerButtonText}>{t('auth.signUp')}</Text>
             </TouchableOpacity>
-          </View>
+          </View> */}
           </ScrollView>
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>

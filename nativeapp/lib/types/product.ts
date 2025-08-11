@@ -68,6 +68,7 @@ export interface VysnProductDB {
   product_picture_6?: string;
   product_picture_7?: string;
   product_picture_8?: string;
+  stock_quantity?: number;
   availability?: boolean;
   created_at?: string;
   updated_at?: string;
@@ -143,6 +144,7 @@ export interface VysnProduct {
   product_picture_5?: string;
   product_picture_6?: string;
   product_picture_7?: string;
+  stockQuantity?: number;
   availability?: boolean;
   updatedAt?: string;
 }
@@ -217,6 +219,7 @@ export function convertDbToClientProduct(dbProduct: VysnProductDB): VysnProduct 
     product_picture_5: dbProduct.product_picture_5,
     product_picture_6: dbProduct.product_picture_6,
     product_picture_7: dbProduct.product_picture_7,
+    stockQuantity: dbProduct.stock_quantity,
     availability: dbProduct.availability,
     updatedAt: dbProduct.updated_at,
   };

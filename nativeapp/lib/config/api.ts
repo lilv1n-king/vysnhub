@@ -2,7 +2,7 @@ import Constants from 'expo-constants';
 
 // Backend API Configuration
 // ⚠️ SICHERHEITSWARNUNG: Development URL sollte nicht hardcoded sein!
-const API_BASE_URL_DEV = 'http://192.168.2.188:3001'; // Development URL (use local IP for Expo)
+const API_BASE_URL_DEV = 'http://192.168.2.128:3001'; // Development URL (use local IP for Expo)
 const API_BASE_URL_PROD = 'https://your-backend-api.com'; // Production URL
 
 // Versuche Umgebungsvariablen zu laden, fallback auf Development-Werte
@@ -36,6 +36,11 @@ export const API_ENDPOINTS = {
   CART_REMOVE: '/api/cart/remove',
   CART_CLEAR: '/api/cart/clear',
   CART_MIGRATE: '/api/cart/migrate',
+  
+  // Orders (Bestellungen)
+  ORDERS: '/api/orders',
+  ORDER_BY_ID: '/api/orders', // + /:id
+  ORDER_STATUS: '/api/orders', // + /:id/status
 } as const;
 
 // API Response Types

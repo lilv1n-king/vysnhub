@@ -236,9 +236,9 @@ export class EmailController {
         project,
         products,
         quoteTotal,
-        senderName: req.user!.user_metadata?.full_name || req.user!.email?.split('@')[0] || 'VYSN Partner',
+        senderName: `${req.user!.first_name} ${req.user!.last_name}`.trim() || req.user!.email?.split('@')[0] || 'VYSN Partner',
         senderEmail: req.user!.email || '',
-        senderCompany: req.user!.user_metadata?.company || ''
+        senderCompany: req.user!.company_name || ''
       };
 
       // Angebot-E-Mail senden

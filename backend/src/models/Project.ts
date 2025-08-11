@@ -11,6 +11,7 @@ export interface Project {
   actual_completion_date?: string;
   estimated_budget?: number;
   actual_cost?: number;
+  customer_discount?: number;
   project_notes?: string;
   tags?: string[];
   created_at: string;
@@ -26,6 +27,7 @@ export interface CreateProjectData {
   start_date?: string;
   target_completion_date?: string;
   estimated_budget?: number;
+  customer_discount?: number;
   project_notes?: string;
   tags?: string[];
 }
@@ -41,6 +43,7 @@ export interface UpdateProjectData {
   actual_completion_date?: string;
   estimated_budget?: number;
   actual_cost?: number;
+  customer_discount?: number;
   project_notes?: string;
   tags?: string[];
 }

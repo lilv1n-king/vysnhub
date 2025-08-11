@@ -35,7 +35,7 @@ Die VYSN Hub-Anwendung wurde einer umfassenden Sicherheitsanalyse unterzogen und
   - User-Context für autorisierte Requests
 
 ### 3. Hardcoded Development-URLs ✅ BEHOBEN  
-- **Problem:** Interne IP-Adressen (`192.168.2.188:3001`) im Code
+- **Problem:** Interne IP-Adressen (`192.168.2.128:3001`) im Code
 - **Risiko:** Interne Netzwerk-Exposition, Information Disclosure
 - **Lösung:**
   - URLs durch konfigurierbare Umgebungsvariablen ersetzt

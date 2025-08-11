@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { VysnProductDB } from '../types/product';
+import { Product } from '../config/database';
 
 // Environment variables
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -35,10 +35,14 @@ export interface HomeHighlight {
   badge_type?: string;
   image_url?: string;
   button_text?: string;
+  // Navigation/Action fields
+  action_type?: string;
+  action_params?: any;
+  // Legacy field
   product_id?: number;
   sort_order: number;
   created_at: string;
-  product?: VysnProductDB;
+  product?: Product;
 }
 
 export class HomeContentService {
@@ -86,9 +90,49 @@ export class HomeContentService {
 
   /**
    * Get active highlights for home screen
+   * @param language - Language code ('de' or 'en'), defaults to 'de'
    */
-  async getActiveHighlights(): Promise<HomeHighlight[]> {
+  async getActiveHighlights(language: string = 'de'): Promise<HomeHighlight[]> {
     try {
+      // Try using the database function first for multilingual support
+      const { data: functionData, error: functionError } = await supabase
+        .rpc('get_home_highlights', { lang: language });
+
+      if (!functionError && functionData) {
+        console.log(`✅ Loaded ${functionData.length} highlights using multilingual function`);
+        
+        // For highlights with product references, load product data
+        const enrichedData = await Promise.all(
+          functionData.map(async (highlight: any) => {
+            if (highlight.product_id) {
+              const { data: productData } = await supabase
+                .from('products')
+                .select(`
+                  id,
+                  vysn_name,
+                  item_number_vysn,
+                  short_description,
+                  product_picture_1,
+                  gross_price,
+                  stock_quantity
+                `)
+                .eq('id', highlight.product_id)
+                .single();
+              
+              return {
+                ...highlight,
+                product: productData
+              };
+            }
+            return highlight;
+          })
+        );
+
+        return enrichedData;
+      }
+
+      // Fallback to old schema if function doesn't exist
+      console.log('⚠️ Multilingual function not available, using legacy schema');
       const { data, error } = await supabase
         .from('home_highlights')
         .select(`
@@ -99,6 +143,8 @@ export class HomeContentService {
           badge_type,
           image_url,
           button_text,
+          action_type,
+          action_params,
           product_id,
           sort_order,
           created_at,
@@ -108,7 +154,8 @@ export class HomeContentService {
             item_number_vysn,
             short_description,
             product_picture_1,
-            gross_price
+            gross_price,
+            stock_quantity
           )
         `)
         .eq('is_active', true)

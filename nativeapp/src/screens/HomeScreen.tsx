@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Calendar, Tag, Zap } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
+import { handleHighlightAction } from '../../lib/utils/highlightActions';
 import { Card, CardContent } from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Header from '../components/Header';
@@ -204,7 +205,7 @@ const styles = StyleSheet.create({
 
 export default function HomeScreen() {
   const navigation = useNavigation();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [events, setEvents] = useState<HomeEvent[]>([]);
   const [highlights, setHighlights] = useState<HomeHighlight[]>([]);
   const [loading, setLoading] = useState(true);
@@ -212,18 +213,23 @@ export default function HomeScreen() {
 
   useEffect(() => {
     loadHomeContent();
-  }, []);
+  }, [i18n.language]); // Neu laden wenn Sprache wechselt
 
   const loadHomeContent = async () => {
     try {
       setLoading(true);
       setError(null);
-      const content = await homeContentService.getHomeContent();
+      
+      // Verwende aktuelle i18n Sprache
+      const currentLanguage = i18n.language.startsWith('de') ? 'de' : 'en';
+      console.log('🌍 Loading home content for language:', currentLanguage);
+      
+      const content = await homeContentService.getHomeContent(currentLanguage);
       setEvents(content.events);
       setHighlights(content.highlights);
     } catch (err) {
       console.error('Error loading home content:', err);
-      setError('Inhalte konnten nicht geladen werden');
+      setError(t('common.error'));
     } finally {
       setLoading(false);
     }
@@ -239,9 +245,15 @@ export default function HomeScreen() {
     }
   };
 
-  const handleHighlightPress = (highlight: HomeHighlight) => {
-    if (highlight.product_id) {
-      handleProductPress(highlight.product_id);
+  const handleHighlightPress = async (highlight: HomeHighlight) => {
+    try {
+      await handleHighlightAction(highlight, {
+        navigate: (screen: string, params?: any) => {
+          navigation.navigate(screen as any, params);
+        }
+      });
+    } catch (error) {
+      console.error('Error handling highlight action:', error);
     }
   };
 

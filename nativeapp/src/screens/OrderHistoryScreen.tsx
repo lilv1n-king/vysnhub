@@ -20,7 +20,8 @@ import {
   Clock,
   CheckCircle,
   Truck,
-  ShoppingBag
+  ShoppingBag,
+  X
 } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../lib/contexts/AuthContext';
@@ -31,52 +32,37 @@ import { orderService, Order, OrderItem } from '../../lib/services/orderService'
 const OrderHistoryScreen = () => {
   const { t } = useTranslation();
   const navigation = useNavigation();
-  const { user, accessToken } = useAuth();
+  const { user } = useAuth();
   
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
 
 
   useEffect(() => {
-    if (user && accessToken) {
-      loadOrders();
-    } else {
+    const initializeOrders = async () => {
+      setLoading(true);
+      await loadOrders();
       setLoading(false);
-    }
-  }, [user, accessToken, loadOrders]);
+    };
+
+    initializeOrders();
+  }, [loadOrders]);
 
   const loadOrders = useCallback(async () => {
-    try {
-      setLoading(true);
-      
-      if (!user || !accessToken) {
-        setLoading(false);
-        return;
-      }
+    if (!user) return;
 
-      const response = await orderService.getUserOrders(accessToken);
-      setOrders(response.orders);
+    try {
+      const orders = await orderService.getUserOrders();
+      setOrders(orders);
     } catch (error) {
-      console.error('❌ Error loading orders:', error);
-      
-      // Check if it's an authentication error
-      if (error instanceof Error && (error.message.includes('401') || error.message.includes('Authentication failed'))) {
-        Alert.alert(
-          t('orders.error'), 
-          t('orders.authError'),
-          [
-            { text: 'OK', onPress: () => navigation.goBack() }
-          ]
-        );
-      } else {
-        Alert.alert(t('orders.error'), t('orders.loadError'));
-      }
-    } finally {
-      setLoading(false);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      Alert.alert(t('orders.error'), `${t('orders.loadError')}: ${errorMessage}`);
+      setOrders([]);
     }
-  }, [user, accessToken, t]);
+  }, [user, t]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -178,7 +164,19 @@ const OrderHistoryScreen = () => {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        {orders.length === 0 ? (
+        {error ? (
+          <View style={styles.errorState}>
+            <Text style={styles.errorTitle}>⚠️ Fehler beim Laden</Text>
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity 
+              style={styles.retryButton} 
+              onPress={loadOrders}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.retryButtonText}>Erneut versuchen</Text>
+            </TouchableOpacity>
+          </View>
+        ) : orders.length === 0 ? (
           <View style={styles.emptyState}>
             <ShoppingBag size={64} color="#d1d5db" />
             <Text style={styles.emptyStateTitle}>{t('orders.noOrders')}</Text>
@@ -288,6 +286,38 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     textAlign: 'center',
     lineHeight: 24,
+  },
+  errorState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
+    paddingVertical: 64,
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#ef4444',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#6b7280',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 24,
+  },
+  retryButton: {
+    backgroundColor: '#000000',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   ordersList: {
     paddingBottom: 32,

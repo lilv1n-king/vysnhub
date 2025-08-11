@@ -165,6 +165,13 @@
     "maximumPiecesOrderable": "Maximal {{count}} Stück bestellbar",
     "onlyXPiecesLeft": "Nur noch {{count}} Stück auf Lager",
     "item": "Artikel",
+    "stock": {
+      "notAvailable": "Nicht verfügbar",
+      "tenPlusAvailable": "10+ verfügbar",
+      "twentyPlusAvailable": "20+ verfügbar",
+      "thirtyPlusAvailable": "30+ verfügbar",
+      "fortyPlusAvailable": "40+ verfügbar"
+    },
     "filter": {
       "title": "Filter",
       "reset": "Zurücksetzen",
@@ -252,6 +259,7 @@
     "description": "Beschreibung",
     "tags": "Tags",
     "products": "Produkte",
+    "noProductsInProject": "Keine Produkte in diesem Projekt",
     "showDetails": "Details anzeigen",
     "hideDetails": "Details ausblenden",
     "pieces": "Stück",
@@ -364,6 +372,7 @@
     "timeoutError": "Zeitüberschreitung. Bitte versuchen Sie es erneut.",
     "processing": "Verarbeitung...",
     "searching": "Suche läuft...",
+    "loadingMore": "Lade weitere Produkte",
     "holdInFrame": "Barcode in den Rahmen halten",
     "scanAgain": "Erneut scannen",
     "searchResults": "Suchergebnisse:",
@@ -580,5 +589,7 @@
       "refunded": "Erstattet"
     },
     "order": "Bestellung"
-  }
+  },
+  "medium": "Mittel",
+  "priority": "Priorität"
 }

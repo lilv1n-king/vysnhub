@@ -43,23 +43,35 @@ interface CartProviderProps {
 export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
   const [items, setItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const auth = useAuth();
   const user = auth?.user || null;
   const accessToken = auth?.accessToken || null;
   
   const CART_STORAGE_KEY = 'vysn_cart_items';
+  const SESSION_ID_STORAGE_KEY = 'vysn_session_id';
 
-  // Lade Cart beim Start
+  // Lade Cart und Session-ID beim Start
   useEffect(() => {
     loadCartFromStorage();
+    loadSessionId();
   }, []);
 
-  // Sync mit Backend wenn User eingeloggt ist
+  // Sync mit Backend wenn User eingeloggt ist oder Token sich ändert
   useEffect(() => {
-    if (user) {
+    if (user && accessToken) {
+      // Nur synchen wenn sowohl User als auch Token verfügbar sind
       syncWithBackend();
     }
-  }, [user]);
+  }, [user, accessToken]);
+  
+  // Separate Effect für Session-ID Änderungen (bei Gästen)
+  useEffect(() => {
+    if (!user && sessionId) {
+      // Für Gast-User: Lade Warenkorb wenn Session-ID bereit ist
+      console.log('👥 Guest session ready, session ID:', sessionId);
+    }
+  }, [sessionId, user]);
 
   // Speichere Cart lokal bei Änderungen
   useEffect(() => {
@@ -91,8 +103,29 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     }
   };
 
+  // Lade persistente Session-ID
+  const loadSessionId = async () => {
+    try {
+      const storedSessionId = await AsyncStorage.getItem(SESSION_ID_STORAGE_KEY);
+      if (storedSessionId) {
+        setSessionId(storedSessionId);
+      } else {
+        // Erstelle neue Session-ID nur wenn keine existiert
+        const newSessionId = 'anonymous_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        await AsyncStorage.setItem(SESSION_ID_STORAGE_KEY, newSessionId);
+        setSessionId(newSessionId);
+      }
+    } catch (error) {
+      console.error('Error loading session ID:', error);
+      // Fallback: temporäre Session-ID ohne Persistierung
+      setSessionId('anonymous_' + Date.now());
+    }
+  };
+
   const getSessionId = () => {
-    return accessToken || 'anonymous_' + Date.now();
+    // Für eingeloggte User: Access Token als Session-ID
+    // Für Gäste: persistente Anonymous Session-ID
+    return accessToken || sessionId || 'anonymous_fallback_' + Date.now();
   };
 
   const syncWithBackend = async () => {
@@ -100,25 +133,33 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
 
     setLoading(true);
     try {
-      // 1. Migriere Session-Cart zu User-Cart (nur bei gültigem Token)
-      const sessionId = getSessionId();
-      if (accessToken && sessionId !== accessToken) {
+      const currentSessionId = getSessionId();
+      
+      // 1. Sichere aktuellen lokalen Warenkorb vor Sync
+      const localCartBackup = [...items];
+      
+      // 2. Migriere Session-Cart zu User-Cart (nur bei gültigem Token)
+      if (accessToken && currentSessionId !== accessToken) {
         // Nur migrieren wenn sessionId anders als aktueller Token
+        console.log('🔄 Migrating cart from session:', currentSessionId, 'to user token');
+        
         const migrationResult = await cartApiService.migrateCart(
-          sessionId,
+          currentSessionId,
           accessToken
         );
 
         if (!migrationResult.success) {
           console.warn('Cart migration failed:', migrationResult.error);
           // Migration-Fehler nicht als schwerwiegend behandeln
+        } else {
+          console.log('✅ Cart migration successful');
         }
       }
 
-      // 2. Lade aktuellen Warenkorb vom Backend
+      // 3. Lade aktuellen Warenkorb vom Backend
       const cartResult = await cartApiService.getCart(
         accessToken,
-        sessionId
+        currentSessionId
       );
 
       if (cartResult.success && cartResult.cart && cartResult.cart.items) {
@@ -149,10 +190,15 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
           unitPrice: item.unit_price,
         }));
 
+        // Smart-Merge: Backend hat Priorität, aber prüfe auf lokale Änderungen
+        console.log('🔄 Syncing cart - Backend items:', backendItems.length, 'Local items:', localCartBackup.length);
         setItems(backendItems);
       } else if (!cartResult.success) {
         console.error('Failed to load cart:', cartResult.error);
-        Alert.alert('Hinweis', 'Warenkorb konnte nicht vom Server geladen werden. Lokaler Warenkorb wird verwendet.');
+        // Bei Backend-Fehlern: lokalen Warenkorb beibehalten
+        console.log('⚠️ Backend sync failed, keeping local cart with', localCartBackup.length, 'items');
+        setItems(localCartBackup);
+        Alert.alert('Hinweis', 'Warenkorb-Synchronisierung fehlgeschlagen. Lokaler Warenkorb wird verwendet.');
       }
     } catch (error) {
       console.error('Error syncing with backend:', error);
@@ -187,18 +233,23 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
       });
 
       // Backend Sync wenn möglich  
-      if (user || accessToken) {
+      if (accessToken || sessionId) {
+        const currentSessionId = getSessionId();
+        console.log('📦 Adding to cart - Session ID:', currentSessionId, 'User:', !!user);
+        
         const result = await cartApiService.addToCart(
           product.id,
           quantity,
           product.grossPrice || 0,
           accessToken,
-          getSessionId()
+          currentSessionId
         );
 
         if (!result.success) {
           console.warn('Backend sync failed:', result.error);
           // Fehler nicht an User weiterleiten - lokaler Cart funktioniert trotzdem
+        } else {
+          console.log('✅ Successfully added to backend cart');
         }
       }
     } catch (error) {
@@ -219,7 +270,10 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
       setItems(currentItems => currentItems.filter(item => item.product.id !== productId));
 
       // Backend Sync
-      if (user && accessToken && itemToRemove?.id) {
+      if ((accessToken || sessionId) && itemToRemove?.id) {
+        const currentSessionId = getSessionId();
+        console.log('🗑️ Removing from cart - Session ID:', currentSessionId);
+        
         const result = await cartApiService.removeFromCart(
           itemToRemove.id,
           accessToken
@@ -227,6 +281,8 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
 
         if (!result.success) {
           console.warn('Backend sync failed:', result.error);
+        } else {
+          console.log('✅ Successfully removed from backend cart');
         }
       }
     } catch (error) {
@@ -258,7 +314,10 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
       );
 
       // Backend Sync
-      if (user && accessToken && itemToUpdate?.id) {
+      if ((accessToken || sessionId) && itemToUpdate?.id) {
+        const currentSessionId = getSessionId();
+        console.log('♾️ Updating quantity - Session ID:', currentSessionId);
+        
         const result = await cartApiService.updateQuantity(
           itemToUpdate.id,
           quantity,
@@ -267,6 +326,8 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
 
         if (!result.success) {
           console.warn('Backend sync failed:', result.error);
+        } else {
+          console.log('✅ Successfully updated quantity in backend cart');
         }
       }
     } catch (error) {
@@ -285,14 +346,19 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
       setItems([]);
 
       // Backend Sync
-      if (user && accessToken) {
+      if (accessToken || sessionId) {
+        const currentSessionId = getSessionId();
+        console.log('🗑️ Clearing cart - Session ID:', currentSessionId);
+        
         const result = await cartApiService.clearCart(
           accessToken,
-          getSessionId()
+          currentSessionId
         );
 
         if (!result.success) {
           console.warn('Backend sync failed:', result.error);
+        } else {
+          console.log('✅ Successfully cleared backend cart');
         }
       }
     } catch (error) {

@@ -16,6 +16,53 @@ import { useCart } from '../../lib/contexts/CartContext';
 import { projectService } from '../../lib/services/projectService';
 import { useTranslation } from 'react-i18next';
 
+// Stock categorization utility
+const getStockCategory = (stockQuantity?: number, t: any) => {
+  if (!stockQuantity || stockQuantity === 0) {
+    return {
+      text: t('products.stock.notAvailable'),
+      color: '#ef4444', // red
+      backgroundColor: '#fef2f2',
+      borderColor: '#fecaca'
+    };
+  } else if (stockQuantity <= 10) {
+    return {
+      text: t('products.stock.tenPlusAvailable'),
+      color: '#f59e0b', // amber
+      backgroundColor: '#fffbeb',
+      borderColor: '#fed7aa'
+    };
+  } else if (stockQuantity <= 20) {
+    return {
+      text: t('products.stock.twentyPlusAvailable'),
+      color: '#f59e0b', // amber
+      backgroundColor: '#fffbeb',
+      borderColor: '#fed7aa'
+    };
+  } else if (stockQuantity <= 30) {
+    return {
+      text: t('products.stock.thirtyPlusAvailable'),
+      color: '#10b981', // emerald
+      backgroundColor: '#f0fdf4',
+      borderColor: '#bbf7d0'
+    };
+  } else if (stockQuantity <= 40) {
+    return {
+      text: t('products.stock.fortyPlusAvailable'),
+      color: '#10b981', // emerald
+      backgroundColor: '#f0fdf4',
+      borderColor: '#bbf7d0'
+    };
+  } else {
+    return {
+      text: t('products.stock.fortyPlusAvailable'),
+      color: '#10b981', // emerald
+      backgroundColor: '#f0fdf4',
+      borderColor: '#bbf7d0'
+    };
+  }
+};
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -163,23 +210,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
-  stockInfo: {
-    marginBottom: 24,
-  },
-  stockInfoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  stockInfoLabel: {
-    fontSize: 14,
-    color: '#6b7280',
-    fontWeight: '500',
-  },
-  stockInfoValue: {
-    fontSize: 14,
-    color: '#000000',
-  },
+
   description: {
     fontSize: 16,
     color: '#374151',
@@ -507,11 +538,11 @@ export default function ProductDetailScreen() {
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const { addToCart } = useCart();
   
-  // Chat state
-  const [showChat, setShowChat] = useState(false);
-  const [question, setQuestion] = useState('');
-  const [chatHistory, setChatHistory] = useState<{role: string, content: string}[]>([]);
-  const [isChatLoading, setIsChatLoading] = useState(false);
+  // Chat state - Deaktiviert (kommt später)
+  // const [showChat, setShowChat] = useState(false);
+  // const [question, setQuestion] = useState('');
+  // const [chatHistory, setChatHistory] = useState<{role: string, content: string}[]>([]);
+  // const [isChatLoading, setIsChatLoading] = useState(false);
   
   // Project selection state
   const [showProjectModal, setShowProjectModal] = useState(false);
@@ -520,15 +551,7 @@ export default function ProductDetailScreen() {
   const [newProjectName, setNewProjectName] = useState('');
   const [isCreatingProject, setIsCreatingProject] = useState(false);
 
-  // Mock inventory data (like in web app)
-  const inventoryData = {
-    inStock: true,
-    stockQuantity: 156,
-    lowStockThreshold: 10,
-    estimatedDelivery: "2-3 business days",
-    nextRestock: "2025-02-15",
-    warehouse: "Berlin Warehouse"
-  };
+
 
   useEffect(() => {
     const loadProduct = async () => {
@@ -567,15 +590,16 @@ export default function ProductDetailScreen() {
   };
 
   const getStockStatus = () => {
-    if (!inventoryData.inStock) return { text: t('products.notAvailable'), color: "#dc2626", bgColor: "#fef2f2" };
-    if (inventoryData.stockQuantity <= inventoryData.lowStockThreshold) {
-      return { text: t('products.lowStock'), color: "#d97706", bgColor: "#fffbeb" };
-    }
-    return null; // Kein Status bei ausreichendem Lager
+    const stockCategory = getStockCategory(product.stockQuantity, t);
+    return {
+      text: stockCategory.text,
+      color: stockCategory.color,
+      bgColor: stockCategory.backgroundColor
+    };
   };
 
   const getMaxQuantity = () => {
-    return Math.min(inventoryData.stockQuantity, 99);
+    return product.stockQuantity || 0;
   };
 
   const handleQuantityChange = (value: number) => {
@@ -609,12 +633,12 @@ export default function ProductDetailScreen() {
   };
 
   const handleAddToProject = async () => {
-    if (!inventoryData.inStock) {
+    if (!product.stockQuantity || product.stockQuantity === 0) {
       Alert.alert(t('products.notAvailable'), t('products.notAvailable'));
       return;
     }
-    if (quantity > inventoryData.stockQuantity) {
-      Alert.alert(t('products.notEnoughStock'), t('products.onlyXPiecesAvailable', { count: inventoryData.stockQuantity }));
+    if (quantity > (product.stockQuantity || 0)) {
+      Alert.alert(t('products.notEnoughStock'), t('products.onlyXPiecesAvailable', { count: product.stockQuantity || 0 }));
       return;
     }
     
@@ -690,7 +714,7 @@ export default function ProductDetailScreen() {
   const handleAddToCart = async () => {
     if (!product) return;
     
-    if (!inventoryData.inStock) {
+    if (!product.stockQuantity || product.stockQuantity === 0) {
       Alert.alert(t('products.notAvailable'), t('products.notAvailable'));
       return;
     }
@@ -708,30 +732,31 @@ export default function ProductDetailScreen() {
     }
   };
 
-  const handleAskQuestion = async () => {
-    if (!question.trim() || !product) return;
-    
-    setIsChatLoading(true);
-    const userQuestion = question;
-    setQuestion('');
-    setChatHistory(prev => [...prev, { role: 'user', content: userQuestion }]);
-    
-    try {
-      // Simulate AI response (you can integrate with your chat API here)
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      setChatHistory(prev => [...prev, { 
-        role: 'assistant', 
-        content: t('products.productInfoResponse', { productName: product.vysnName }) 
-      }]);
-    } catch (error) {
-      setChatHistory(prev => [...prev, { 
-        role: 'assistant', 
-        content: t('products.sorryError') 
-      }]);
-    } finally {
-      setIsChatLoading(false);
-    }
-  };
+  // Chat Handler - Deaktiviert (kommt später)
+  // const handleAskQuestion = async () => {
+  //   if (!question.trim() || !product) return;
+  //   
+  //   setIsChatLoading(true);
+  //   const userQuestion = question;
+  //   setQuestion('');
+  //   setChatHistory(prev => [...prev, { role: 'user', content: userQuestion }]);
+  //   
+  //   try {
+  //     // Simulate AI response (you can integrate with your chat API here)
+  //     await new Promise(resolve => setTimeout(resolve, 1500));
+  //     setChatHistory(prev => [...prev, { 
+  //       role: 'assistant', 
+  //       content: t('products.productInfoResponse', { productName: product.vysnName }) 
+  //     }]);
+  //   } catch (error) {
+  //     setChatHistory(prev => [...prev, { 
+  //       role: 'assistant', 
+  //       content: t('products.sorryError') 
+  //     }]);
+  //   } finally {
+  //     setIsChatLoading(false);
+  //   }
+  // };
 
   // Loading state
   if (loading) {
@@ -884,22 +909,7 @@ export default function ProductDetailScreen() {
             </View>
           )}
 
-          {inventoryData.inStock && (
-            <View style={styles.stockInfo}>
-              <View style={styles.stockInfoRow}>
-                <Text style={styles.stockInfoLabel}>{t('products.stock')}:</Text>
-                <Text style={styles.stockInfoValue}>{inventoryData.stockQuantity} {t('products.piecesAvailable')}</Text>
-              </View>
-              <View style={styles.stockInfoRow}>
-                <Text style={styles.stockInfoLabel}>{t('products.delivery')}:</Text>
-                <Text style={styles.stockInfoValue}>{inventoryData.estimatedDelivery}</Text>
-              </View>
-              <View style={styles.stockInfoRow}>
-                <Text style={styles.stockInfoLabel}>{t('products.warehouse')}:</Text>
-                <Text style={styles.stockInfoValue}>{inventoryData.warehouse}</Text>
-              </View>
-            </View>
-          )}
+
           
           <Text style={styles.description}>
             {product.longDescription || product.shortDescription || 'No description available'}
@@ -937,25 +947,18 @@ export default function ProductDetailScreen() {
           </View>
 
           {/* Stock Warning */}
-          {inventoryData.inStock && quantity > inventoryData.stockQuantity && (
+          {product.stockQuantity && quantity > product.stockQuantity && (
             <View style={styles.stockWarning}>
               <Text style={styles.stockWarningText}>
-                ⚠️ {t('products.onlyXPiecesAvailable', { count: inventoryData.stockQuantity })}
+                ⚠️ {t('products.notEnoughStock')}
               </Text>
             </View>
           )}
 
-          {/* Low Stock Warning */}
-          {inventoryData.inStock && inventoryData.stockQuantity <= inventoryData.lowStockThreshold && (
-            <View style={styles.lowStockWarning}>
-              <Text style={styles.lowStockWarningText}>
-                🔥 {t('products.onlyXPiecesLeft', { count: inventoryData.stockQuantity })}
-              </Text>
-            </View>
-          )}
+
 
           {/* Available Quantity Info */}
-          {inventoryData.inStock && (
+          {product.stockQuantity && product.stockQuantity > 0 && (
             <Text style={styles.maxQuantityText}>
               {t('products.maximumPiecesOrderable', { count: getMaxQuantity() })}
             </Text>
@@ -978,7 +981,7 @@ export default function ProductDetailScreen() {
         {/* Action Buttons */}
         <Button 
           onPress={handleAddToProject}
-          disabled={isAddingToProject || !inventoryData.inStock || quantity > inventoryData.stockQuantity}
+          disabled={isAddingToProject || !product.stockQuantity || quantity > product.stockQuantity}
           style={styles.actionButton}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
@@ -988,7 +991,7 @@ export default function ProductDetailScreen() {
               <ShoppingCart size={20} color="#ffffff" style={{ marginRight: 8 }} />
             )}
             <Text style={{ color: '#ffffff', fontWeight: '600', fontSize: 16 }}>
-              {!inventoryData.inStock 
+                              {!product.stockQuantity 
                 ? t('products.notAvailable') 
                 : isAddingToProject 
                 ? t('products.adding') 
@@ -1000,7 +1003,7 @@ export default function ProductDetailScreen() {
         <Button 
           variant="outline"
           onPress={handleAddToCart}
-          disabled={isAddingToCart || !inventoryData.inStock || quantity > inventoryData.stockQuantity}
+          disabled={isAddingToCart || !product.stockQuantity || quantity > product.stockQuantity}
           style={styles.actionButtonSecondary}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
@@ -1010,7 +1013,7 @@ export default function ProductDetailScreen() {
               <ShoppingCart size={20} color="#374151" style={{ marginRight: 8 }} />
             )}
             <Text style={{ color: '#374151', fontWeight: '600', fontSize: 16 }}>
-              {!inventoryData.inStock 
+                              {!product.stockQuantity 
                 ? t('products.notAvailable') 
                 : isAddingToCart 
                 ? t('cart.adding') 
@@ -1019,8 +1022,8 @@ export default function ProductDetailScreen() {
           </View>
         </Button>
 
-        {/* Chat Section */}
-        <View style={styles.chatSection}>
+        {/* Chat Section - Deaktiviert (kommt später) */}
+        {/* <View style={styles.chatSection}>
           <Button
             variant="outline"
             onPress={() => setShowChat(!showChat)}
@@ -1102,7 +1105,7 @@ export default function ProductDetailScreen() {
               </CardContent>
             </Card>
           )}
-        </View>
+        </View> */}
 
 {/* Dimensions */}
         {(product.diameterMm || product.lengthMm || product.widthMm || product.heightMm || product.weightKg || product.installationDiameter || product.cableLengthMm) && (

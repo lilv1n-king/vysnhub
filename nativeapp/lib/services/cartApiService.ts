@@ -15,7 +15,15 @@ class CartApiService {
   ): Promise<CartApiResponse<T>> {
     try {
       const url = `${API_BASE_URL}${endpoint}`;
-      console.log('🌐 Cart API Request:', url);
+      const sessionHeader = options.headers?.['X-Session-ID'];
+      const authHeader = options.headers?.['Authorization'];
+      
+      console.log('🌐 Cart API Request:', {
+        url,
+        sessionId: sessionHeader ? sessionHeader.substring(0, 20) + '...' : 'none',
+        hasAuth: !!authHeader,
+        method: options.method || 'GET'
+      });
 
       const response = await fetch(url, {
         timeout: API_CONFIG.TIMEOUT,

@@ -1,4 +1,5 @@
-import { API_BASE_URL } from '../config/api';
+import { API_BASE_URL, API_ENDPOINTS, API_CONFIG } from '../config/api';
+import { apiService } from './apiService';
 
 export interface Order {
   id: string;
@@ -77,9 +78,9 @@ class OrderService {
   /**
    * Lädt alle Bestellungen des aktuellen Users
    */
-  async getUserOrders(accessToken: string, projectId?: string, statusFilter?: string[]): Promise<OrdersResponse> {
+  async getUserOrders(projectId?: string, statusFilter?: string[]): Promise<Order[]> {
     try {
-      let url = `${this.baseURL}/api/orders`;
+      let endpoint = API_ENDPOINTS.ORDERS;
       const params = new URLSearchParams();
       
       if (projectId) {
@@ -91,32 +92,22 @@ class OrderService {
       }
       
       if (params.toString()) {
-        url += `?${params.toString()}`;
+        endpoint += `?${params.toString()}`;
       }
 
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`,
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
+      console.log('📋 Fetching user orders...');
+      const response = await apiService.get<{ orders: Order[] }>(endpoint);
       
-      if (!result.success) {
-        throw new Error(result.message || 'Failed to load orders');
+      if (response.success && response.data) {
+        console.log(`✅ Loaded ${response.data.orders.length} orders`);
+        return response.data.orders;
+      } else {
+        console.error('❌ Failed to load orders:', response.error);
+        return [];
       }
-
-      return result.data;
     } catch (error) {
-      console.error('Error loading user orders:', error);
-      throw error;
+      console.error('❌ Error in getUserOrders:', error);
+      return [];
     }
   }
 
@@ -125,8 +116,12 @@ class OrderService {
    */
   async getOrderById(orderId: string, accessToken: string): Promise<OrderWithItems> {
     try {
-      const response = await fetch(`${this.baseURL}/api/orders/${orderId}`, {
+      const url = `${this.baseURL}${API_ENDPOINTS.ORDER_BY_ID}/${orderId}`;
+      console.log('🔄 Loading order by ID:', url);
+      
+      const response = await fetch(url, {
         method: 'GET',
+        timeout: API_CONFIG.TIMEOUT,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${accessToken}`,
@@ -161,8 +156,12 @@ class OrderService {
     notes?: string
   ): Promise<Order> {
     try {
-      const response = await fetch(`${this.baseURL}/api/orders/${orderId}/status`, {
+      const url = `${this.baseURL}${API_ENDPOINTS.ORDER_STATUS}/${orderId}/status`;
+      console.log('🔄 Updating order status:', url, status);
+      
+      const response = await fetch(url, {
         method: 'PUT',
+        timeout: API_CONFIG.TIMEOUT,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${accessToken}`,

@@ -36,19 +36,23 @@ router.get('/events', optionalAuth, async (req: Request, res: Response) => {
 /**
  * GET /api/home-content/highlights
  * Get active highlights for home screen
+ * Query params: ?lang=de|en (defaults to 'de')
  */
 router.get('/highlights', optionalAuth, async (req: Request, res: Response) => {
   try {
-    console.log('✨ Loading home screen highlights...');
-    const highlights = await homeContentService.getActiveHighlights();
+    const language = (req.query.lang as string) || 'de';
+    console.log(`✨ Loading home screen highlights for language: ${language}...`);
     
-    console.log(`✅ Loaded ${highlights.length} active highlights`);
+    const highlights = await homeContentService.getActiveHighlights(language);
+    
+    console.log(`✅ Loaded ${highlights.length} active highlights for ${language}`);
     res.json({
       success: true,
       message: 'Highlights erfolgreich geladen',
       data: {
         highlights,
-        count: highlights.length
+        count: highlights.length,
+        language
       }
     });
   } catch (error) {
@@ -64,16 +68,19 @@ router.get('/highlights', optionalAuth, async (req: Request, res: Response) => {
 /**
  * GET /api/home-content
  * Get all home screen content (events + highlights)
+ * Query params: ?lang=de|en (defaults to 'de')
  */
 router.get('/', optionalAuth, async (req: Request, res: Response) => {
   try {
-    console.log('🏠 Loading all home screen content...');
+    const language = (req.query.lang as string) || 'de';
+    console.log(`🏠 Loading all home screen content for language: ${language}...`);
+    
     const [events, highlights] = await Promise.all([
       homeContentService.getActiveEvents(),
-      homeContentService.getActiveHighlights()
+      homeContentService.getActiveHighlights(language)
     ]);
     
-    console.log(`✅ Loaded ${events.length} events and ${highlights.length} highlights`);
+    console.log(`✅ Loaded ${events.length} events and ${highlights.length} highlights for ${language}`);
     res.json({
       success: true,
       message: 'Home Content erfolgreich geladen',
@@ -81,7 +88,8 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
         events,
         highlights,
         totalEvents: events.length,
-        totalHighlights: highlights.length
+        totalHighlights: highlights.length,
+        language
       }
     });
   } catch (error) {

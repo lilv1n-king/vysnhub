@@ -16,10 +16,11 @@ export class HomeContentService {
 
   /**
    * Get all home screen content (events + highlights)
+   * @param language - Language code ('de' or 'en'), defaults to 'de'
    */
-  async getHomeContent(): Promise<HomeContentResponse> {
+  async getHomeContent(language: string = 'de'): Promise<HomeContentResponse> {
     try {
-      const response = await apiService.get<HomeContentResponse>('/api/home-content');
+      const response = await apiService.get<HomeContentResponse>(`/api/home-content?lang=${language}`);
       
       if (response.success && response.data) {
         return response.data;
@@ -52,10 +53,11 @@ export class HomeContentService {
 
   /**
    * Get active highlights for home screen
+   * @param language - Language code ('de' or 'en'), defaults to 'de'
    */
-  async getHighlights(): Promise<HomeHighlight[]> {
+  async getHighlights(language: string = 'de'): Promise<HomeHighlight[]> {
     try {
-      const response = await apiService.get<HomeHighlightsResponse>('/api/home-content/highlights');
+      const response = await apiService.get<HomeHighlightsResponse>(`/api/home-content/highlights?lang=${language}`);
       
       if (response.success && response.data) {
         return response.data.highlights;

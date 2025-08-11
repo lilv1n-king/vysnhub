@@ -128,6 +128,7 @@ export class ProjectService {
         start_date: projectData.start_date || null,
         target_completion_date: projectData.target_completion_date || null,
         estimated_budget: projectData.estimated_budget || null,
+        customer_discount: projectData.customer_discount || null,
         project_notes: projectData.project_notes || null,
         tags: projectData.tags || null,
         created_at: new Date().toISOString(),

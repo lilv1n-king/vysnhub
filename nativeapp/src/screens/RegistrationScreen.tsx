@@ -2,15 +2,15 @@ import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
+  StyleSheet,
   TextInput,
   TouchableOpacity,
   TouchableWithoutFeedback,
   Keyboard,
-  StyleSheet,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  ActivityIndicator,
   Image,
   Linking,
 } from 'react-native';
@@ -19,9 +19,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { AuthStackParamList } from '../navigation/AuthNavigator';
 import { useTranslation } from 'react-i18next';
-import { Eye, EyeOff, UserPlus, LogIn, Building, Phone, MapPin, CreditCard, Check } from 'lucide-react-native';
-import { useAuth } from '../../lib/contexts/AuthContext';
-import Button from '../components/ui/Button';
+import { Eye, EyeOff, User, Mail, Lock, ArrowLeft, Building, Phone, MapPin, CreditCard, Check } from 'lucide-react-native';
 import { API_BASE_URL } from '../../lib/config/api';
 
 type RegistrationScreenNavigationProp = StackNavigationProp<AuthStackParamList, 'Registration'>;
@@ -30,7 +28,7 @@ const RegistrationScreen: React.FC = () => {
   const navigation = useNavigation<RegistrationScreenNavigationProp>();
   const { t } = useTranslation();
   
-  // Form state - alle wichtigen Felder aus der DB
+  // Form state
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -46,17 +44,19 @@ const RegistrationScreen: React.FC = () => {
     country: 'Germany',
     vatNumber: '',
   });
-  
+
   // Consent states
   const [marketingConsent, setMarketingConsent] = useState(false);
   const [privacyConsent, setPrivacyConsent] = useState(false);
-  
+
   // UI state
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [generalError, setGeneralError] = useState<string | null>(null);
 
   // Refs for form navigation
   const passwordRef = useRef<TextInput>(null);
@@ -77,27 +77,27 @@ const RegistrationScreen: React.FC = () => {
     const newErrors: { [key: string]: string } = {};
 
     if (!formData.email || !formData.email.includes('@')) {
-      newErrors.email = 'Please enter a valid email address';
+      newErrors.email = 'Bitte geben Sie eine gültige E-Mail-Adresse ein';
     }
 
     if (!formData.firstName.trim()) {
-      newErrors.firstName = 'First name is required';
+      newErrors.firstName = 'Vorname ist erforderlich';
     }
 
     if (!formData.lastName.trim()) {
-      newErrors.lastName = 'Last name is required';
+      newErrors.lastName = 'Nachname ist erforderlich';
     }
 
     if (formData.password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters long';
+      newErrors.password = 'Passwort muss mindestens 6 Zeichen lang sein';
     }
 
     if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = 'Passwords do not match';
+      newErrors.confirmPassword = 'Passwörter stimmen nicht überein';
     }
 
     if (!privacyConsent) {
-      newErrors.privacyConsent = 'You must accept the privacy policy';
+      newErrors.privacyConsent = 'Sie müssen die Datenschutzerklärung akzeptieren';
     }
 
     setErrors(newErrors);
@@ -111,6 +111,9 @@ const RegistrationScreen: React.FC = () => {
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
+    // Clear general messages when user interacts
+    if (successMessage) setSuccessMessage(null);
+    if (generalError) setGeneralError(null);
   };
 
   // Handle registration
@@ -118,6 +121,9 @@ const RegistrationScreen: React.FC = () => {
     if (!validateForm()) return;
 
     setLoading(true);
+    setGeneralError(null);
+    setSuccessMessage(null);
+    
     try {
       const registrationData = {
         email: formData.email,
@@ -146,223 +152,429 @@ const RegistrationScreen: React.FC = () => {
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
-          // Navigiere zur E-Mail-Verifikation
-          navigation.navigate('EmailVerification', {
-            email: formData.email,
-            password: formData.password,
-          });
+          setSuccessMessage(`Registrierung erfolgreich! Wir haben eine E-Mail mit einem Verifikationscode an ${formData.email} gesendet.`);
+          
+          // Automatische Weiterleitung zur Verifikation nach 2 Sekunden
+          setTimeout(() => {
+            navigation.navigate('EmailVerification', {
+              email: formData.email,
+              password: formData.password,
+            });
+          }, 2000);
         } else {
-          Alert.alert('Registration failed', data.error || 'Unknown error');
+          setGeneralError(data.error || 'Registrierung fehlgeschlagen. Bitte versuchen Sie es erneut.');
         }
       } else {
         const errorData = await response.json();
-        Alert.alert('Registration failed', errorData.error || 'Unknown error');
+        setGeneralError(errorData.error || 'Registrierung fehlgeschlagen. Bitte versuchen Sie es erneut.');
       }
     } catch (error) {
       console.error('Registration error:', error);
-      Alert.alert('Error', 'Network error. Please try again.');
+      setGeneralError('Netzwerkfehler. Bitte überprüfen Sie Ihre Internetverbindung und versuchen Sie es erneut.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Navigate to login
-  const navigateToLogin = () => {
-    navigation.navigate('Login');
-  };
-
   // Privacy Policy öffnen
   const openPrivacyPolicy = () => {
-    Linking.openURL('https://vysn.de/datenschutz');
+    Linking.openURL('https://app.vysnlighting.com/datenschutz');
   };
-
-  const renderInput = (
-    field: string,
-    placeholder: string,
-    icon: React.ReactNode,
-    options: {
-      secureTextEntry?: boolean;
-      keyboardType?: 'default' | 'email-address' | 'numeric' | 'phone-pad';
-      autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
-      returnKeyType?: 'next' | 'done';
-      ref?: React.RefObject<TextInput>;
-      onSubmitEditing?: () => void;
-      multiline?: boolean;
-    } = {}
-  ) => (
-    <View style={styles.inputContainer}>
-      <Text style={styles.label}>{placeholder}</Text>
-      <View style={[styles.inputWrapper, focusedField === field && styles.inputWrapperFocused]}>
-        <View style={styles.inputIcon}>
-          {icon}
-        </View>
-        <TextInput
-          ref={options.ref}
-          style={styles.textInput}
-          placeholder={placeholder}
-          placeholderTextColor="#9ca3af"
-          value={formData[field as keyof typeof formData]}
-          onChangeText={(value) => handleInputChange(field, value)}
-          onFocus={() => setFocusedField(field)}
-          onBlur={() => setFocusedField(null)}
-          secureTextEntry={options.secureTextEntry}
-          keyboardType={options.keyboardType || 'default'}
-          autoCapitalize={options.autoCapitalize || 'sentences'}
-          autoCorrect={false}
-          returnKeyType={options.returnKeyType || 'next'}
-          onSubmitEditing={options.onSubmitEditing}
-          multiline={options.multiline}
-        />
-        {field === 'password' && (
-          <TouchableOpacity
-            style={styles.passwordToggle}
-            onPress={() => setShowPassword(!showPassword)}
-          >
-            {showPassword ? <EyeOff size={20} color="#6b7280" /> : <Eye size={20} color="#6b7280" />}
-          </TouchableOpacity>
-        )}
-        {field === 'confirmPassword' && (
-          <TouchableOpacity
-            style={styles.passwordToggle}
-            onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-          >
-            {showConfirmPassword ? <EyeOff size={20} color="#6b7280" /> : <Eye size={20} color="#6b7280" />}
-          </TouchableOpacity>
-        )}
-      </View>
-      {errors[field] && <Text style={styles.errorText}>{errors[field]}</Text>}
-    </View>
-  );
 
   return (
     <SafeAreaView style={styles.container}>
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <KeyboardAvoidingView
-          style={styles.container}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
-          <ScrollView 
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <ScrollView
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
           >
-            {/* Logo & Title */}
             <View style={styles.logoContainer}>
               <Image 
                 source={require('../../assets/logo.png')} 
-                style={styles.logo} 
+                style={styles.logo}
               />
-              <Text style={styles.title}>Registration</Text>
+            </View>
+
+            <View style={styles.header}>
+              <Text style={styles.title}>Registrierung</Text>
               <Text style={styles.subtitle}>
-                Create your VYSN account and get access to professional lighting solutions
+                Erstellen Sie Ihr VYSN Hub Konto für professionelle Beleuchtungslösungen
               </Text>
             </View>
 
-            {/* Form */}
+            {/* Success Message */}
+            {successMessage && (
+              <View style={styles.successContainer}>
+                <Text style={styles.successText}>{successMessage}</Text>
+              </View>
+            )}
+
+            {/* Error Message */}
+            {generalError && (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorMessageText}>{generalError}</Text>
+              </View>
+            )}
+
             <View style={styles.form}>
-              {/* Personal Data */}
+              {/* Personal Information */}
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Personal Information</Text>
+                <Text style={styles.sectionTitle}>Persönliche Daten</Text>
                 
-                {renderInput('email', 'Email Address *', <UserPlus size={20} color="#6b7280" />, {
-                  keyboardType: 'email-address',
-                  autoCapitalize: 'none',
-                  ref: undefined,
-                  onSubmitEditing: () => passwordRef.current?.focus(),
-                })}
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>E-Mail-Adresse *</Text>
+                  <TextInput
+                    style={[
+                      styles.textInput,
+                      focusedField === 'email' && styles.textInputFocused,
+                      errors.email && styles.textInputError
+                    ]}
+                    value={formData.email}
+                    onChangeText={(text) => handleInputChange('email', text)}
+                    onFocus={() => setFocusedField('email')}
+                    onBlur={() => setFocusedField(null)}
+                    onSubmitEditing={() => passwordRef.current?.focus()}
+                    placeholder="ihre.email@example.com"
+                    placeholderTextColor="#9ca3af"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoComplete="email"
+                    autoCorrect={false}
+                    returnKeyType="next"
+                    blurOnSubmit={false}
+                  />
+                  {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
+                </View>
 
-                {renderInput('password', 'Password *', <Eye size={20} color="#6b7280" />, {
-                  secureTextEntry: !showPassword,
-                  ref: passwordRef,
-                  onSubmitEditing: () => confirmPasswordRef.current?.focus(),
-                })}
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>Passwort *</Text>
+                  <View style={styles.passwordContainer}>
+                    <TextInput
+                      ref={passwordRef}
+                      style={[
+                        styles.textInput,
+                        { paddingRight: 56 },
+                        focusedField === 'password' && styles.textInputFocused,
+                        errors.password && styles.textInputError
+                      ]}
+                      value={formData.password}
+                      onChangeText={(text) => handleInputChange('password', text)}
+                      onFocus={() => setFocusedField('password')}
+                      onBlur={() => setFocusedField(null)}
+                      onSubmitEditing={() => confirmPasswordRef.current?.focus()}
+                      placeholder="Mindestens 6 Zeichen"
+                      placeholderTextColor="#9ca3af"
+                      secureTextEntry={!showPassword}
+                      autoComplete="new-password"
+                      autoCorrect={false}
+                      autoCapitalize="none"
+                      returnKeyType="next"
+                      blurOnSubmit={false}
+                    />
+                    <TouchableOpacity
+                      style={styles.passwordToggle}
+                      onPress={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? (
+                        <EyeOff size={20} color="#6b7280" />
+                      ) : (
+                        <Eye size={20} color="#6b7280" />
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                  {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
+                </View>
 
-                {renderInput('confirmPassword', 'Confirm Password *', <Eye size={20} color="#6b7280" />, {
-                  secureTextEntry: !showConfirmPassword,
-                  ref: confirmPasswordRef,
-                  onSubmitEditing: () => firstNameRef.current?.focus(),
-                })}
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>Passwort bestätigen *</Text>
+                  <View style={styles.passwordContainer}>
+                    <TextInput
+                      ref={confirmPasswordRef}
+                      style={[
+                        styles.textInput,
+                        { paddingRight: 56 },
+                        focusedField === 'confirmPassword' && styles.textInputFocused,
+                        errors.confirmPassword && styles.textInputError
+                      ]}
+                      value={formData.confirmPassword}
+                      onChangeText={(text) => handleInputChange('confirmPassword', text)}
+                      onFocus={() => setFocusedField('confirmPassword')}
+                      onBlur={() => setFocusedField(null)}
+                      onSubmitEditing={() => firstNameRef.current?.focus()}
+                      placeholder="Passwort wiederholen"
+                      placeholderTextColor="#9ca3af"
+                      secureTextEntry={!showConfirmPassword}
+                      autoComplete="new-password"
+                      autoCorrect={false}
+                      autoCapitalize="none"
+                      returnKeyType="next"
+                      blurOnSubmit={false}
+                    />
+                    <TouchableOpacity
+                      style={styles.passwordToggle}
+                      onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                    >
+                      {showConfirmPassword ? (
+                        <EyeOff size={20} color="#6b7280" />
+                      ) : (
+                        <Eye size={20} color="#6b7280" />
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                  {errors.confirmPassword && <Text style={styles.errorText}>{errors.confirmPassword}</Text>}
+                </View>
 
-                {renderInput('firstName', 'First Name *', <UserPlus size={20} color="#6b7280" />, {
-                  autoCapitalize: 'words',
-                  ref: firstNameRef,
-                  onSubmitEditing: () => lastNameRef.current?.focus(),
-                })}
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>Vorname *</Text>
+                  <TextInput
+                    ref={firstNameRef}
+                    style={[
+                      styles.textInput,
+                      focusedField === 'firstName' && styles.textInputFocused,
+                      errors.firstName && styles.textInputError
+                    ]}
+                    value={formData.firstName}
+                    onChangeText={(text) => handleInputChange('firstName', text)}
+                    onFocus={() => setFocusedField('firstName')}
+                    onBlur={() => setFocusedField(null)}
+                    onSubmitEditing={() => lastNameRef.current?.focus()}
+                    placeholder="Ihr Vorname"
+                    placeholderTextColor="#9ca3af"
+                    autoCapitalize="words"
+                    autoComplete="given-name"
+                    autoCorrect={false}
+                    returnKeyType="next"
+                    blurOnSubmit={false}
+                  />
+                  {errors.firstName && <Text style={styles.errorText}>{errors.firstName}</Text>}
+                </View>
 
-                {renderInput('lastName', 'Last Name *', <UserPlus size={20} color="#6b7280" />, {
-                  autoCapitalize: 'words',
-                  ref: lastNameRef,
-                  onSubmitEditing: () => companyNameRef.current?.focus(),
-                })}
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>Nachname *</Text>
+                  <TextInput
+                    ref={lastNameRef}
+                    style={[
+                      styles.textInput,
+                      focusedField === 'lastName' && styles.textInputFocused,
+                      errors.lastName && styles.textInputError
+                    ]}
+                    value={formData.lastName}
+                    onChangeText={(text) => handleInputChange('lastName', text)}
+                    onFocus={() => setFocusedField('lastName')}
+                    onBlur={() => setFocusedField(null)}
+                    onSubmitEditing={() => companyNameRef.current?.focus()}
+                    placeholder="Ihr Nachname"
+                    placeholderTextColor="#9ca3af"
+                    autoCapitalize="words"
+                    autoComplete="family-name"
+                    autoCorrect={false}
+                    returnKeyType="next"
+                    blurOnSubmit={false}
+                  />
+                  {errors.lastName && <Text style={styles.errorText}>{errors.lastName}</Text>}
+                </View>
               </View>
 
-              {/* Company Data */}
+              {/* Company Information */}
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Company Information</Text>
+                <Text style={styles.sectionTitle}>Firma (optional)</Text>
                 
-                {renderInput('companyName', 'Company Name', <Building size={20} color="#6b7280" />, {
-                  autoCapitalize: 'words',
-                  ref: companyNameRef,
-                  onSubmitEditing: () => phoneRef.current?.focus(),
-                })}
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>Firmenname</Text>
+                  <TextInput
+                    ref={companyNameRef}
+                    style={[
+                      styles.textInput,
+                      focusedField === 'companyName' && styles.textInputFocused
+                    ]}
+                    value={formData.companyName}
+                    onChangeText={(text) => handleInputChange('companyName', text)}
+                    onFocus={() => setFocusedField('companyName')}
+                    onBlur={() => setFocusedField(null)}
+                    onSubmitEditing={() => phoneRef.current?.focus()}
+                    placeholder="Ihre Firma"
+                    placeholderTextColor="#9ca3af"
+                    autoCapitalize="words"
+                    autoCorrect={false}
+                    returnKeyType="next"
+                    blurOnSubmit={false}
+                  />
+                </View>
 
-                {renderInput('phone', 'Phone Number', <Phone size={20} color="#6b7280" />, {
-                  keyboardType: 'phone-pad',
-                  ref: phoneRef,
-                  onSubmitEditing: () => vatNumberRef.current?.focus(),
-                })}
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>Telefon</Text>
+                  <TextInput
+                    ref={phoneRef}
+                    style={[
+                      styles.textInput,
+                      focusedField === 'phone' && styles.textInputFocused
+                    ]}
+                    value={formData.phone}
+                    onChangeText={(text) => handleInputChange('phone', text)}
+                    onFocus={() => setFocusedField('phone')}
+                    onBlur={() => setFocusedField(null)}
+                    onSubmitEditing={() => vatNumberRef.current?.focus()}
+                    placeholder="+49 123 456 789"
+                    placeholderTextColor="#9ca3af"
+                    keyboardType="phone-pad"
+                    autoCorrect={false}
+                    returnKeyType="next"
+                    blurOnSubmit={false}
+                  />
+                </View>
 
-                {renderInput('vatNumber', 'VAT Number', <CreditCard size={20} color="#6b7280" />, {
-                  autoCapitalize: 'characters',
-                  ref: vatNumberRef,
-                  onSubmitEditing: () => addressLine1Ref.current?.focus(),
-                })}
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>USt-IdNr.</Text>
+                  <TextInput
+                    ref={vatNumberRef}
+                    style={[
+                      styles.textInput,
+                      focusedField === 'vatNumber' && styles.textInputFocused
+                    ]}
+                    value={formData.vatNumber}
+                    onChangeText={(text) => handleInputChange('vatNumber', text)}
+                    onFocus={() => setFocusedField('vatNumber')}
+                    onBlur={() => setFocusedField(null)}
+                    onSubmitEditing={() => addressLine1Ref.current?.focus()}
+                    placeholder="DE123456789"
+                    placeholderTextColor="#9ca3af"
+                    autoCapitalize="characters"
+                    autoCorrect={false}
+                    returnKeyType="next"
+                    blurOnSubmit={false}
+                  />
+                </View>
               </View>
 
-              {/* Address Data */}
+              {/* Address */}
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Address</Text>
+                <Text style={styles.sectionTitle}>Adresse (optional)</Text>
                 
-                {renderInput('addressLine1', 'Street & House Number', <MapPin size={20} color="#6b7280" />, {
-                  ref: addressLine1Ref,
-                  onSubmitEditing: () => addressLine2Ref.current?.focus(),
-                })}
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>Straße & Hausnummer</Text>
+                  <TextInput
+                    ref={addressLine1Ref}
+                    style={[
+                      styles.textInput,
+                      focusedField === 'addressLine1' && styles.textInputFocused
+                    ]}
+                    value={formData.addressLine1}
+                    onChangeText={(text) => handleInputChange('addressLine1', text)}
+                    onFocus={() => setFocusedField('addressLine1')}
+                    onBlur={() => setFocusedField(null)}
+                    onSubmitEditing={() => addressLine2Ref.current?.focus()}
+                    placeholder="Musterstraße 123"
+                    placeholderTextColor="#9ca3af"
+                    autoCorrect={false}
+                    returnKeyType="next"
+                    blurOnSubmit={false}
+                  />
+                </View>
 
-                {renderInput('addressLine2', 'Address Line 2', <MapPin size={20} color="#6b7280" />, {
-                  ref: addressLine2Ref,
-                  onSubmitEditing: () => postalCodeRef.current?.focus(),
-                })}
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>Adresszusatz</Text>
+                  <TextInput
+                    ref={addressLine2Ref}
+                    style={[
+                      styles.textInput,
+                      focusedField === 'addressLine2' && styles.textInputFocused
+                    ]}
+                    value={formData.addressLine2}
+                    onChangeText={(text) => handleInputChange('addressLine2', text)}
+                    onFocus={() => setFocusedField('addressLine2')}
+                    onBlur={() => setFocusedField(null)}
+                    onSubmitEditing={() => postalCodeRef.current?.focus()}
+                    placeholder="Etage, Appartment etc."
+                    placeholderTextColor="#9ca3af"
+                    autoCorrect={false}
+                    returnKeyType="next"
+                    blurOnSubmit={false}
+                  />
+                </View>
 
                 <View style={styles.row}>
                   <View style={styles.inputHalf}>
-                    {renderInput('postalCode', 'Postal Code', <MapPin size={20} color="#6b7280" />, {
-                      keyboardType: 'numeric',
-                      ref: postalCodeRef,
-                      onSubmitEditing: () => cityRef.current?.focus(),
-                    })}
+                    <View style={styles.inputContainer}>
+                      <Text style={styles.label}>PLZ</Text>
+                      <TextInput
+                        ref={postalCodeRef}
+                        style={[
+                          styles.textInput,
+                          focusedField === 'postalCode' && styles.textInputFocused
+                        ]}
+                        value={formData.postalCode}
+                        onChangeText={(text) => handleInputChange('postalCode', text)}
+                        onFocus={() => setFocusedField('postalCode')}
+                        onBlur={() => setFocusedField(null)}
+                        onSubmitEditing={() => cityRef.current?.focus()}
+                        placeholder="12345"
+                        placeholderTextColor="#9ca3af"
+                        keyboardType="numeric"
+                        autoCorrect={false}
+                        returnKeyType="next"
+                        blurOnSubmit={false}
+                      />
+                    </View>
                   </View>
                   <View style={styles.inputHalf}>
-                    {renderInput('city', 'City', <MapPin size={20} color="#6b7280" />, {
-                      autoCapitalize: 'words',
-                      ref: cityRef,
-                      onSubmitEditing: () => countryRef.current?.focus(),
-                    })}
+                    <View style={styles.inputContainer}>
+                      <Text style={styles.label}>Stadt</Text>
+                      <TextInput
+                        ref={cityRef}
+                        style={[
+                          styles.textInput,
+                          focusedField === 'city' && styles.textInputFocused
+                        ]}
+                        value={formData.city}
+                        onChangeText={(text) => handleInputChange('city', text)}
+                        onFocus={() => setFocusedField('city')}
+                        onBlur={() => setFocusedField(null)}
+                        onSubmitEditing={() => countryRef.current?.focus()}
+                        placeholder="Musterstadt"
+                        placeholderTextColor="#9ca3af"
+                        autoCapitalize="words"
+                        autoCorrect={false}
+                        returnKeyType="next"
+                        blurOnSubmit={false}
+                      />
+                    </View>
                   </View>
                 </View>
 
-                {renderInput('country', 'Country', <MapPin size={20} color="#6b7280" />, {
-                  autoCapitalize: 'words',
-                  ref: countryRef,
-                  returnKeyType: 'done',
-                  onSubmitEditing: handleRegistration,
-                })}
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>Land</Text>
+                  <TextInput
+                    ref={countryRef}
+                    style={[
+                      styles.textInput,
+                      focusedField === 'country' && styles.textInputFocused
+                    ]}
+                    value={formData.country}
+                    onChangeText={(text) => handleInputChange('country', text)}
+                    onFocus={() => setFocusedField('country')}
+                    onBlur={() => setFocusedField(null)}
+                    onSubmitEditing={handleRegistration}
+                    placeholder="Deutschland"
+                    placeholderTextColor="#9ca3af"
+                    autoCapitalize="words"
+                    autoCorrect={false}
+                    returnKeyType="done"
+                    blurOnSubmit={true}
+                  />
+                </View>
               </View>
 
-              {/* Privacy Consent - Required */}
+              {/* Privacy Consent */}
               <TouchableOpacity 
                 style={styles.checkboxContainer}
                 onPress={() => {
                   setPrivacyConsent(!privacyConsent);
-                  // Clear error when user checks the box
                   if (errors.privacyConsent && !privacyConsent) {
                     setErrors(prev => ({ ...prev, privacyConsent: '' }));
                   }
@@ -372,16 +584,16 @@ const RegistrationScreen: React.FC = () => {
                   {privacyConsent && <Check size={16} color="#ffffff" />}
                 </View>
                 <Text style={styles.checkboxText}>
-                  I accept the{' '}
+                  Ich akzeptiere die{' '}
                   <Text style={styles.privacyLink} onPress={openPrivacyPolicy}>
-                    privacy policy
+                    Datenschutzerklärung
                   </Text>
                   {' *'}
                 </Text>
               </TouchableOpacity>
               {errors.privacyConsent && <Text style={styles.errorText}>{errors.privacyConsent}</Text>}
 
-              {/* Marketing Consent - Optional */}
+              {/* Marketing Consent */}
               <TouchableOpacity 
                 style={styles.checkboxContainer}
                 onPress={() => setMarketingConsent(!marketingConsent)}
@@ -390,44 +602,40 @@ const RegistrationScreen: React.FC = () => {
                   {marketingConsent && <Check size={16} color="#ffffff" />}
                 </View>
                 <Text style={styles.checkboxText}>
-                  I would like to receive product updates and offers via email
+                  Ich möchte Updates und Angebote per E-Mail erhalten
                 </Text>
               </TouchableOpacity>
 
               {/* Register Button */}
-              <Button
+              <TouchableOpacity
+                style={[styles.registerButton, loading && { opacity: 0.7 }]}
                 onPress={handleRegistration}
                 disabled={loading}
-                style={styles.registerButton}
-                textStyle={styles.registerButtonText}
               >
-                <View style={styles.buttonContent}>
-                  {loading ? (
-                    <>
-                      <Text style={styles.registerButtonText}>Registration in progress...</Text>
-                    </>
-                  ) : (
-                    <>
-                      <UserPlus size={20} color="#ffffff" style={styles.buttonIcon} />
-                      <Text style={styles.registerButtonText}>Register</Text>
-                    </>
-                  )}
-                </View>
-              </Button>
+                {loading ? (
+                  <ActivityIndicator size="small" color="#ffffff" />
+                ) : (
+                  <Text style={styles.registerButtonText}>Registrieren</Text>
+                )}
+              </TouchableOpacity>
+            </View>
 
-              {/* Login Link */}
-              <View style={styles.loginContainer}>
-                <Text style={styles.loginText}>
-                  Already have an account?{' '}
-                </Text>
-                <TouchableOpacity onPress={navigateToLogin}>
-                  <Text style={styles.loginLink}>Sign in here</Text>
-                </TouchableOpacity>
-              </View>
+            {/* Back to Login */}
+            <View style={styles.loginSection}>
+              <Text style={styles.loginText}>
+                Bereits ein Konto?
+              </Text>
+              <TouchableOpacity
+                style={styles.loginButton}
+                onPress={() => navigation.navigate('Login')}
+              >
+                <ArrowLeft size={20} color="#374151" />
+                <Text style={styles.loginButtonText}>Zurück zum Login</Text>
+              </TouchableOpacity>
             </View>
           </ScrollView>
-        </KeyboardAvoidingView>
-      </TouchableWithoutFeedback>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
@@ -439,18 +647,21 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: 'center',
     paddingHorizontal: 24,
+    paddingTop: 20,
     paddingBottom: 40,
   },
   logoContainer: {
     alignItems: 'center',
-    marginBottom: 0,
+    marginBottom: 20,
   },
   logo: {
     width: 120,
     height: 120,
     resizeMode: 'contain',
+  },
+  header: {
+    marginBottom: 32,
   },
   title: {
     fontSize: 32,
@@ -463,11 +674,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#6b7280',
     textAlign: 'center',
-    marginBottom: 40,
     lineHeight: 24,
   },
   form: {
-    gap: 20,
+    gap: 24,
   },
   section: {
     gap: 16,
@@ -482,19 +692,21 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   label: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '500',
     color: '#374151',
   },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  textInput: {
     borderWidth: 1,
     borderColor: '#d1d5db',
     borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
     backgroundColor: '#ffffff',
+    color: '#000000',
   },
-  inputWrapperFocused: {
+  textInputFocused: {
     borderColor: '#000000',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 0 },
@@ -502,24 +714,17 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  inputIcon: {
-    paddingLeft: 16,
-    paddingRight: 8,
+  textInputError: {
+    borderColor: '#ef4444',
   },
-  textInput: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingRight: 16,
-    fontSize: 16,
-    color: '#000000',
+  passwordContainer: {
+    position: 'relative',
   },
   passwordToggle: {
-    padding: 12,
-  },
-  errorText: {
-    fontSize: 12,
-    color: '#ef4444',
-    marginTop: 4,
+    position: 'absolute',
+    right: 16,
+    top: 12,
+    padding: 4,
   },
   row: {
     flexDirection: 'row',
@@ -555,13 +760,6 @@ const styles = StyleSheet.create({
     color: '#374151',
     lineHeight: 20,
   },
-  privacyNotice: {
-    fontSize: 12,
-    color: '#6b7280',
-    textAlign: 'center',
-    lineHeight: 18,
-    marginTop: 16,
-  },
   privacyLink: {
     color: '#000000',
     fontWeight: '500',
@@ -569,14 +767,11 @@ const styles = StyleSheet.create({
   },
   registerButton: {
     backgroundColor: '#000000',
-    borderRadius: 8,
     paddingVertical: 16,
-    marginTop: 24,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    borderRadius: 8,
+    marginTop: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   registerButtonText: {
     color: '#ffffff',
@@ -584,29 +779,66 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
   },
-  buttonContent: {
-    flexDirection: 'row',
+  loginSection: {
+    marginTop: 40,
+    paddingTop: 24,
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  buttonIcon: {
-    marginRight: 4,
-  },
-  loginContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 24,
   },
   loginText: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#6b7280',
+    marginBottom: 16,
   },
-  loginLink: {
-    fontSize: 14,
-    color: '#000000',
+  loginButton: {
+    backgroundColor: '#f3f4f6',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  loginButtonText: {
+    color: '#374151',
+    fontSize: 16,
     fontWeight: '500',
+  },
+  errorText: {
+    color: '#ef4444',
+    fontSize: 14,
+    marginTop: 4,
+  },
+  successContainer: {
+    backgroundColor: '#dcfce7',
+    borderWidth: 1,
+    borderColor: '#16a34a',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 20,
+  },
+  successText: {
+    color: '#15803d',
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: 'center',
+  },
+  errorContainer: {
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#ef4444',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 20,
+  },
+  errorMessageText: {
+    color: '#dc2626',
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: 'center',
   },
 });
 

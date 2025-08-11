@@ -307,6 +307,8 @@ export class AuthService {
           currency: createdProfile.currency,
           newsletter_subscription: createdProfile.newsletter_subscription,
           marketing_emails: createdProfile.marketing_emails,
+          analytics_consent: createdProfile.analytics_consent,
+          marketing_consent: createdProfile.marketing_consent,
           created_at: createdProfile.created_at,
           updated_at: createdProfile.updated_at,
           last_login_at: createdProfile.last_login_at
@@ -345,6 +347,8 @@ export class AuthService {
         currency: profileData.currency,
         newsletter_subscription: profileData.newsletter_subscription,
         marketing_emails: profileData.marketing_emails,
+        analytics_consent: profileData.analytics_consent,
+        marketing_consent: profileData.marketing_consent,
         created_at: profileData.created_at,
         updated_at: profileData.updated_at,
         last_login_at: profileData.last_login_at
@@ -358,33 +362,39 @@ export class AuthService {
   // User Profile aktualisieren
   async updateUserProfile(userId: string, updateData: UpdateUserData): Promise<User> {
     try {
-      const { data: userData, error } = await this.supabaseAdmin.auth.admin.updateUserById(userId, {
+      console.log('🔄 updateUserProfile: Updating user ID:', userId, 'with data:', updateData);
+      
+      // Update both user_metadata AND profiles table
+      const { data: userData, error: authError } = await this.supabaseAdmin.auth.admin.updateUserById(userId, {
         user_metadata: {
           ...updateData
         }
       });
 
-      if (error || !userData.user) {
-        throw new Error('Failed to update user profile');
+      if (authError || !userData.user) {
+        console.error('❌ Auth update failed:', authError);
+        throw new Error('Failed to update user auth metadata');
       }
 
-      return {
-        id: userData.user.id,
-        email: userData.user.email!,
-        first_name: userData.user.user_metadata?.first_name || '',
-        last_name: userData.user.user_metadata?.last_name || '',
-        company_name: userData.user.user_metadata?.company_name,
-        phone: userData.user.user_metadata?.phone,
-        customer_type: 'standard',
-        discount_percentage: 0,
-        account_status: 'active',
-        language: 'de',
-        currency: 'EUR',
-        newsletter_subscription: false,
-        marketing_emails: false,
-        created_at: userData.user.created_at,
-        updated_at: userData.user.updated_at || userData.user.created_at
-      };
+      console.log('✅ Auth metadata updated successfully');
+
+      // Also update the profiles table (this is where getUserProfile reads from!)
+      const { data: profileData, error: profileError } = await this.supabaseAdmin
+        .from('profiles')
+        .update(updateData)
+        .eq('id', userId)
+        .select()
+        .single();
+
+      if (profileError) {
+        console.error('❌ Profile table update failed:', profileError);
+        throw new Error('Failed to update profile table');
+      }
+
+      console.log('✅ Profile table updated successfully:', profileData);
+
+      // Return the actual updated profile from the database
+      return await this.getUserProfile(userId);
     } catch (error) {
       console.error('Update user profile error:', error);
       throw new Error(error instanceof Error ? error.message : 'Failed to update user profile');

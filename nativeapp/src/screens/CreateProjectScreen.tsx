@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ScrollView, View, Text, TextInput, StyleSheet, Alert, TouchableOpacity, Platform } from 'react-native';
+import { ScrollView, View, Text, TextInput, StyleSheet, Alert, TouchableOpacity, Platform, Modal } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RouteProp } from '@react-navigation/native';
@@ -189,6 +189,54 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
   },
+  
+  // Modal styles für DatePicker (iOS)
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 20,
+    margin: 20,
+    maxWidth: 400,
+    width: '90%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1e293b',
+  },
+  modalCloseButton: {
+    width: 30,
+    height: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f1f5f9',
+    borderRadius: 15,
+  },
+  modalCloseText: {
+    fontSize: 16,
+    color: '#64748b',
+    fontWeight: 'bold',
+  },
+  datePicker: {
+    alignSelf: 'center',
+  },
 });
 
 type CreateProjectScreenNavigationProp = StackNavigationProp<ProjectsStackParamList, 'CreateProject'>;
@@ -225,22 +273,42 @@ export default function CreateProjectScreen() {
   };
 
   const formatDate = (date: Date) => {
-    return date.toLocaleDateString('de-DE');
+    return date.toLocaleDateString('de-DE', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
   };
 
   const handleStartDateChange = (event: any, selectedDate?: Date) => {
-    setShowStartDatePicker(false);
-    if (selectedDate) {
+    if (Platform.OS === 'android') {
+      setShowStartDatePicker(false);
+    }
+    
+    if (selectedDate && event.type !== 'dismissed') {
       setStartDate(selectedDate);
       handleInputChange('start_date', selectedDate.toISOString().split('T')[0]);
+      if (Platform.OS === 'ios') {
+        setShowStartDatePicker(false);
+      }
+    } else if (event.type === 'dismissed') {
+      setShowStartDatePicker(false);
     }
   };
 
   const handleTargetDateChange = (event: any, selectedDate?: Date) => {
-    setShowTargetDatePicker(false);
-    if (selectedDate) {
+    if (Platform.OS === 'android') {
+      setShowTargetDatePicker(false);
+    }
+    
+    if (selectedDate && event.type !== 'dismissed') {
       setTargetDate(selectedDate);
       handleInputChange('target_completion_date', selectedDate.toISOString().split('T')[0]);
+      if (Platform.OS === 'ios') {
+        setShowTargetDatePicker(false);
+      }
+    } else if (event.type === 'dismissed') {
+      setShowTargetDatePicker(false);
     }
   };
 
@@ -380,23 +448,7 @@ export default function CreateProjectScreen() {
             </View>
           </View>
 
-          {showStartDatePicker && (
-            <DateTimePicker
-              value={startDate || new Date()}
-              mode="date"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-              onChange={handleStartDateChange}
-            />
-          )}
 
-          {showTargetDatePicker && (
-            <DateTimePicker
-              value={targetDate || new Date()}
-              mode="date"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-              onChange={handleTargetDateChange}
-            />
-          )}
         </View>
 
         {/* Financial Information */}
@@ -446,6 +498,94 @@ export default function CreateProjectScreen() {
           {isCreating ? t('projects.creating') : t('projects.createProject')}
         </Button>
       </ScrollView>
+      
+      {/* DatePicker Modals - nur iOS */}
+      {Platform.OS === 'ios' && showStartDatePicker && (
+        <Modal
+          transparent={true}
+          animationType="fade"
+          visible={showStartDatePicker}
+          onRequestClose={() => setShowStartDatePicker(false)}
+        >
+          <TouchableOpacity 
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowStartDatePicker(false)}
+          >
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Startdatum auswählen</Text>
+                <TouchableOpacity 
+                  onPress={() => setShowStartDatePicker(false)}
+                  style={styles.modalCloseButton}
+                >
+                  <Text style={styles.modalCloseText}>✕</Text>
+                </TouchableOpacity>
+              </View>
+              <DateTimePicker
+                value={startDate || new Date()}
+                mode="date"
+                display="compact"
+                onChange={handleStartDateChange}
+                style={styles.datePicker}
+              />
+            </View>
+          </TouchableOpacity>
+        </Modal>
+      )}
+
+      {Platform.OS === 'ios' && showTargetDatePicker && (
+        <Modal
+          transparent={true}
+          animationType="fade"
+          visible={showTargetDatePicker}
+          onRequestClose={() => setShowTargetDatePicker(false)}
+        >
+          <TouchableOpacity 
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowTargetDatePicker(false)}
+          >
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Zieldatum auswählen</Text>
+                <TouchableOpacity 
+                  onPress={() => setShowTargetDatePicker(false)}
+                  style={styles.modalCloseButton}
+                >
+                  <Text style={styles.modalCloseText}>✕</Text>
+                </TouchableOpacity>
+              </View>
+              <DateTimePicker
+                value={targetDate || new Date()}
+                mode="date"
+                display="compact"
+                onChange={handleTargetDateChange}
+                style={styles.datePicker}
+              />
+            </View>
+          </TouchableOpacity>
+        </Modal>
+      )}
+
+      {/* Android DatePicker */}
+      {Platform.OS === 'android' && showStartDatePicker && (
+        <DateTimePicker
+          value={startDate || new Date()}
+          mode="date"
+          display="calendar"
+          onChange={handleStartDateChange}
+        />
+      )}
+
+      {Platform.OS === 'android' && showTargetDatePicker && (
+        <DateTimePicker
+          value={targetDate || new Date()}
+          mode="date"
+          display="calendar"
+          onChange={handleTargetDateChange}
+        />
+      )}
     </View>
   );
 }

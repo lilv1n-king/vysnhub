@@ -1,13 +1,14 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useTranslation } from 'react-i18next';
-import { Home, Search, QrCode, Bot, FolderOpen } from 'lucide-react-native';
+import { Home, Search, QrCode, FolderOpen } from 'lucide-react-native';
+// import { Bot } from 'lucide-react-native'; // Kommt später für AI Chat
 
 // Import aller echten Screens
 import HomeScreen from '../screens/HomeScreen';
 import ProductsStackNavigator from './ProductsStackNavigator';
 import ScannerStackNavigator from './ScannerStackNavigator';
-import AIChatScreen from '../screens/AIChatScreen';
+// import AIChatScreen from '../screens/AIChatScreen'; // Kommt später
 import ProjectsStackNavigator from './ProjectsStackNavigator';
 
 
@@ -28,8 +29,8 @@ export default function TabNavigator() {
             IconComponent = Search;
           } else if (route.name === 'Scanner') {
             IconComponent = QrCode;
-          } else if (route.name === 'AI Chat') {
-            IconComponent = Bot;
+          // } else if (route.name === 'AI Chat') {
+          //   IconComponent = Bot;
           } else if (route.name === 'Projects') {
             IconComponent = FolderOpen;
           }
@@ -68,11 +69,11 @@ export default function TabNavigator() {
         component={ScannerStackNavigator} 
         options={{ tabBarLabel: t('scanner.title') }}
       />
-      <Tab.Screen 
+      {/* <Tab.Screen 
         name="AI Chat" 
         component={AIChatScreen} 
         options={{ tabBarLabel: t('chat.title') }}
-      />
+      /> */}
       <Tab.Screen 
         name="Projects" 
         component={ProjectsStackNavigator} 

@@ -198,6 +198,7 @@ export default function ProjectsScreen() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [hasCompletedProjects, setHasCompletedProjects] = useState(false);
 
   // Safety check
   if (!auth) {
@@ -217,14 +218,20 @@ export default function ProjectsScreen() {
     if (!user) return;
 
     try {
-      const projects = await projectService.getUserProjects();
-      // Filter out completed projects
-      const activeProjects = projects.filter(project => project.status !== 'completed');
+      const allProjects = await projectService.getUserProjects();
+      
+      // Filter active projects (not completed)
+      const activeProjects = allProjects.filter(project => project.status !== 'completed');
       setProjects(activeProjects);
+      
+      // Check if there are any completed projects
+      const completedProjects = allProjects.filter(project => project.status === 'completed');
+      setHasCompletedProjects(completedProjects.length > 0);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       Alert.alert(t('projects.error'), `${t('projects.errorLoadingProjects')}: ${errorMessage}`);
       setProjects([]);
+      setHasCompletedProjects(false);
     }
   }, [user, t]);
 
@@ -384,13 +391,6 @@ export default function ProjectsScreen() {
             );
           })}
           
-          {/* History Button - nur anzeigen wenn Projekte vorhanden sind */}
-          <View style={styles.historySection}>
-            <TouchableOpacity style={styles.historyButton} onPress={handleViewHistory}>
-              <Text style={styles.historyButtonText}>{t('projects.viewHistory')}</Text>
-              <History size={20} color="#374151" />
-            </TouchableOpacity>
-          </View>
           </>
         ) : (
           /* Empty State */
@@ -403,6 +403,16 @@ export default function ProjectsScreen() {
             <TouchableOpacity style={styles.createButtonFullWidth} onPress={handleCreateProject}>
               <Text style={styles.createButtonText}>{t('projects.newProject')}</Text>
               <Plus size={20} color="#ffffff" />
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* History Button - nur anzeigen wenn abgeschlossene Projekte existieren */}
+        {hasCompletedProjects && (
+          <View style={styles.historySection}>
+            <TouchableOpacity style={styles.historyButton} onPress={handleViewHistory}>
+              <Text style={styles.historyButtonText}>{t('projects.viewHistory')}</Text>
+              <History size={20} color="#374151" />
             </TouchableOpacity>
           </View>
         )}
