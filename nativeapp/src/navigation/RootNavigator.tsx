@@ -3,12 +3,14 @@ import { createStackNavigator } from '@react-navigation/stack';
 import TabNavigator from './TabNavigator';
 import SettingsScreen from '../screens/SettingsScreen';
 import CheckoutScreen from '../screens/CheckoutScreen';
+import OrderHistoryScreen from '../screens/OrderHistoryScreen';
 
 
 export type RootStackParamList = {
   Main: undefined;
   Settings: undefined;
   Checkout: undefined;
+  OrderHistory: undefined;
 };
 
 const RootStack = createStackNavigator<RootStackParamList>();
@@ -29,6 +31,10 @@ export default function RootNavigator() {
       <RootStack.Screen 
         name="Checkout" 
         component={CheckoutScreen}
+      />
+      <RootStack.Screen 
+        name="OrderHistory" 
+        component={OrderHistoryScreen}
       />
     </RootStack.Navigator>
   );

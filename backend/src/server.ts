@@ -13,6 +13,7 @@ import pushNotificationsRouter from './routes/pushNotifications';
 import cartRouter from './routes/cart';
 import privacyRouter from './routes/privacy';
 import registrationRouter from './routes/registration';
+import { homeContentRouter } from './routes/homeContent';
 import { errorHandler } from './middleware/errorHandler';
 
 // Lade .env Datei ZUERST
@@ -43,6 +44,7 @@ app.use('/api/push', pushNotificationsRouter); // Push Notifications
 app.use('/api/cart', cartRouter); // Warenkorb
 app.use('/api/privacy', privacyRouter); // Datenschutz
 app.use('/api/registration', registrationRouter); // Custom Registration
+app.use('/api/home-content', homeContentRouter); // Home Screen Content
 
 // Error handling
 app.use(errorHandler);

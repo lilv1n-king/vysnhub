@@ -7,6 +7,8 @@ import {
   StyleSheet,
   Alert,
   TextInput,
+  Image,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -17,21 +19,23 @@ import {
   Phone, 
   Building, 
   MapPin, 
-  CreditCard,
-  Edit3,
+  Globe,
+  Edit,
   Save,
   X,
   ArrowLeft,
   Shield,
   FileText,
-  ChevronRight
+  ChevronRight,
+  Check,
+  ShoppingBag
 } from 'lucide-react-native';
 import { useAuth } from '../../lib/contexts/AuthContext';
 import Header from '../components/Header';
 import Button from '../components/ui/Button';
 import { Card, CardContent } from '../components/ui/Card';
 import { privacyService } from '../../lib/services/privacyService';
-import PrivacyConsentModal from '../components/PrivacyConsentModal';
+import { useTranslation } from 'react-i18next';
 
 const styles = StyleSheet.create({
   container: {
@@ -39,9 +43,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
   },
   scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 20,
+    padding: 16,
     paddingBottom: 40,
+  },
+  headerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 24,
   },
   backButton: {
     width: 44,
@@ -50,8 +59,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#000000',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
-    marginHorizontal: 16,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -60,6 +67,15 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 3.84,
     elevation: 5,
+  },
+  titleContainer: {
+    flex: 1,
+    marginHorizontal: 16,
+  },
+  pageTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#000000',
   },
   section: {
     marginBottom: 24,
@@ -72,7 +88,7 @@ const styles = StyleSheet.create({
   },
   profileCard: {
     padding: 20,
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: '#e5e7eb',
   },
@@ -108,96 +124,148 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#6b7280',
   },
-  customerInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  customerNumber: {
-    fontSize: 14,
-    color: '#374151',
-    fontWeight: '500',
-  },
   discountBadge: {
     backgroundColor: '#dcfce7',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
-    marginLeft: 12,
+    marginTop: 8,
+    alignSelf: 'flex-start',
   },
   discountText: {
     fontSize: 12,
     color: '#16a34a',
     fontWeight: '500',
   },
-  editButton: {
-    padding: 8,
-  },
-  infoGrid: {
-    gap: 16,
-  },
-  infoItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+  // Field styles matching ProjectDetailScreen
+  fieldContainer: {
     backgroundColor: '#ffffff',
-    borderRadius: 8,
     borderWidth: 1,
     borderColor: '#e5e7eb',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 12,
   },
-  infoIcon: {
+  fieldRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 46,
+    justifyContent: 'space-between',
+  },
+  fieldIcon: {
     marginRight: 12,
   },
-  infoText: {
+  fieldContent: {
     flex: 1,
   },
-  infoLabel: {
-    fontSize: 14,
-    color: '#6b7280',
+  fieldLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#64748b',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
     marginBottom: 2,
   },
-  infoValue: {
+  fieldValue: {
     fontSize: 16,
     color: '#000000',
     fontWeight: '500',
   },
+  editContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
   editInput: {
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 6,
+    flex: 1,
+    borderWidth: 2,
+    borderColor: '#000000',
+    borderRadius: 8,
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 10,
     fontSize: 16,
     backgroundColor: '#ffffff',
+    marginRight: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  editActions: {
-    flexDirection: 'row',
-    gap: 8,
-    marginLeft: 'auto',
+  editButton: {
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   saveButton: {
-    backgroundColor: '#22c55e',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    width: 36,
+    height: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#000000',
     borderRadius: 6,
+    marginLeft: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   cancelButton: {
+    width: 36,
+    height: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: '#6b7280',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
     borderRadius: 6,
+    marginLeft: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  actionButtonText: {
-    color: '#ffffff',
-    fontSize: 12,
+  languageToggle: {
+    flexDirection: 'row',
+    backgroundColor: '#f3f4f6',
+    borderRadius: 8,
+    padding: 4,
+    alignItems: 'center',
+  },
+  languageOption: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  languageOptionActive: {
+    backgroundColor: '#000000',
+  },
+  languageOptionText: {
+    fontSize: 14,
     fontWeight: '500',
+    color: '#6b7280',
+  },
+  languageOptionTextActive: {
+    color: '#ffffff',
   },
   logoutButton: {
-    backgroundColor: '#ef4444',
+    backgroundColor: '#dc2626',
     paddingVertical: 16,
     borderRadius: 8,
-    marginTop: 20,
+    marginTop: 32,
+    marginBottom: 60,
+    shadowColor: '#dc2626',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
   },
   logoutButtonText: {
     color: '#ffffff',
@@ -216,6 +284,7 @@ const styles = StyleSheet.create({
 export default function SettingsScreen() {
   const navigation = useNavigation();
   const auth = useAuth();
+  const { t, i18n } = useTranslation();
   
   // Safety check - if auth context is not available, show error
   if (!auth) {
@@ -230,11 +299,12 @@ export default function SettingsScreen() {
 
   const { user, signOut, updateProfile } = auth;
   const [editing, setEditing] = useState<string | null>(null);
-  const [editValues, setEditValues] = useState<Record<string, string>>({});
-  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const [tempValues, setTempValues] = useState<Record<string, string>>({});
+
   const [privacyStatus, setPrivacyStatus] = useState<string>('Checking...');
 
   const profile = user?.profile;
+  const currentLanguage = i18n.language;
 
   // Privacy status laden
   useEffect(() => {
@@ -257,7 +327,7 @@ export default function SettingsScreen() {
   }, [user]);
 
   const handlePrivacyView = () => {
-    setShowPrivacyModal(true);
+    Linking.openURL('https://vysn.de/datenschutz');
   };
 
   const handlePrivacyWithdraw = () => {
@@ -282,34 +352,30 @@ export default function SettingsScreen() {
     );
   };
 
-  const handlePrivacyConsent = async (granted: boolean) => {
-    try {
-      await privacyService.recordConsent(granted);
-      setShowPrivacyModal(false);
-      setPrivacyStatus(granted ? 'Consent given' : 'Consent declined');
-      
-      if (!granted) {
-        await signOut();
-      }
-    } catch (error) {
-      Alert.alert('Error', 'Failed to record consent');
-    }
+  const handleViewOrders = () => {
+    navigation.navigate('OrderHistory');
+  };
+
+
+
+  const handleLanguageChange = (language: string) => {
+    i18n.changeLanguage(language);
   };
 
   const handleEdit = (field: string, currentValue: string) => {
     setEditing(field);
-    setEditValues({ [field]: currentValue || '' });
+    setTempValues({ [field]: currentValue || '' });
   };
 
   const handleSave = async (field: string) => {
     try {
-      const { error } = await updateProfile({ [field]: editValues[field] });
+      const { error } = await updateProfile({ [field]: tempValues[field] });
       
       if (error) {
         Alert.alert('Error', `Failed to update ${field}: ${error.message}`);
       } else {
         setEditing(null);
-        setEditValues({});
+        setTempValues({});
       }
     } catch (error) {
       Alert.alert('Error', 'An unexpected error occurred');
@@ -318,22 +384,22 @@ export default function SettingsScreen() {
 
   const handleCancel = () => {
     setEditing(null);
-    setEditValues({});
+    setTempValues({});
   };
 
   const handleLogout = () => {
     Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out of your VYSN account?',
+      t('settings.signOutConfirmTitle'),
+      t('settings.signOutConfirmMessage'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('settings.cancel'), style: 'cancel' },
         {
-          text: 'Sign Out',
+          text: t('settings.signOut'),
           style: 'destructive',
           onPress: async () => {
             const { error } = await signOut();
             if (error) {
-              Alert.alert('Error', 'Failed to sign out');
+              Alert.alert(t('common.error'), t('settings.signOutError'));
             }
           },
         },
@@ -361,44 +427,43 @@ export default function SettingsScreen() {
     const isEditing = editing === field;
     
     return (
-      <View style={styles.infoItem}>
-        <View style={styles.infoIcon}>{icon}</View>
-        <View style={styles.infoText}>
-          <Text style={styles.infoLabel}>{label}</Text>
-          {isEditing ? (
-            <TextInput
-              style={styles.editInput}
-              value={editValues[field] || ''}
-              onChangeText={(text) => setEditValues(prev => ({ ...prev, [field]: text }))}
-              placeholder={placeholder}
-              autoFocus
-            />
-          ) : (
-            <Text style={styles.infoValue}>{value || 'Not set'}</Text>
-          )}
-        </View>
-        <View style={styles.editActions}>
-          {isEditing ? (
-            <>
-              <TouchableOpacity
-                style={styles.saveButton}
-                onPress={() => handleSave(field)}
-              >
-                <Save size={16} color="#ffffff" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={handleCancel}
-              >
-                <X size={16} color="#ffffff" />
-              </TouchableOpacity>
-            </>
-          ) : (
+      <View style={styles.fieldContainer}>
+        <View style={styles.fieldRow}>
+          <View style={styles.fieldIcon}>{icon}</View>
+          <View style={styles.fieldContent}>
+            <Text style={styles.fieldLabel}>{label}</Text>
+            {isEditing ? (
+              <View style={styles.editContainer}>
+                <TextInput
+                  style={styles.editInput}
+                  value={tempValues[field] || ''}
+                  onChangeText={(text) => setTempValues(prev => ({ ...prev, [field]: text }))}
+                  placeholder={placeholder}
+                  autoFocus
+                />
+                <TouchableOpacity
+                  style={styles.saveButton}
+                  onPress={() => handleSave(field)}
+                >
+                  <Save size={16} color="#ffffff" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.cancelButton}
+                  onPress={handleCancel}
+                >
+                  <X size={16} color="#ffffff" />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <Text style={styles.fieldValue}>{value || t('settings.notSet')}</Text>
+            )}
+          </View>
+          {!isEditing && (
             <TouchableOpacity
               style={styles.editButton}
               onPress={() => handleEdit(field, value)}
             >
-              <Edit3 size={16} color="#6b7280" />
+              <Edit size={16} color="#6b7280" />
             </TouchableOpacity>
           )}
         </View>
@@ -411,16 +476,20 @@ export default function SettingsScreen() {
       <View style={styles.container}>
         <Header onSettingsPress={() => navigation.goBack()} />
         
-        {/* Back Button */}
-        <TouchableOpacity 
-          style={styles.backButton} 
-          onPress={() => navigation.goBack()}
-        >
-          <ArrowLeft size={20} color="#ffffff" />
-        </TouchableOpacity>
-        
         <View style={styles.scrollContent}>
-          <Text style={styles.loadingText}>{t('auth.pleaseSignInToViewSettings')}</Text>
+          <View style={styles.headerContainer}>
+            <TouchableOpacity 
+              style={styles.backButton} 
+              onPress={() => navigation.goBack()}
+            >
+              <ArrowLeft size={20} color="#ffffff" />
+            </TouchableOpacity>
+            <View style={styles.titleContainer}>
+              <Text style={styles.pageTitle}>{t('settings.title')}</Text>
+            </View>
+          </View>
+          
+          <Text style={styles.loadingText}>{t('settings.pleaseSignIn')}</Text>
         </View>
       </View>
     );
@@ -430,18 +499,22 @@ export default function SettingsScreen() {
     <View style={styles.container}>
       <Header onSettingsPress={() => navigation.goBack()} />
       
-      {/* Back Button */}
-              <TouchableOpacity 
-          style={styles.backButton} 
-          onPress={() => navigation.goBack()}
-        >
-          <ArrowLeft size={20} color="#ffffff" />
-        </TouchableOpacity>
-      
       <ScrollView style={styles.scrollContent}>
+        {/* Header with back button and title */}
+        <View style={styles.headerContainer}>
+          <TouchableOpacity 
+            style={styles.backButton} 
+            onPress={() => navigation.goBack()}
+          >
+            <ArrowLeft size={20} color="#ffffff" />
+          </TouchableOpacity>
+          <View style={styles.titleContainer}>
+            <Text style={styles.pageTitle}>{t('settings.title')}</Text>
+          </View>
+        </View>
         {/* Profile Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Profile</Text>
+          <Text style={styles.sectionTitle}>{t('settings.profile')}</Text>
           <Card style={styles.profileCard}>
             <CardContent style={{ padding: 0 }}>
               <View style={styles.profileHeader}>
@@ -451,18 +524,11 @@ export default function SettingsScreen() {
                 <View style={styles.profileInfo}>
                   <Text style={styles.userName}>{getFullName()}</Text>
                   <Text style={styles.userEmail}>{user.email}</Text>
-                  {profile && (
-                    <View style={styles.customerInfo}>
-                      <Text style={styles.customerNumber}>
-                        Customer: {profile.customer_number}
+                  {profile && profile.discount_percentage > 0 && (
+                    <View style={styles.discountBadge}>
+                      <Text style={styles.discountText}>
+                        {t('settings.discount', { percentage: profile.discount_percentage })}
                       </Text>
-                      {profile.discount_percentage > 0 && (
-                        <View style={styles.discountBadge}>
-                          <Text style={styles.discountText}>
-                            {profile.discount_percentage}% Discount
-                          </Text>
-                        </View>
-                      )}
                     </View>
                   )}
                 </View>
@@ -473,69 +539,111 @@ export default function SettingsScreen() {
 
         {/* Contact Information */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Contact Information</Text>
-          <View style={styles.infoGrid}>
-            {renderEditableField(
-              'phone',
-              'Phone Number',
-              profile?.phone || '',
-              <Phone size={20} color="#6b7280" />,
-              '+49 123 456 7890'
-            )}
-            
-            {renderEditableField(
-              'company_name',
-              'Company',
-              profile?.company_name || '',
-              <Building size={20} color="#6b7280" />,
-              'Your Company GmbH'
-            )}
-          </View>
+          <Text style={styles.sectionTitle}>{t('settings.contactInformation')}</Text>
+          
+          {renderEditableField(
+            'first_name',
+            t('settings.firstName'),
+            profile?.first_name || '',
+            <User size={20} color="#6b7280" />,
+            'Max'
+          )}
+          
+          {renderEditableField(
+            'last_name',
+            t('settings.lastName'),
+            profile?.last_name || '',
+            <User size={20} color="#6b7280" />,
+            'Mustermann'
+          )}
+          
+          {renderEditableField(
+            'phone',
+            t('settings.phoneNumber'),
+            profile?.phone || '',
+            <Phone size={20} color="#6b7280" />,
+            '+49 123 456 7890'
+          )}
+          
+          {renderEditableField(
+            'company_name',
+            t('settings.company'),
+            profile?.company_name || '',
+            <Building size={20} color="#6b7280" />,
+            'Ihr Unternehmen GmbH'
+          )}
         </View>
 
         {/* Address */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Address</Text>
-          <View style={styles.infoGrid}>
-            {renderEditableField(
-              'address_line_1',
-              'Street Address',
-              profile?.address_line_1 || '',
-              <MapPin size={20} color="#6b7280" />,
-              'Musterstraße 123'
-            )}
-            
-            {renderEditableField(
-              'city',
-              'City',
-              profile?.city || '',
-              <MapPin size={20} color="#6b7280" />,
-              'Berlin'
-            )}
-            
-            {renderEditableField(
-              'postal_code',
-              'Postal Code',
-              profile?.postal_code || '',
-              <MapPin size={20} color="#6b7280" />,
-              '10115'
-            )}
-          </View>
+          <Text style={styles.sectionTitle}>{t('settings.address')}</Text>
+          
+          {renderEditableField(
+            'address_line_1',
+            t('settings.streetAddress'),
+            profile?.address_line_1 || '',
+            <MapPin size={20} color="#6b7280" />,
+            'Musterstraße 123'
+          )}
+          
+          {renderEditableField(
+            'city',
+            t('settings.city'),
+            profile?.city || '',
+            <MapPin size={20} color="#6b7280" />,
+            'Berlin'
+          )}
+          
+          {renderEditableField(
+            'postal_code',
+            t('settings.postalCode'),
+            profile?.postal_code || '',
+            <MapPin size={20} color="#6b7280" />,
+            '10115'
+          )}
         </View>
 
-        {/* Account */}
+        {/* App Settings */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Account</Text>
-          <View style={styles.infoGrid}>
-            <View style={styles.infoItem}>
-              <View style={styles.infoIcon}>
-                <CreditCard size={20} color="#6b7280" />
+          <Text style={styles.sectionTitle}>{t('settings.appSettings')}</Text>
+          
+          <View style={styles.fieldContainer}>
+            <View style={styles.fieldRow}>
+              <View style={styles.fieldIcon}>
+                <Globe size={20} color="#6b7280" />
               </View>
-              <View style={styles.infoText}>
-                <Text style={styles.infoLabel}>Account Type</Text>
-                <Text style={styles.infoValue}>
-                  {profile?.customer_type?.charAt(0).toUpperCase() + profile?.customer_type?.slice(1) || 'Standard'}
-                </Text>
+              <View style={styles.fieldContent}>
+                <Text style={styles.fieldLabel}>{t('settings.language')}</Text>
+                <View style={styles.languageToggle}>
+                  <TouchableOpacity
+                    style={[
+                      styles.languageOption,
+                      currentLanguage === 'de' && styles.languageOptionActive
+                    ]}
+                    onPress={() => handleLanguageChange('de')}
+                  >
+                    <Text style={[
+                      styles.languageOptionText,
+                      currentLanguage === 'de' && styles.languageOptionTextActive
+                    ]}>
+                      Deutsch
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.languageOption,
+                      currentLanguage === 'en' && styles.languageOptionActive
+                    ]}
+                    onPress={() => handleLanguageChange('en')}
+                  >
+                    <Text style={[
+                      styles.languageOptionText,
+                      currentLanguage === 'en' && styles.languageOptionTextActive
+                    ]}>
+                      English
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
           </View>
@@ -543,46 +651,72 @@ export default function SettingsScreen() {
 
         {/* Privacy & Data Protection */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Privacy & Data Protection</Text>
-          <View style={styles.infoGrid}>
-            <TouchableOpacity style={styles.infoItem} onPress={handlePrivacyView}>
-              <View style={styles.infoIcon}>
+          <Text style={styles.sectionTitle}>{t('settings.privacy')}</Text>
+          
+          <TouchableOpacity style={styles.fieldContainer} onPress={handlePrivacyView}>
+            <View style={styles.fieldRow}>
+              <View style={styles.fieldIcon}>
                 <FileText size={20} color="#6b7280" />
               </View>
-              <View style={styles.infoText}>
-                <Text style={styles.infoLabel}>Privacy Policy</Text>
-                <Text style={styles.infoValue}>View current privacy policy</Text>
+              <View style={styles.fieldContent}>
+                <Text style={styles.fieldLabel}>{t('settings.privacyPolicy')}</Text>
+                <Text style={styles.fieldValue}>{t('settings.privacyPolicyDescription')}</Text>
               </View>
               <ChevronRight size={20} color="#6b7280" />
-            </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
 
-            <View style={styles.infoItem}>
-              <View style={styles.infoIcon}>
+          <View style={styles.fieldContainer}>
+            <View style={styles.fieldRow}>
+              <View style={styles.fieldIcon}>
                 <Shield size={20} color="#6b7280" />
               </View>
-              <View style={styles.infoText}>
-                <Text style={styles.infoLabel}>Data Consent Status</Text>
-                <Text style={[styles.infoValue, 
+              <View style={styles.fieldContent}>
+                <Text style={styles.fieldLabel}>{t('settings.consentStatus')}</Text>
+                <Text style={[
+                  styles.fieldValue, 
                   privacyStatus === 'Consent given' ? { color: '#10b981' } : 
                   privacyStatus === 'Consent required' ? { color: '#f59e0b' } : 
                   { color: '#6b7280' }
                 ]}>
-                  {privacyStatus}
+                  {privacyStatus === 'Consent given' ? t('settings.consentGiven') :
+                   privacyStatus === 'Consent required' ? t('settings.consentRequired') :
+                   t('settings.consentChecking')}
                 </Text>
               </View>
             </View>
+          </View>
 
-            <TouchableOpacity style={styles.infoItem} onPress={handlePrivacyWithdraw}>
-              <View style={styles.infoIcon}>
+          <TouchableOpacity style={styles.fieldContainer} onPress={handlePrivacyWithdraw}>
+            <View style={styles.fieldRow}>
+              <View style={styles.fieldIcon}>
                 <X size={20} color="#ef4444" />
               </View>
-              <View style={styles.infoText}>
-                <Text style={[styles.infoLabel, { color: '#ef4444' }]}>Withdraw Consent</Text>
-                <Text style={styles.infoValue}>Revoke data processing consent</Text>
+              <View style={styles.fieldContent}>
+                <Text style={[styles.fieldLabel, { color: '#ef4444' }]}>{t('settings.withdrawConsent')}</Text>
+                <Text style={styles.fieldValue}>{t('settings.withdrawConsentDescription')}</Text>
               </View>
               <ChevronRight size={20} color="#ef4444" />
-            </TouchableOpacity>
-          </View>
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        {/* Account & Orders */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{t('settings.account')}</Text>
+          
+          <TouchableOpacity style={styles.fieldContainer} onPress={handleViewOrders}>
+            <View style={styles.fieldRow}>
+              <View style={styles.fieldIcon}>
+                <ShoppingBag size={20} color="#6b7280" />
+              </View>
+              <View style={styles.fieldContent}>
+                <Text style={styles.fieldLabel}>{t('settings.orderHistory')}</Text>
+                <Text style={styles.fieldValue}>{t('settings.orderHistoryDescription')}</Text>
+              </View>
+              <ChevronRight size={20} color="#6b7280" />
+            </View>
+          </TouchableOpacity>
         </View>
 
         {/* Logout */}
@@ -590,16 +724,9 @@ export default function SettingsScreen() {
           style={styles.logoutButton}
           onPress={handleLogout}
         >
-          <Text style={styles.logoutButtonText}>Sign Out</Text>
+          <Text style={styles.logoutButtonText}>{t('settings.signOut')}</Text>
         </TouchableOpacity>
       </ScrollView>
-      
-      <PrivacyConsentModal
-        visible={showPrivacyModal}
-        onConsentGiven={handlePrivacyConsent}
-        onClose={() => setShowPrivacyModal(false)}
-        isFirstTime={false}
-      />
     </View>
   );
 }

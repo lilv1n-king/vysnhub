@@ -1,5 +1,5 @@
-import React from 'react';
-import { ScrollView, View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { ScrollView, View, Text, Image, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Calendar, Tag, Zap } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -7,6 +7,9 @@ import { useTranslation } from 'react-i18next';
 import { Card, CardContent } from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Header from '../components/Header';
+import { homeContentService } from '../../lib/services/homeContentService';
+import { HomeEvent, HomeHighlight } from '../../lib/types/homeContent';
+import { productService } from '../../lib/services/productService';
 
 const styles = StyleSheet.create({
   container: {
@@ -202,10 +205,137 @@ const styles = StyleSheet.create({
 export default function HomeScreen() {
   const navigation = useNavigation();
   const { t } = useTranslation();
+  const [events, setEvents] = useState<HomeEvent[]>([]);
+  const [highlights, setHighlights] = useState<HomeHighlight[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleProductPress = () => {
-    // Erstmal einfach zum Products Tab navigieren
-    navigation.navigate('Products');
+  useEffect(() => {
+    loadHomeContent();
+  }, []);
+
+  const loadHomeContent = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const content = await homeContentService.getHomeContent();
+      setEvents(content.events);
+      setHighlights(content.highlights);
+    } catch (err) {
+      console.error('Error loading home content:', err);
+      setError('Inhalte konnten nicht geladen werden');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleProductPress = (productId?: number) => {
+    if (productId) {
+      // Navigate to product detail
+      navigation.navigate('Products', { productId });
+    } else {
+      // Default navigation to Products tab
+      navigation.navigate('Products');
+    }
+  };
+
+  const handleHighlightPress = (highlight: HomeHighlight) => {
+    if (highlight.product_id) {
+      handleProductPress(highlight.product_id);
+    }
+  };
+
+  const renderHighlight = (highlight: HomeHighlight, index: number) => {
+    const badgeStyle = homeContentService.getBadgeStyle(highlight.badge_type);
+    
+    return (
+      <TouchableOpacity key={highlight.id} onPress={() => handleHighlightPress(highlight)}>
+        <Card style={styles.catalogCardLarge}>
+          <CardContent style={styles.catalogContentLarge}>
+            <View style={styles.catalogContentTop}>
+              <View style={styles.catalogTextContainer}>
+                {highlight.badge_text && (
+                  <View style={[styles.badge, { backgroundColor: badgeStyle.backgroundColor }]}>
+                    <Tag size={16} color={badgeStyle.color} />
+                    <Text style={[styles.badgeText, { color: badgeStyle.color }]}>
+                      {highlight.badge_text}
+                    </Text>
+                  </View>
+                )}
+                
+                <Text style={styles.cardTitleLarge}>
+                  {highlight.title}
+                </Text>
+                <Text style={styles.cardDescriptionLarge}>
+                  {highlight.description}
+                </Text>
+              </View>
+              
+              {highlight.image_url && (
+                <View style={styles.catalogImageContainer}>
+                  <Image 
+                    source={highlight.image_url.startsWith('http') 
+                      ? { uri: highlight.image_url }
+                      : require('../../assets/VYSN_KAT.png')
+                    }
+                    style={styles.catalogImageLarge}
+                    resizeMode="contain"
+                  />
+                </View>
+              )}
+            </View>
+            
+            <View style={styles.catalogButtonContainer}>
+              <Button 
+                style={{ backgroundColor: '#000000', paddingVertical: 14, width: '100%' }}
+                textStyle={{ color: '#ffffff', fontSize: 16, fontWeight: '600' }}
+              >
+                {highlight.button_text || t('common.viewDetails')}
+              </Button>
+            </View>
+          </CardContent>
+        </Card>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderEvent = (event: HomeEvent) => {
+    const formattedDate = homeContentService.formatEventDate(event.start_datetime);
+    const eventTypeText = homeContentService.getEventTypeText(event.event_type);
+    
+    return (
+      <Card key={event.id} style={styles.eventCard}>
+        <CardContent style={styles.eventContent}>
+          <View style={styles.eventBadge}>
+            <Text style={styles.eventBadgeText}>{eventTypeText}</Text>
+          </View>
+          
+          <Text style={styles.eventName}>
+            {event.event_name}
+          </Text>
+          <Text style={styles.eventDescription}>
+            {event.event_description}
+          </Text>
+          
+          <Text style={styles.eventDate}>
+            {formattedDate}
+          </Text>
+          
+          {event.event_location && (
+            <Text style={styles.eventDate}>
+              📍 {event.event_location}{event.city ? `, ${event.city}` : ''}
+            </Text>
+          )}
+          
+          <Button 
+            style={{ backgroundColor: '#000000', paddingHorizontal: 16, paddingVertical: 12, marginTop: 8 }}
+            textStyle={{ color: '#ffffff', fontSize: 14, fontWeight: '500' }}
+          >
+            {t('home.registerForFree')}
+          </Button>
+        </CardContent>
+      </Card>
+    );
   };
 
 
@@ -216,125 +346,50 @@ export default function HomeScreen() {
       <ScrollView style={styles.scrollContent}>
 
 
-        {/* Aktuelle Highlights */}
-        <View style={styles.sectionMargin}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
-            <Zap size={24} color="#000000" style={{ marginRight: 8 }} />
-            <Text style={[styles.eventTitle, { marginBottom: 0 }]}>{t('home.currentHighlights')}</Text>
+        {/* Loading State */}
+        {loading && (
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 }}>
+            <ActivityIndicator size="large" color="#000000" />
+            <Text style={{ marginTop: 16, color: '#6b7280' }}>Inhalte werden geladen...</Text>
           </View>
-          
-          <TouchableOpacity>
-            <Card style={styles.catalogCardLarge}>
-              <CardContent style={styles.catalogContentLarge}>
-                <View style={styles.catalogContentTop}>
-                  <View style={styles.catalogTextContainer}>
-                    <View style={[styles.badge, styles.newReleaseBadge]}>
-                      <Tag size={16} color="#000000" />
-                      <Text style={styles.badgeText}>{t('home.newRelease')}</Text>
-                    </View>
-                    
-                    <Text style={styles.cardTitleLarge}>
-                      {t('home.catalog2025')}
-                    </Text>
-                    <Text style={styles.cardDescriptionLarge}>
-                      {t('home.catalogDescription')}
-                    </Text>
-                  </View>
-                  
-                  <View style={styles.catalogImageContainer}>
-                    <Image 
-                      source={require('../../assets/VYSN_KAT.png')}
-                      style={styles.catalogImageLarge}
-                      resizeMode="contain"
-                    />
-                  </View>
-                </View>
-                
-                <View style={styles.catalogButtonContainer}>
-                  <Button 
-                    style={{ backgroundColor: '#000000', paddingVertical: 14, width: '100%' }}
-                    textStyle={{ color: '#ffffff', fontSize: 16, fontWeight: '600' }}
-                  >
-                    {t('common.download')}
-                  </Button>
-                </View>
-              </CardContent>
-            </Card>
-          </TouchableOpacity>
-          
-          <TouchableOpacity onPress={handleProductPress}>
-            <Card style={styles.catalogCardLarge}>
-              <CardContent style={styles.catalogContentLarge}>
-                <View style={styles.catalogContentTop}>
-                  <View style={styles.catalogTextContainer}>
-                    <View style={[styles.badge, styles.newProductBadge]}>
-                      <Tag size={16} color="#16a34a" />
-                      <Text style={[styles.badgeText, { color: '#16a34a' }]}>{t('home.newInRange')}</Text>
-                    </View>
-                    
-                    <Text style={styles.cardTitleLarge}>
-                      Nydle T - Touch Dimmable LED
-                    </Text>
-                    <Text style={styles.cardDescriptionLarge}>
-                      Touch-dimming, 5.4W, 2700K
-                    </Text>
-                  </View>
-                  
-                  <View style={styles.catalogImageContainer}>
-                    <Image 
-                      source={{ uri: 'https://vysninstructionmanuals.web.app/products/V109001B2B_1.jpg' }}
-                      style={styles.catalogImageLarge}
-                      resizeMode="contain"
-                    />
-                  </View>
-                </View>
-                
-                <View style={styles.catalogButtonContainer}>
-                  <Button 
-                    style={{ backgroundColor: '#000000', paddingVertical: 14, width: '100%' }}
-                    textStyle={{ color: '#ffffff', fontSize: 16, fontWeight: '600' }}
-                  >
-                    {t('common.viewDetails')}
-                  </Button>
-                </View>
-              </CardContent>
-            </Card>
-          </TouchableOpacity>
-        </View>
+        )}
+
+        {/* Error State */}
+        {error && !loading && (
+          <View style={{ padding: 20, alignItems: 'center' }}>
+            <Text style={{ color: '#ef4444', textAlign: 'center' }}>{error}</Text>
+            <TouchableOpacity 
+              onPress={loadHomeContent}
+              style={{ marginTop: 16, backgroundColor: '#000000', padding: 12, borderRadius: 8 }}
+            >
+              <Text style={{ color: '#ffffff' }}>Erneut versuchen</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Aktuelle Highlights */}
+        {!loading && !error && highlights.length > 0 && (
+          <View style={styles.sectionMargin}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+              <Zap size={24} color="#000000" style={{ marginRight: 8 }} />
+              <Text style={[styles.eventTitle, { marginBottom: 0 }]}>{t('home.currentHighlights')}</Text>
+            </View>
+            
+            {highlights.map((highlight, index) => renderHighlight(highlight, index))}
+          </View>
+        )}
 
         {/* Event Section */}
-        <View style={styles.sectionMargin}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
-            <Calendar size={24} color="#000000" style={{ marginRight: 8 }} />
-            <Text style={[styles.eventTitle, { marginBottom: 0 }]}>{t('home.upcomingEvents')}</Text>
+        {!loading && !error && events.length > 0 && (
+          <View style={styles.sectionMargin}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+              <Calendar size={24} color="#000000" style={{ marginRight: 8 }} />
+              <Text style={[styles.eventTitle, { marginBottom: 0 }]}>{t('home.upcomingEvents')}</Text>
+            </View>
+            
+            {events.map(renderEvent)}
           </View>
-          
-          <Card style={styles.eventCard}>
-            <CardContent style={styles.eventContent}>
-              <View style={styles.eventBadge}>
-                <Text style={styles.eventBadgeText}>{t('home.networkingEvent')}</Text>
-              </View>
-              
-              <Text style={styles.eventName}>
-                {t('home.eventTitle')}
-              </Text>
-              <Text style={styles.eventDescription}>
-                {t('home.eventDescription')}
-              </Text>
-              
-              <Text style={styles.eventDate}>
-                {t('home.eventDate')}
-              </Text>
-              
-              <Button 
-                style={{ backgroundColor: '#000000', paddingHorizontal: 16, paddingVertical: 12, marginTop: 8 }}
-                textStyle={{ color: '#ffffff', fontSize: 14, fontWeight: '500' }}
-              >
-                {t('home.registerForFree')}
-              </Button>
-            </CardContent>
-          </Card>
-        </View>
+        )}
       </ScrollView>
     </View>
   );

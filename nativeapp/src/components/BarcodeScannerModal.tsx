@@ -79,7 +79,7 @@ export default function BarcodeScannerModal({
         searchResultsCount
       });
     } catch (error) {
-      console.error('Error tracking scan:', error);
+      // Tracking error - fail silently
     }
   };
 
@@ -93,7 +93,7 @@ export default function BarcodeScannerModal({
       if (barcodeMatch) {
         await trackScan(code, scanType, true, 1);
         onProductFound(barcodeMatch);
-        onNavigateToProduct(barcodeMatch.itemNumberVysn);
+        onNavigateToProduct(barcodeMatch.itemNumberVysn || barcodeMatch.item_number_vysn);
         onClose();
         return;
       }
@@ -109,7 +109,7 @@ export default function BarcodeScannerModal({
       if (exactItemMatch) {
         await trackScan(code, scanType, true, 1);
         onProductFound(exactItemMatch);
-        onNavigateToProduct(exactItemMatch.itemNumberVysn);
+        onNavigateToProduct(exactItemMatch.itemNumberVysn || exactItemMatch.item_number_vysn);
         onClose();
         return;
       }
@@ -122,7 +122,7 @@ export default function BarcodeScannerModal({
         // If only one result, navigate directly
         if (products.length === 1) {
           onProductFound(products[0]);
-          onNavigateToProduct(products[0].itemNumberVysn);
+          onNavigateToProduct(products[0].itemNumberVysn || products[0].item_number_vysn);
           onClose();
           return;
         }
@@ -131,7 +131,7 @@ export default function BarcodeScannerModal({
         setError(`${t('scanner.noProductFound', { code })}`);
       }
     } catch (error) {
-      console.error('Error processing scanned code:', error);
+      // Silent error handling
               setError(t('scanner.errorSearchingProduct'));
       await trackScan(code, scanType, false, 0);
     } finally {

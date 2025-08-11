@@ -393,7 +393,7 @@ export default function ScannerScreen() {
         searchResultsCount
       });
     } catch (error) {
-      console.error('Error tracking scan:', error);
+      // Tracking error - fail silently
       // Don't fail the scan if tracking fails
     }
   };
@@ -409,7 +409,7 @@ export default function ScannerScreen() {
       if (barcodeMatch) {
         await trackScan(code, scanType, true, 1);
         handleProductFound(barcodeMatch);
-        handleNavigateToProduct(barcodeMatch.itemNumberVysn);
+        handleNavigateToProduct(barcodeMatch.itemNumberVysn || barcodeMatch.item_number_vysn);
         return;
       }
 
@@ -424,7 +424,7 @@ export default function ScannerScreen() {
       if (exactItemMatch) {
         await trackScan(code, scanType, true, 1);
         handleProductFound(exactItemMatch);
-        handleNavigateToProduct(exactItemMatch.itemNumberVysn);
+        handleNavigateToProduct(exactItemMatch.itemNumberVysn || exactItemMatch.item_number_vysn);
         return;
       }
 
@@ -436,7 +436,7 @@ export default function ScannerScreen() {
         // If only one result, navigate directly
         if (products.length === 1) {
           handleProductFound(products[0]);
-          handleNavigateToProduct(products[0].itemNumberVysn);
+          handleNavigateToProduct(products[0].itemNumberVysn || products[0].item_number_vysn);
           return;
         }
       } else {
@@ -444,7 +444,7 @@ export default function ScannerScreen() {
         setError(t('scanner.noProductFound', { code }));
       }
     } catch (error: any) {
-      console.error('Error processing scanned code:', error);
+      // Silent error handling
       
       // Specific error messages based on error type
       let errorMessage = t('scanner.searchError');
@@ -474,7 +474,7 @@ export default function ScannerScreen() {
     hasScannedRef.current = true;
     setScanned(true);
     
-    console.log('Code scanned:', data);
+    // Code scanned silently
     
     // Determine scan type
     const scanType = /^\d+$/.test(data) ? 'barcode' : 'qr_code';
@@ -490,7 +490,7 @@ export default function ScannerScreen() {
 
   const selectProduct = (product: VysnProduct) => {
     handleProductFound(product);
-    handleNavigateToProduct(product.itemNumberVysn);
+    handleNavigateToProduct(product.itemNumberVysn || product.item_number_vysn);
   };
 
   const toggleMode = () => {
@@ -512,12 +512,7 @@ export default function ScannerScreen() {
 
 
   const handleProductFound = (product: VysnProduct) => {
-    // Show success message or handle product found
-    Alert.alert(
-      t('scanner.productFound'), 
-      `${product.vysnName}\n${t('scanner.itemNumber', { itemNumber: product.itemNumberVysn })}`,
-      [{ text: 'OK' }]
-    );
+    // Product found - navigate silently without alert
   };
 
   const handleNavigateToProduct = (itemNumber: string) => {

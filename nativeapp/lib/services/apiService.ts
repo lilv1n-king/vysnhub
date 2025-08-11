@@ -4,6 +4,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 export class ApiService {
   private baseURL: string;
   private defaultHeaders: Record<string, string>;
+  
+  // Track consecutive 401 errors to prevent infinite loops
+  private consecutive401Errors = 0;
+  private readonly MAX_401_RETRIES = 2;
 
   constructor() {
     this.baseURL = API_BASE_URL;
@@ -71,9 +75,15 @@ export class ApiService {
     const url = `${this.baseURL}${endpoint}`;
 
     // Check if token needs refresh before making request (unless it's a refresh call)
-    if (!isRetry && !endpoint.includes('/auth/refresh') && await this.shouldRefreshToken()) {
-      console.log('⏰ Token expiring soon, refreshing...');
-      await this.refreshAccessToken();
+    if (!isRetry && !endpoint.includes('/auth/refresh') && !endpoint.includes('/auth/login')) {
+      const shouldRefresh = await this.shouldRefreshToken();
+      if (shouldRefresh) {
+        console.log('⏰ Token expiring soon, refreshing...');
+        const refreshSuccess = await this.refreshAccessToken();
+        if (!refreshSuccess) {
+          console.log('❌ Auto-refresh failed, request might fail');
+        }
+      }
     }
 
     const requestOptions: RequestInit = {
@@ -118,6 +128,10 @@ export class ApiService {
       });
 
       const data = await response.json();
+      
+      // Reset 401 counter on successful response
+      this.consecutive401Errors = 0;
+      
       return data as ApiResponse<T>;
     } catch (error) {
       clearTimeout(timeoutId);
@@ -129,12 +143,28 @@ export class ApiService {
       if (error instanceof ApiError) {
         // Handle 401 errors with token refresh
         if (error.status === 401 && !isRetry && !endpoint.includes('/auth/refresh')) {
-          console.log('🔄 401 error, attempting token refresh...');
-          const refreshSuccess = await this.refreshAccessToken();
-          if (refreshSuccess) {
-            console.log('✅ Token refreshed, retrying request...');
-            // Retry the request with the new token
-            return this.request<T>(endpoint, options, true);
+          this.consecutive401Errors++;
+          
+          if (this.consecutive401Errors <= this.MAX_401_RETRIES) {
+            console.log(`🔄 401 error (#${this.consecutive401Errors}), attempting token refresh...`);
+            const refreshSuccess = await this.refreshAccessToken();
+            if (refreshSuccess) {
+              console.log('✅ Token refreshed, retrying request...');
+              // Retry the request with the new token
+              return this.request<T>(endpoint, options, true);
+            } else {
+              console.warn(`❌ Token refresh failed. Clearing tokens and stopping retries.`);
+              await this.clearStoredToken();
+              this.consecutive401Errors = 0;
+              // Don't retry if refresh failed
+              throw new ApiError('Authentication failed - please login again', 401);
+            }
+          } else {
+            console.warn(`❌ Too many consecutive 401 errors (${this.consecutive401Errors}). Clearing tokens.`);
+            await this.clearStoredToken();
+            // Reset counter after clearing tokens
+            this.consecutive401Errors = 0;
+            throw new ApiError('Authentication failed - please login again', 401);
           }
         }
         throw error;
@@ -249,7 +279,16 @@ export class ApiService {
 
   async clearStoredToken(): Promise<void> {
     try {
+      // Clear from memory
+      this.setAuthToken(null);
+      
+      // Clear from storage
       await AsyncStorage.multiRemove(['auth_token', 'refresh_token', 'token_expires_at']);
+      
+      // Reset consecutive error counter
+      this.consecutive401Errors = 0;
+      
+      console.log('🧹 All tokens cleared successfully');
     } catch (error) {
       console.error('Failed to clear stored tokens:', error);
     }
@@ -268,39 +307,53 @@ export class ApiService {
     try {
       const refreshToken = await this.getStoredRefreshToken();
       if (!refreshToken) {
-        console.log('❌ No refresh token available');
+        console.log('❌ No refresh token available - clearing all tokens');
+        await this.clearStoredToken();
         return false;
       }
 
-      console.log('🔄 Attempting to refresh access token...');
+      console.log('🔄 Refreshing access token...');
       
-      const response = await this.post<{
-        user: any;
-        token: string;
-        refreshToken: string;
-        expiresAt: number;
-      }>('/api/auth/refresh', { refreshToken });
+      // Use direct fetch to avoid recursive refresh calls
+      const response = await fetch(`${this.baseURL}/api/auth/refresh`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ refreshToken })
+      });
 
-      if (response.success && response.data) {
-        // Update tokens
-        this.setAuthToken(response.data.token);
-        await this.storeToken(response.data.token);
-        await this.storeRefreshToken(response.data.refreshToken);
-        await this.storeTokenExpiry(response.data.expiresAt);
+      if (response.ok) {
+        const data = await response.json();
         
-        // Notify AuthContext about the new token
-        if (this.tokenRefreshCallback) {
-          this.tokenRefreshCallback(response.data.token);
+        if (data.success && data.data) {
+          // Update tokens
+          this.setAuthToken(data.data.token);
+          await this.storeToken(data.data.token);
+          await this.storeRefreshToken(data.data.refreshToken);
+          await this.storeTokenExpiry(data.data.expiresAt);
+          
+          // Notify AuthContext about the new token
+          if (this.tokenRefreshCallback) {
+            this.tokenRefreshCallback(data.data.token);
+          }
+          
+          console.log('✅ Access token refreshed successfully');
+          return true;
         }
-        
-        console.log('✅ Access token refreshed successfully');
-        return true;
-      } else {
-        console.log('❌ Failed to refresh token:', response.error);
-        return false;
       }
+      
+      // If refresh failed, clear all tokens
+      console.log('❌ Token refresh failed - clearing all tokens');
+      await this.clearStoredToken();
+      return false;
+      
     } catch (error) {
       console.error('❌ Error refreshing token:', error);
+      
+      // Always clear tokens on any refresh error
+      console.log('🧹 Clearing all tokens due to refresh error');
+      await this.clearStoredToken();
       return false;
     }
   }
@@ -308,7 +361,13 @@ export class ApiService {
   // Check if token needs refresh (5 minutes before expiry)
   async shouldRefreshToken(): Promise<boolean> {
     const expiresAt = await this.getStoredTokenExpiry();
-    if (!expiresAt) return false;
+    const accessToken = await this.getStoredToken();
+    const refreshToken = await this.getStoredRefreshToken();
+    
+    // Need all tokens to refresh
+    if (!expiresAt || !accessToken || !refreshToken) {
+      return false;
+    }
     
     const now = Math.floor(Date.now() / 1000);
     const timeUntilExpiry = expiresAt - now;

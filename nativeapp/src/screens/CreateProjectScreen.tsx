@@ -434,23 +434,7 @@ export default function CreateProjectScreen() {
           </Text>
         </View>
 
-        {/* Additional Notes */}
-        <View style={styles.section}>
-          <View style={styles.sectionTitleContainer}>
-            <Tag size={24} color="#000000" />
-            <Text style={styles.sectionTitle}>{t('projects.additionalInformation')}</Text>
-          </View>
 
-          <Text style={styles.label}>{t('projects.notes')}</Text>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            value={formData.notes}
-            onChangeText={(text) => handleInputChange('notes', text)}
-            placeholder={t('projects.notesPlaceholder')}
-            multiline
-            numberOfLines={4}
-          />
-        </View>
 
         {/* Create Button */}
         <Button 

@@ -171,6 +171,110 @@ export class EmailController {
   };
 
   /**
+   * POST /api/email/quote
+   * Sendet ein Angebot per E-Mail an einen Kunden
+   */
+  sendQuoteEmail = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { projectId, customerEmail, customerName, customerCompany, message } = req.body;
+
+      // Validierung
+      if (!projectId || !customerEmail) {
+        res.status(400).json({
+          success: false,
+          error: 'Missing required fields',
+          message: 'projectId and customerEmail are required'
+        });
+        return;
+      }
+
+      // E-Mail-Format validieren
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(customerEmail.trim())) {
+        res.status(400).json({
+          success: false,
+          error: 'Invalid email format',
+          message: 'Please provide a valid email address'
+        });
+        return;
+      }
+
+      console.log(`📧 Processing quote email for project: ${projectId}`);
+
+      // Projekt laden
+      const project = await projectService.getProjectById(projectId, req.user!.id, req.accessToken!);
+      if (!project) {
+        res.status(404).json({
+          success: false,
+          error: 'Project not found',
+          message: `Project with ID ${projectId} not found`
+        });
+        return;
+      }
+
+      // Produkte extrahieren
+      const products = await this.extractProductsFromProject(project);
+      
+      if (products.length === 0) {
+        res.status(400).json({
+          success: false,
+          error: 'No products found',
+          message: 'Project contains no products for quote'
+        });
+        return;
+      }
+
+      // Gesamtsumme berechnen
+      const quoteTotal = products.reduce((total, product) => total + product.totalPrice, 0);
+
+      // Angebot-E-Mail-Daten zusammenstellen
+      const quoteEmailData = {
+        customerName: customerName || 'Sehr geehrte Damen und Herren',
+        customerEmail: customerEmail,
+        customerCompany: customerCompany || '',
+        message: message || '',
+        project,
+        products,
+        quoteTotal,
+        senderName: req.user!.user_metadata?.full_name || req.user!.email?.split('@')[0] || 'VYSN Partner',
+        senderEmail: req.user!.email || '',
+        senderCompany: req.user!.user_metadata?.company || ''
+      };
+
+      // Angebot-E-Mail senden
+      const emailSent = await emailService.sendQuoteEmail(quoteEmailData);
+
+      if (emailSent) {
+        console.log(`✅ Quote email sent successfully for project: ${project.project_name}`);
+        res.status(200).json({
+          success: true,
+          message: 'Quote email sent successfully',
+          data: {
+            projectName: project.project_name,
+            productCount: products.length,
+            quoteTotal,
+            recipient: customerEmail
+          }
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          error: 'Email sending failed',
+          message: 'Quote email could not be sent'
+        });
+      }
+
+    } catch (error) {
+      console.error('❌ Quote email error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Failed to send quote email'
+      });
+    }
+  };
+
+  /**
    * POST /api/email/test
    * Sendet eine Test-E-Mail
    */
@@ -216,6 +320,7 @@ export class EmailController {
     unitPrice: number;
     totalPrice: number;
     productId?: number;
+    productData?: any;
   }>> {
     const products: Array<{
       itemNumber: string;
@@ -224,6 +329,7 @@ export class EmailController {
       unitPrice: number;
       totalPrice: number;
       productId?: number;
+      productData?: any;
     }> = [];
     
     if (!project.project_notes) {
@@ -260,7 +366,8 @@ export class EmailController {
               quantity,
               unitPrice: customerPrice,
               totalPrice,
-              productId: productData.id
+              productId: productData.id,
+              productData: productData
             });
           } else {
             console.warn(`⚠️ Product not found: ${cleanItemNumber} (original: ${itemNumber})`);
@@ -270,7 +377,8 @@ export class EmailController {
               name: productName.trim(),
               quantity,
               unitPrice: 0,
-              totalPrice: 0
+              totalPrice: 0,
+              productData: null
             });
           }
         } catch (error) {
@@ -284,7 +392,8 @@ export class EmailController {
             name: productName.trim(),
             quantity,
             unitPrice: 0,
-            totalPrice: 0
+            totalPrice: 0,
+            productData: null
           });
         }
       }

@@ -244,16 +244,13 @@ export default function LoginScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
+        style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
       >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <ScrollView 
             contentContainerStyle={styles.scrollContent}
-            keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
-            bounces={false}
           >
           <View style={styles.logoContainer}>
             <Image 

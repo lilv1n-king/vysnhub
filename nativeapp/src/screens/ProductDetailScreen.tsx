@@ -698,18 +698,8 @@ export default function ProductDetailScreen() {
     setIsAddingToCart(true);
     try {
       addToCart(product, quantity);
-      Alert.alert(
-        t('cart.addedToCart'), 
-        `${quantity}x ${product.vysnName} ${t('cart.addedToCartMessage')}`,
-        [
-          { text: t('common.ok'), style: 'default' },
-          { 
-            text: t('cart.viewCart'), 
-            style: 'default',
-            onPress: () => navigation.navigate('Checkout')
-          }
-        ]
-      );
+      // Direkt zum Warenkorb navigieren ohne Alert
+      navigation.navigate('Checkout');
     } catch (error) {
       console.error('Error adding to cart:', error);
       Alert.alert(t('cart.error'), t('cart.addError'));

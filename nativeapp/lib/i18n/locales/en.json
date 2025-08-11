@@ -23,7 +23,7 @@
     "language": "Language"
   },
   "home": {
-    "title": "VYSN Hub",
+    "title": "Home",
     "subtitle": "Your complete lighting solution platform",
     "currentHighlights": "Current Highlights",
     "newRelease": "New Release",
@@ -333,6 +333,21 @@
       "confirmReorder": "{{orderNumber}}. reorder for '{{projectName}}' with {{newItems}} new items?",
       "reorderTitle": "{{orderNumber}}. Reorder",
       "reorderSuccessMessage": "{{orderNumber}}. reorder sent successfully!"
+    },
+    "export": {
+      "noProducts": "This project contains no products for export.",
+      "emailRequired": "Please enter a customer email address",
+      "invalidEmail": "Please enter a valid email address",
+      "sendQuote": "Send Quote",
+      "customerEmail": "Customer Email",
+      "message": "Message (optional)",
+      "cancel": "Cancel",
+      "send": "Send",
+      "sending": "Sending...",
+      "success": "Quote Sent",
+      "successMessage": "Quote has been sent successfully!",
+      "error": "Export Error",
+      "errorMessage": "The quote could not be sent. Please try again later."
     }
   },
   "scanner": {
@@ -503,5 +518,64 @@
     "analyticsConsentDescription": "Anonymous analysis of app usage, scans and chats to improve our services and AI consultation",
     "marketingConsentTitle": "Marketing & Newsletter",
     "marketingConsentDescription": "Receive product updates, offers and helpful tips via email"
+  },
+  "settings": {
+    "title": "Settings",
+    "profile": "Profile",
+    "contactInformation": "Contact Information",
+    "address": "Address",
+    "appSettings": "App Settings",
+    "privacy": "Privacy",
+    "account": "Account",
+    "firstName": "First Name",
+    "lastName": "Last Name",
+    "phoneNumber": "Phone Number",
+    "company": "Company",
+    "streetAddress": "Street & House Number",
+    "city": "City",
+    "postalCode": "Postal Code",
+    "language": "Language",
+    "privacyPolicy": "Privacy Policy",
+    "privacyPolicyDescription": "View current privacy policy",
+    "orderHistory": "Order History",
+    "orderHistoryDescription": "View all your orders",
+    "consentStatus": "Consent Status",
+    "consentGiven": "Consent given",
+    "consentRequired": "Consent required",
+    "consentChecking": "Checking status",
+    "withdrawConsent": "Withdraw Consent",
+    "withdrawConsentDescription": "Revoke data processing consent",
+    "signOut": "Sign Out",
+    "signOutConfirmTitle": "Sign Out",
+    "signOutConfirmMessage": "Are you sure you want to sign out of your VYSN account?",
+    "cancel": "Cancel",
+    "signOutError": "Failed to sign out",
+    "notSet": "Not set",
+    "discount": "{{percentage}}% Discount",
+    "pleaseSignIn": "Please sign in to view settings"
+  },
+  "orders": {
+    "title": "Order History",
+    "loading": "Loading orders...",
+    "error": "Error",
+    "loadError": "Could not load orders",
+    "noOrders": "No Orders",
+    "noOrdersDescription": "You haven't placed any orders yet. Browse our product catalog and place your first order.",
+    "orderNumber": "Order Number",
+    "orderDetails": "Order Details",
+    "items": "items",
+    "item": "item",
+    "moreItems": "more items",
+    "total": "Total",
+    "status": {
+      "pending": "Pending",
+      "confirmed": "Confirmed",
+      "processing": "Processing",
+      "shipped": "Shipped",
+      "delivered": "Delivered",
+      "cancelled": "Cancelled",
+      "refunded": "Refunded"
+    },
+    "order": "Order"
   }
 }

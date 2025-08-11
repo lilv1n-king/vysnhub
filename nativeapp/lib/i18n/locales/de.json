@@ -23,7 +23,7 @@
     "language": "Sprache"
   },
   "home": {
-    "title": "VYSN Hub",
+    "title": "Home",
     "subtitle": "Ihre komplette Beleuchtungslösungs-Plattform",
     "currentHighlights": "Aktuelles",
     "newRelease": "Neu erschienen",
@@ -333,6 +333,21 @@
       "confirmReorder": "{{orderNumber}}. Nachbestellung für '{{projectName}}' mit {{newItems}} neuen Artikeln?",
       "reorderTitle": "{{orderNumber}}. Nachbestellung",
       "reorderSuccessMessage": "{{orderNumber}}. Nachbestellung erfolgreich versendet!"
+    },
+    "export": {
+      "noProducts": "Dieses Projekt enthält keine Produkte für den Export.",
+      "emailRequired": "Bitte geben Sie eine Kunden-E-Mail-Adresse ein",
+      "invalidEmail": "Bitte geben Sie eine gültige E-Mail-Adresse ein",
+      "sendQuote": "Angebot senden",
+      "customerEmail": "Kunden-E-Mail",
+      "message": "Nachricht (optional)",
+      "cancel": "Abbrechen",
+      "send": "Senden",
+      "sending": "Sende...",
+      "success": "Angebot versendet!",
+      "successMessage": "Das Angebot wurde erfolgreich versendet!",
+      "error": "Export-Fehler",
+      "errorMessage": "Das Angebot konnte nicht versendet werden. Bitte versuchen Sie es später erneut."
     }
   },
   "scanner": {
@@ -505,5 +520,65 @@
     "analyticsConsentDescription": "Anonyme Analyse von App-Nutzung, Scans und Chats zur Verbesserung unserer Dienste und KI-Beratung",
     "marketingConsentTitle": "Marketing & Newsletter",
     "marketingConsentDescription": "Produktneuheiten, Angebote und hilfreiche Tipps per E-Mail erhalten"
+  },
+  "settings": {
+    "title": "Einstellungen",
+    "profile": "Profil",
+    "contactInformation": "Kontaktinformationen",
+    "address": "Adresse",
+    "appSettings": "App-Einstellungen",
+    "privacy": "Datenschutz",
+    "account": "Konto",
+    "firstName": "Vorname",
+    "lastName": "Nachname",
+    "phoneNumber": "Telefonnummer",
+    "company": "Unternehmen",
+    "streetAddress": "Straße & Hausnummer",
+    "city": "Stadt",
+    "postalCode": "Postleitzahl",
+    "language": "Sprache",
+    "privacyPolicy": "Datenschutzerklärung",
+    "privacyPolicyDescription": "Aktuelle Datenschutzerklärung anzeigen",
+    "orderHistory": "Bestellverlauf",
+    "orderHistoryDescription": "Alle Ihre Bestellungen anzeigen",
+    "consentStatus": "Einverständnis Status",
+    "consentGiven": "Einverständnis erteilt",
+    "consentRequired": "Einverständnis erforderlich",
+    "consentChecking": "Status wird geprüft",
+    "withdrawConsent": "Einverständnis widerrufen",
+    "withdrawConsentDescription": "Datenverarbeitung widerrufen",
+    "signOut": "Abmelden",
+    "signOutConfirmTitle": "Abmelden",
+    "signOutConfirmMessage": "Sind Sie sicher, dass Sie sich von Ihrem VYSN-Konto abmelden möchten?",
+    "cancel": "Abbrechen",
+    "signOutError": "Abmeldung fehlgeschlagen",
+    "notSet": "Nicht gesetzt",
+    "discount": "{{percentage}}% Rabatt",
+    "pleaseSignIn": "Bitte melden Sie sich an, um die Einstellungen zu sehen"
+  },
+  "orders": {
+    "title": "Bestellverlauf",
+    "loading": "Bestellungen werden geladen...",
+    "error": "Fehler",
+    "loadError": "Bestellungen konnten nicht geladen werden",
+    "authError": "Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.",
+    "noOrders": "Keine Bestellungen",
+    "noOrdersDescription": "Sie haben noch keine Bestellungen aufgegeben. Stöbern Sie in unserem Produktkatalog und legen Sie Ihre erste Bestellung an.",
+    "orderNumber": "Bestellnummer",
+    "orderDetails": "Bestelldetails",
+    "items": "Artikel",
+    "item": "Artikel",
+    "moreItems": "weitere Artikel",
+    "total": "Gesamt",
+    "status": {
+      "pending": "Ausstehend",
+      "confirmed": "Bestätigt",
+      "processing": "In Bearbeitung",
+      "shipped": "Versandt",
+      "delivered": "Zugestellt",
+      "cancelled": "Storniert",
+      "refunded": "Erstattet"
+    },
+    "order": "Bestellung"
   }
 }

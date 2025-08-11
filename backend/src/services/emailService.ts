@@ -29,6 +29,26 @@ interface OrderEmailData {
   orderId?: string;
 }
 
+interface QuoteEmailData {
+  customerName: string;
+  customerEmail: string;
+  customerCompany?: string;
+  message?: string;
+  project: Project;
+  products: Array<{
+    itemNumber: string;
+    name: string;
+    quantity: number;
+    unitPrice: number;
+    totalPrice: number;
+    productId?: number;
+  }>;
+  quoteTotal: number;
+  senderName: string;
+  senderEmail: string;
+  senderCompany?: string;
+}
+
 export class EmailService {
   private transporter: nodemailer.Transporter;
   private recipientEmail: string;
@@ -100,6 +120,165 @@ export class EmailService {
       console.error('❌ Failed to send order email:', error);
       return false;
     }
+  }
+
+  /**
+   * Sendet ein Angebot per E-Mail an einen Kunden
+   */
+  async sendQuoteEmail(quoteData: QuoteEmailData): Promise<boolean> {
+    try {
+      console.log(`📧 Sending quote email to: ${quoteData.customerEmail}`);
+
+      const htmlContent = this.generateQuoteEmailHTML(quoteData);
+      const textContent = this.generateQuoteEmailText(quoteData);
+
+      const mailOptions = {
+        from: {
+          name: `${quoteData.senderName} (via VYSN Hub)`,
+          address: process.env.SMTP_USER || 'mail@mupmails.de'
+        },
+        to: quoteData.customerEmail,
+        subject: `💡 Ihr Angebot für ${quoteData.project.project_name}`,
+        text: textContent,
+        html: htmlContent,
+        replyTo: {
+          name: quoteData.senderName,
+          address: quoteData.senderEmail
+        },
+        // DSGVO-konforme Header
+        headers: {
+          'X-Privacy-Policy': 'DSGVO-konform - Daten werden nur zur Angebotsübermittlung verwendet',
+          'X-Data-Retention': 'Nach Ihrer Anfrage',
+          'X-Data-Purpose': 'Angebotsübermittlung'
+        }
+      };
+
+      const result = await this.transporter.sendMail(mailOptions);
+      console.log('✅ Quote email sent successfully:', result.messageId);
+      return true;
+
+    } catch (error) {
+      console.error('❌ Failed to send quote email:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Generiert HTML-Inhalt für das Angebot
+   */
+  private generateQuoteEmailHTML(quoteData: QuoteEmailData): string {
+    const { customerName, customerCompany, message, project, products, quoteTotal, senderName, senderEmail, senderCompany } = quoteData;
+
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Angebot ${project.project_name}</title>
+<style>
+body{font-family:Arial,sans-serif;margin:0;padding:15px;background:#fff;color:#000}
+.c{max-width:700px;margin:0 auto;background:#fff;border:2px solid #000;border-radius:10px;overflow:hidden}
+.h{background:#000;color:#fff;padding:20px;text-align:center}
+.h h1{margin:0;font-size:24px;font-weight:bold}
+.content{padding:20px}
+.greeting{font-size:16px;margin-bottom:15px;font-weight:bold}
+.project{border:1px solid #000;border-radius:6px;padding:15px;margin-bottom:15px}
+.pt{font-size:16px;font-weight:bold;margin-bottom:8px}
+.table{width:100%;border-collapse:collapse;border:2px solid #000;border-radius:6px;overflow:hidden;margin:15px 0}
+.table th,.table td{padding:10px;border:1px solid #000}
+.table th{background:#000;color:#fff;font-weight:bold}
+.qty{text-align:center}
+.price{text-align:right;font-weight:bold}
+.img{width:80px;height:80px;border:1px solid #ccc;border-radius:4px;object-fit:contain;margin-right:12px;display:block}
+.pn{font-weight:bold;margin-bottom:2px}
+.ps{font-size:11px;color:#666;font-family:monospace}
+.total{border:2px solid #000;border-radius:6px;padding:15px;text-align:center;margin:15px 0}
+.ta{font-size:24px;font-weight:bold}
+.msg{border:1px solid #000;border-radius:6px;padding:12px;margin:15px 0}
+.info{text-align:center;margin:15px 0;padding:15px;background:#f5f5f5;border-radius:6px}
+.f{border-top:2px solid #000;padding:15px;text-align:center;font-size:14px}
+</style>
+</head>
+<body>
+<div class="c">
+<div class="h">
+<h1>Ihr Angebot</h1>
+<div>Professionelle Beleuchtungslösungen</div>
+</div>
+<div class="content">
+<div class="greeting">${customerCompany ? `${customerName}<br>${customerCompany}` : `Hallo ${customerName}`}</div>
+${message ? `<div class="msg">${message.replace(/\n/g, '<br>')}</div>` : ''}
+<div class="project">
+<div class="pt">${project.project_name}</div>
+${project.project_location ? `<div><b>Standort:</b> ${project.project_location}</div>` : ''}
+<div><b>Datum:</b> ${new Date().toLocaleDateString('de-DE')}</div>
+</div>
+<table class="table">
+<tr><th>Produkt</th><th class="qty">Menge</th><th class="price">Einzelpreis</th><th class="price">Gesamtpreis</th></tr>
+${this.generateCompactProductRows(products)}
+</table>
+<div class="total">
+<div><b>GESAMTPREIS</b></div>
+<div class="ta">${this.formatPrice(quoteTotal)}</div>
+<div style="font-size:11px">Alle Preise zzgl. MwSt.</div>
+</div>
+<div class="info">
+<b>Für Fragen antworten Sie einfach auf diese E-Mail</b>
+</div>
+</div>
+<div class="f">
+<div><b>${senderName}</b></div>
+${senderCompany ? `<div>${senderCompany}</div>` : ''}
+<div>${senderEmail}</div>
+<div style="font-size:11px;margin-top:10px">DSGVO-konform | VYSN Hub</div>
+</div>
+</div>
+</body>
+</html>`;
+  }
+
+  /**
+   * Generiert Text-Inhalt für das Angebot (Fallback)
+   */
+  private generateQuoteEmailText(quoteData: QuoteEmailData): string {
+    const { customerName, customerCompany, message, project, products, quoteTotal, senderName, senderEmail } = quoteData;
+
+    return `
+💡 IHR ANGEBOT - VYSN HUB
+${'='.repeat(50)}
+
+${customerCompany ? `${customerName}\n${customerCompany}` : `Hallo ${customerName}`}
+
+${message ? `NACHRICHT:
+${message}
+
+` : ''}📋 PROJEKTINFORMATIONEN:
+Projektname: ${project.project_name}
+${project.project_description ? `Beschreibung: ${project.project_description}` : ''}
+${project.project_location ? `Standort: ${project.project_location}` : ''}
+Angebotsdatum: ${new Date().toLocaleDateString('de-DE')}
+
+📦 ANGEBOTENE PRODUKTE:
+${'-'.repeat(60)}
+${products.map(product => 
+  `${product.itemNumber} | ${product.name}
+  Menge: ${product.quantity}x | Einzelpreis: ${this.formatPrice(product.unitPrice)} | Total: ${this.formatPrice(product.totalPrice)}`
+).join('\n\n')}
+
+${'-'.repeat(60)}
+GESAMTPREIS: ${this.formatPrice(quoteTotal)}
+(Alle Preise zzgl. MwSt.)
+
+📧 KONTAKT:
+${senderName}
+${senderEmail}
+
+Für Fragen oder Bestellungen antworten Sie einfach auf diese E-Mail.
+
+${'-'.repeat(50)}
+🔒 DSGVO-konform | www.vysn.de
+VYSN Hub - Professionelle Beleuchtungslösungen
+    `;
   }
 
   /**
@@ -335,6 +514,59 @@ VYSN Hub - Professionelle Beleuchtungslösungen
       style: 'currency',
       currency: 'EUR'
     }).format(price);
+  }
+
+  private generateCompactProductRows(products: any[]): string {
+    return products.map(product => {
+      let imageUrl = '';
+      if (product.productData && product.productData.product_picture_1) {
+        imageUrl = product.productData.product_picture_1;
+      }
+      
+      return `<tr>
+<td style="padding:15px;">
+  <div style="display:flex;align-items:center;">
+    ${imageUrl ? `<img src="${imageUrl}" alt="${product.name}" class="img" style="flex-shrink:0;" />` : ''}
+    <div>
+      <div class="pn">${product.name}</div>
+      <div class="ps">${product.itemNumber}</div>
+    </div>
+  </div>
+</td>
+<td class="qty">${product.quantity}x</td>
+<td class="price">${this.formatPrice(product.unitPrice)}</td>
+<td class="price">${this.formatPrice(product.totalPrice)}</td>
+</tr>`;
+    }).join('');
+  }
+
+  private generateProductRows(products: any[]): string {
+    return products.map(product => {
+      // Check if product has image data (from ProductService)
+      let imageUrl = '';
+      
+      // Try to get image from productData if available
+      if (product.productData && product.productData.product_picture_1) {
+        imageUrl = product.productData.product_picture_1;
+      }
+      
+      return `
+      <tr class="product-row">
+          <td>
+              ${imageUrl ? `
+              <img src="${imageUrl}" alt="${product.name}" class="product-img" />
+              ` : ''}
+              <div style="${imageUrl ? 'margin-left: 60px;' : ''}">
+                  <div class="product-name">${product.name}</div>
+                  <div class="product-sku">${product.itemNumber}</div>
+              </div>
+          </td>
+          <td class="quantity">${product.quantity}x</td>
+          <td class="price">${this.formatPrice(product.unitPrice)}</td>
+          <td class="price">${this.formatPrice(product.totalPrice)}</td>
+      </tr>
+      `;
+    }).join('');
   }
 
   /**

@@ -43,6 +43,12 @@ export interface CreateUserData {
   last_name: string;
   company_name?: string;
   phone?: string;
+  address_line_1?: string;
+  address_line_2?: string;
+  city?: string;
+  postal_code?: string;
+  country?: string;
+  vat_number?: string;
 }
 
 export interface LoginCredentials {

@@ -57,6 +57,21 @@ router.post('/order', emailController.sendOrderEmail);
 router.post('/cart-order', emailController.sendCartOrderEmail);
 
 /**
+ * POST /api/email/quote
+ * Sendet ein Angebot per E-Mail an einen Kunden
+ * 
+ * Body:
+ * {
+ *   "projectId": "abc-123",
+ *   "customerEmail": "kunde@example.com",
+ *   "customerName": "Max Mustermann", // optional
+ *   "customerCompany": "Mustermann GmbH", // optional
+ *   "message": "Ihr gewünschtes Angebot..." // optional
+ * }
+ */
+router.post('/quote', emailController.sendQuoteEmail);
+
+/**
  * POST /api/email/test
  * Sendet eine Test-E-Mail (nur für Development/Testing)
  */

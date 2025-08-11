@@ -1,3 +1,5 @@
+import { API_BASE_URL } from '../config/api';
+
 // Filter-Interfaces (passend zur Backend-API)
 export interface ProductFilters {
   searchQuery?: string;
@@ -58,8 +60,8 @@ class FilterService {
   private baseURL: string;
 
   constructor() {
-    // Use environment variable or fallback to localhost for development
-    this.baseURL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000';
+    // Use the same API base URL as the rest of the app
+    this.baseURL = API_BASE_URL;
   }
 
   /**
@@ -104,7 +106,7 @@ class FilterService {
       }
 
       const result = await response.json();
-      return result;
+      return result.data;
     } catch (error) {
       console.error('Fehler beim Laden der Filter-Optionen:', error);
       throw error;

@@ -4,7 +4,7 @@ import { useRoute, useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RouteProp } from '@react-navigation/native';
 import type { ProjectsStackParamList } from '../navigation/ProjectsStackNavigator';
-import { ArrowLeft, Calendar, Package, Edit, Trash2, Save, X, MapPin, DollarSign, Target, Tag, Eye, EyeOff, Plus, Minus, AlertTriangle, ShoppingCart, Check } from 'lucide-react-native';
+import { ArrowLeft, Calendar, Package, Edit, Trash2, Save, X, MapPin, DollarSign, Target, Tag, Eye, EyeOff, Plus, Minus, AlertTriangle, ShoppingCart, Check, Mail } from 'lucide-react-native';
 import { Card, CardContent } from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Header from '../components/Header';
@@ -1073,6 +1073,69 @@ const styles = StyleSheet.create({
     color: '#374151',
     textAlign: 'center',
   },
+  
+  // Export Form styles
+  exportSection: {
+    marginTop: 16,
+  },
+  exportToggleButton: {
+    backgroundColor: '#ffffff',
+    borderWidth: 2,
+    borderColor: '#000000',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  exportToggleText: {
+    color: '#000000',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  exportForm: {
+    marginTop: 12,
+    padding: 16,
+    backgroundColor: '#f9fafb',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#000000',
+  },
+  emailInput: {
+    borderWidth: 1,
+    borderColor: '#000000',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 16,
+    backgroundColor: '#ffffff',
+    marginBottom: 12,
+  },
+  messageInput: {
+    borderWidth: 1,
+    borderColor: '#000000',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 16,
+    backgroundColor: '#ffffff',
+    marginBottom: 12,
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+  sendButton: {
+    backgroundColor: '#000000',
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  sendButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
 });
 
 type ProjectDetailScreenNavigationProp = StackNavigationProp<ProjectsStackParamList, 'ProjectDetail'>;
@@ -1127,6 +1190,12 @@ export default function ProjectDetailScreen() {
   const [isOrdering, setIsOrdering] = useState(false);
   const [isProjectOrdered, setIsProjectOrdered] = useState(false);
   const [orderStatus, setOrderStatus] = useState<ProjectOrderStatus | null>(null);
+  
+  // Export/Quote state
+  const [showExportForm, setShowExportForm] = useState(false);
+  const [customerEmail, setCustomerEmail] = useState('');
+  const [customerMessage, setCustomerMessage] = useState('');
+  const [isExporting, setIsExporting] = useState(false);
 
   // Safety check
   if (!auth) {
@@ -1657,6 +1726,77 @@ export default function ProjectDetailScreen() {
         }
       ]
     );
+  };
+
+  const handleExport = () => {
+    if (!project || projectProducts.length === 0) {
+      Alert.alert(
+        t('common.error'),
+        t('projects.export.noProducts'),
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+    
+    setShowExportForm(true);
+  };
+
+  const handleSendQuote = async () => {
+    if (!customerEmail.trim()) {
+      Alert.alert(
+        t('common.error'),
+        t('projects.export.emailRequired'),
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+    
+    // E-Mail-Format validieren
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(customerEmail.trim())) {
+      Alert.alert(
+        t('common.error'),
+        t('projects.export.invalidEmail'),
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+    
+    setIsExporting(true);
+    
+    try {
+      const response = await apiService.post('/api/email/quote', {
+        projectId: project?.id,
+        customerEmail: customerEmail.trim(),
+        message: customerMessage.trim() || undefined
+      });
+      
+      if (response.success) {
+        Alert.alert(
+          t('projects.export.success'),
+          t('projects.export.successMessage'),
+          [{ 
+            text: 'OK', 
+            onPress: () => {
+              setShowExportForm(false);
+              setCustomerEmail('');
+              setCustomerMessage('');
+            }
+          }]
+        );
+      } else {
+        throw new Error(response.error || t('projects.export.errorMessage'));
+      }
+    } catch (error: any) {
+      console.error('Export error:', error);
+      Alert.alert(
+        t('projects.export.error'),
+        t('projects.export.errorMessage'),
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const handleOrder = () => {
@@ -2287,7 +2427,7 @@ export default function ProjectDetailScreen() {
                   )}
                 </View>
 
-                {/* Large Order Button */}
+                {/* Order Button */}
                 {(() => {
                   // Nur neue/unbestellte Produkte können bestellt werden
                   const newProducts = projectProducts.filter(item => {
@@ -2301,7 +2441,7 @@ export default function ProjectDetailScreen() {
                   return (
                 <TouchableOpacity 
                   style={[
-                    styles.largeOrderButton, 
+                    styles.largeOrderButton,
                     isDisabled && { opacity: 0.6, backgroundColor: '#9ca3af' }
                   ]} 
                   onPress={handleOrder}
@@ -2345,6 +2485,63 @@ export default function ProjectDetailScreen() {
                 </TouchableOpacity>
                   );
                 })()}
+                
+                {/* Export Form */}
+                <View style={styles.exportSection}>
+                  <TouchableOpacity 
+                    style={styles.exportToggleButton}
+                    onPress={() => {
+                      if (showExportForm) {
+                        setShowExportForm(false);
+                        setCustomerEmail('');
+                        setCustomerMessage('');
+                      } else {
+                        handleExport();
+                      }
+                    }}
+                  >
+                    <Mail size={18} color="#000000" />
+                    <Text style={styles.exportToggleText}>
+                      {showExportForm ? t('projects.export.cancel') : t('projects.export.sendQuote')}
+                    </Text>
+                  </TouchableOpacity>
+                  
+                  {showExportForm && (
+                    <View style={styles.exportForm}>
+                      <TextInput
+                        style={styles.emailInput}
+                        value={customerEmail}
+                        onChangeText={setCustomerEmail}
+                        placeholder={t('projects.export.customerEmail')}
+                        keyboardType="email-address"
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                      />
+                      <TextInput
+                        style={styles.messageInput}
+                        value={customerMessage}
+                        onChangeText={setCustomerMessage}
+                        placeholder={t('projects.export.message')}
+                        multiline={true}
+                        numberOfLines={3}
+                        autoCapitalize="sentences"
+                        autoCorrect={true}
+                      />
+                      <TouchableOpacity 
+                        style={[
+                          styles.sendButton,
+                          (!customerEmail.trim() || isExporting) && { opacity: 0.5 }
+                        ]}
+                        onPress={handleSendQuote}
+                        disabled={!customerEmail.trim() || isExporting}
+                      >
+                        <Text style={styles.sendButtonText}>
+                          {isExporting ? t('projects.export.sending') : t('projects.export.send')}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
                 </>
               ) : (
                 <View style={styles.card}>
@@ -2652,6 +2849,7 @@ export default function ProjectDetailScreen() {
           onChange={handleTargetDateChange}
         />
       )}
+      
     </View>
   );
 }

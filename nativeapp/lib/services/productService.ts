@@ -22,7 +22,7 @@ export class ProductService {
       
       return null;
     } catch (error) {
-      console.error('Error getting product by barcode:', error);
+      // Silent error
       return null;
     }
   }

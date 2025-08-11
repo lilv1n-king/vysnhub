@@ -271,31 +271,57 @@ export function AuthProvider({ children }: AuthProviderProps) {
         const storedToken = await apiService.getStoredToken();
         
         if (storedToken) {
-          // Set token first so it's included in the validation request
-          apiService.setAuthToken(storedToken);
+          console.log('🔑 Found stored token, attempting to restore session...');
           
-          // Validate token with backend
-          try {
-            console.log('🔐 Validating stored token...');
-            const response = await apiService.get(API_ENDPOINTS.AUTH_VALIDATE);
-            
-            if (response.success && response.data?.user) {
-              setAccessToken(storedToken);
-              apiService.setAuthToken(storedToken);
-              
-              const profile = await loadProfile();
-              setUser({
-                id: response.data.user.id,
-                email: response.data.user.email,
-                profile: profile || undefined
-              });
-            } else {
-              // Token invalid, clear it
-              await apiService.clearStoredToken();
-            }
-          } catch (error) {
-            console.warn('Token validation failed:', error);
+          // First check if we have a refresh token - if not, try direct validation
+          const refreshToken = await apiService.getStoredRefreshToken();
+          
+          if (!refreshToken) {
+            console.log('❌ No refresh token found, clearing session');
             await apiService.clearStoredToken();
+            return;
+          }
+          
+          // Try refresh token first (safer approach)
+          try {
+            console.log('🔄 Using refresh token to get new access token...');
+            const refreshSuccess = await apiService.refreshAccessToken();
+            
+            if (refreshSuccess) {
+              // Get the new token after refresh
+              const newToken = await apiService.getStoredToken();
+              if (newToken) {
+                setAccessToken(newToken);
+                
+                // Validate the new token
+                const response = await apiService.get(API_ENDPOINTS.AUTH_VALIDATE);
+                
+                if (response.success && response.data?.user) {
+                  const profile = await loadProfile();
+                  setUser({
+                    id: response.data.user.id,
+                    email: response.data.user.email,
+                    profile: profile || undefined
+                  });
+                  
+                  console.log('✅ Session restored with refresh token');
+                  return; // Success
+                }
+              }
+            }
+            
+            console.log('❌ Refresh token failed or invalid - clearing session');
+            await apiService.clearStoredToken();
+            setUser(null);
+            setAccessToken(null);
+            
+          } catch (refreshError) {
+            console.warn('❌ Refresh token error:', refreshError);
+            
+            // Clear everything on refresh error
+            await apiService.clearStoredToken();
+            setUser(null);
+            setAccessToken(null);
           }
         }
       } catch (error) {

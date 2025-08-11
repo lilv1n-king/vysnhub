@@ -207,6 +207,11 @@ export default function ProductFilterBar({
   const [filters, setFilters] = useState<ProductFilters>(currentFilters);
   const [activeFiltersCount, setActiveFiltersCount] = useState(0);
 
+  // Early return if filterOptions not loaded yet
+  if (!filterOptions || !filterOptions.categories) {
+    return null;
+  }
+
   useEffect(() => {
     setFilters(currentFilters);
   }, [currentFilters]);

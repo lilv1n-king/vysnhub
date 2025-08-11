@@ -78,6 +78,7 @@ export interface VysnProduct {
   id: number;
   vysnName: string;
   itemNumberVysn: string;
+  item_number_vysn?: string; // Fallback for backend snake_case format
   shortDescription: string;
   longDescription: string;
   weightKg?: number;

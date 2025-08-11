@@ -86,7 +86,13 @@ export class AuthService {
           first_name: userData.first_name,
           last_name: userData.last_name,
           company_name: userData.company_name,
-          phone: userData.phone
+          phone: userData.phone,
+          address_line_1: userData.address_line_1,
+          address_line_2: userData.address_line_2,
+          city: userData.city,
+          postal_code: userData.postal_code,
+          country: userData.country,
+          vat_number: userData.vat_number
         },
         email_confirm: true // Auto-confirm für API
       });
@@ -102,6 +108,12 @@ export class AuthService {
         last_name: userData.last_name,
         company_name: userData.company_name,
         phone: userData.phone,
+        address_line_1: userData.address_line_1,
+        address_line_2: userData.address_line_2,
+        city: userData.city,
+        postal_code: userData.postal_code,
+        country: userData.country,
+        vat_number: userData.vat_number,
         customer_type: 'standard',
         discount_percentage: 0,
         account_status: 'active',

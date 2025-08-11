@@ -24,11 +24,6 @@ export default function AuthNavigator() {
       <AuthStack.Screen 
         name="Registration" 
         component={RegistrationScreen}
-        options={{ 
-          headerShown: true,
-          title: 'Registrierung',
-          headerBackTitleVisible: false,
-        }}
       />
       <AuthStack.Screen 
         name="EmailVerification" 
