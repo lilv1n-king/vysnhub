@@ -15,7 +15,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.vysnlighting.app",
-      "buildNumber": "3",
+      "buildNumber": "4",
       "infoPlist": {
         "NSCameraUsageDescription": "Allow VYSN to access your camera to scan QR codes and barcodes.",
         "NSLocationWhenInUseUsageDescription": "Allow VYSN to access your location for project-related features.",
@@ -30,7 +30,7 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "com.vysn.hub",
-      "versionCode": 3,
+      "versionCode": 4,
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
@@ -50,7 +50,7 @@
     "extra": {
       "supabaseUrl": "PLACEHOLDER_SUPABASE_URL",
       "supabaseAnonKey": "PLACEHOLDER_SUPABASE_ANON_KEY",
-      "apiBaseUrl": "http://192.168.2.188:3001",
+      "apiBaseUrl": "https://api.vysnlighting.com",
       "eas": {
         "projectId": "07d03833-4323-48c1-b1f3-6e99acb85f4d"
       }

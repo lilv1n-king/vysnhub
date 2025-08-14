@@ -211,7 +211,9 @@ export class AdminController {
         pending_users: statusCounts?.filter(u => u.account_status === 'pending').length || 0,
         approved_users: statusCounts?.filter(u => u.account_status === 'active').length || 0,
         rejected_users: statusCounts?.filter(u => u.account_status === 'inactive').length || 0,
-        suspended_users: statusCounts?.filter(u => u.account_status === 'suspended').length || 0
+        suspended_users: statusCounts?.filter(u => u.account_status === 'suspended').length || 0,
+        total_reg_codes: 0,
+        active_reg_codes: 0
       };
 
       // Get registration codes stats

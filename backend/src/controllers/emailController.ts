@@ -157,7 +157,7 @@ export class EmailController {
         }
       } catch (confirmError) {
         console.error('⚠️ Failed to send confirmation email to customer:', confirmError);
-        console.error('🔍 Confirmation error stack:', confirmError.stack);
+        console.error('🔍 Confirmation error stack:', confirmError instanceof Error ? confirmError.stack : String(confirmError));
         // Bestellung trotzdem als erfolgreich behandeln
       }
 
@@ -640,7 +640,7 @@ export class EmailController {
         }
       } catch (confirmError) {
         console.error('⚠️ Failed to send cart order confirmation email to customer:', confirmError);
-        console.error('🔍 Cart confirmation error stack:', confirmError.stack);
+        console.error('🔍 Cart confirmation error stack:', confirmError instanceof Error ? confirmError.stack : String(confirmError));
         // Bestellung trotzdem als erfolgreich behandeln
       }
 

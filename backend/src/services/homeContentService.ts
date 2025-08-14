@@ -458,7 +458,7 @@ export class HomeContentService {
       const errors = results.filter(result => result.error);
       if (errors.length > 0) {
         console.error('Error reordering highlights:', errors[0].error);
-        throw new Error(`Failed to reorder highlights: ${errors[0].error.message}`);
+        throw new Error(`Failed to reorder highlights: ${errors[0].error?.message || 'Unknown error'}`);
       }
 
     } catch (error) {

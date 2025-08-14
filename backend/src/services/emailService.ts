@@ -216,7 +216,7 @@ export class EmailService {
 
     } catch (error) {
       console.error('❌ Failed to send order confirmation email:', error);
-      console.error('🔍 Email error details:', error.message);
+      console.error('🔍 Email error details:', error instanceof Error ? error.message : String(error));
       return false;
     }
   }
@@ -262,7 +262,7 @@ export class EmailService {
         console.log('✅ PDF generated successfully, size:', pdfBuffer?.length || 0, 'bytes');
       } catch (pdfError) {
         console.error('⚠️ PDF generation failed, sending email without attachment:', pdfError);
-        console.error('🔍 PDF Error stack:', pdfError.stack);
+        console.error('🔍 PDF Error stack:', pdfError instanceof Error ? pdfError.stack : String(pdfError));
         // Weiter ohne PDF - E-Mail soll trotzdem gesendet werden
       }
 
