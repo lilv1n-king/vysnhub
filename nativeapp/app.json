@@ -50,7 +50,7 @@
     "extra": {
       "supabaseUrl": "PLACEHOLDER_SUPABASE_URL",
       "supabaseAnonKey": "PLACEHOLDER_SUPABASE_ANON_KEY",
-      "apiBaseUrl": "https://api.vysnlighting.com",
+      "apiBaseUrl": "http://192.168.2.188:3001",
       "eas": {
         "projectId": "07d03833-4323-48c1-b1f3-6e99acb85f4d"
       }

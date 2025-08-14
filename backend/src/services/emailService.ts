@@ -180,6 +180,13 @@ export class EmailService {
   async sendOrderConfirmationEmail(orderData: OrderEmailData): Promise<boolean> {
     try {
       console.log(`📧 Sending order confirmation to customer: ${orderData.customerEmail}`);
+      console.log(`🔍 Confirmation email data:`, {
+        hasCustomerEmail: !!orderData.customerEmail,
+        hasOrderNumber: !!orderData.orderNumber,
+        hasProject: !!orderData.project,
+        projectName: orderData.project?.project_name,
+        language: orderData.language || 'de'
+      });
 
       const htmlContent = this.generateOrderConfirmationHTML(orderData);
       const textContent = this.generateOrderConfirmationText(orderData);
@@ -201,12 +208,15 @@ export class EmailService {
         }
       };
 
+      console.log(`📤 Sending confirmation email with subject: ${mailOptions.subject}`);
       const result = await this.transporter.sendMail(mailOptions);
       console.log('✅ Order confirmation email sent successfully:', result.messageId);
+      console.log(`📬 Email sent to: ${orderData.customerEmail}`);
       return true;
 
     } catch (error) {
       console.error('❌ Failed to send order confirmation email:', error);
+      console.error('🔍 Email error details:', error.message);
       return false;
     }
   }
@@ -222,6 +232,13 @@ export class EmailService {
 
       // PDF generieren
       console.log('📄 Generating PDF attachment...');
+      console.log('🔍 PDF Data check:', {
+        hasProject: !!quoteData.project,
+        hasProducts: !!quoteData.products && quoteData.products.length > 0,
+        productCount: quoteData.products?.length || 0,
+        customerName: quoteData.customerName,
+        senderName: quoteData.senderName
+      });
       try {
         pdfBuffer = await pdfService.generateQuotePDF({
           customerName: quoteData.customerName,
@@ -242,9 +259,10 @@ export class EmailService {
           senderCompany: quoteData.senderCompany,
           taxRate: 19
         });
-        console.log('✅ PDF generated successfully');
+        console.log('✅ PDF generated successfully, size:', pdfBuffer?.length || 0, 'bytes');
       } catch (pdfError) {
         console.error('⚠️ PDF generation failed, sending email without attachment:', pdfError);
+        console.error('🔍 PDF Error stack:', pdfError.stack);
         // Weiter ohne PDF - E-Mail soll trotzdem gesendet werden
       }
 
@@ -274,12 +292,15 @@ export class EmailService {
 
       // PDF als Anhang hinzufügen, wenn erfolgreich generiert
       if (pdfBuffer) {
+        const filename = `Angebot_${quoteData.project.project_name.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
         mailOptions.attachments = [{
-          filename: `Angebot_${quoteData.project.project_name.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`,
+          filename: filename,
           content: pdfBuffer,
           contentType: 'application/pdf'
         }];
-        console.log('📎 PDF attachment added to email');
+        console.log('📎 PDF attachment added to email:', filename, 'Size:', pdfBuffer.length, 'bytes');
+      } else {
+        console.log('⚠️ No PDF buffer available - sending email without attachment');
       }
 
       const result = await this.transporter.sendMail(mailOptions);

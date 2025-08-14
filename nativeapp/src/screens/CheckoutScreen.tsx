@@ -8,6 +8,7 @@ import { Card, CardContent } from '../components/ui/Card';
 import { useCart } from '../../lib/contexts/CartContext';
 import { useAuth } from '../../lib/contexts/AuthContext';
 import { apiService } from '../../lib/services/apiService';
+import i18n from '../../lib/i18n/i18n';
 
 const styles = StyleSheet.create({
   container: {
@@ -316,7 +317,8 @@ export default function CheckoutScreen() {
           total: total
         },
         orderNotes: `Bestellung über VYSN Hub App - Warenkorb\nAnzahl Artikel: ${items.length}${userDiscount > 0 ? `\nKundenrabatt: ${userDiscount}%` : ''}`,
-        totalAmount: total
+        totalAmount: total,
+        language: i18n.language || 'de' // Aktuelle App-Sprache für E-Mail-Templates
       };
 
       console.log('📧 Sending cart order email...');

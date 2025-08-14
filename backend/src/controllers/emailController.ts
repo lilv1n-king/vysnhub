@@ -134,16 +134,30 @@ export class EmailController {
       // 4. Bestätigungsmail an Kunden senden
       let confirmationSent = false;
       try {
+        console.log(`🔄 Attempting to send order confirmation to customer: ${customerInfo.email}`);
+        console.log(`📋 Order data for confirmation:`, {
+          orderNumber: order.order_number,
+          orderId: order.id,
+          projectName: project.project_name,
+          productCount: products.length,
+          orderTotal,
+          language: req.body.language || 'de'
+        });
+        
         confirmationSent = await emailService.sendOrderConfirmationEmail({
           ...orderEmailData,
           customerEmail: customerInfo.email, // Sicherstellen dass an Kunden-Email gesendet wird
           language: req.body.language || 'de' // Sprache aus Request übernehmen
         });
+        
         if (confirmationSent) {
-          console.log(`✅ Order confirmation email sent to customer: ${customerInfo.email}`);
+          console.log(`✅ Order confirmation email sent successfully to customer: ${customerInfo.email}`);
+        } else {
+          console.log(`❌ Order confirmation email failed (returned false): ${customerInfo.email}`);
         }
       } catch (confirmError) {
         console.error('⚠️ Failed to send confirmation email to customer:', confirmError);
+        console.error('🔍 Confirmation error stack:', confirmError.stack);
         // Bestellung trotzdem als erfolgreich behandeln
       }
 
@@ -597,17 +611,48 @@ export class EmailController {
         orderId: order.id
       };
 
-      // 3. E-Mail senden
+      // 3. E-Mail senden (an VYSN)
       const emailSent = await emailService.sendOrderEmail(orderEmailData);
+
+      // 4. Bestätigungsmail an Kunden senden
+      let confirmationSent = false;
+      try {
+        console.log(`🔄 Attempting to send cart order confirmation to customer: ${customerInfo.email}`);
+        console.log(`📋 Cart order data for confirmation:`, {
+          orderNumber: order.order_number,
+          orderId: order.id,
+          projectName: orderEmailData.project.project_name,
+          productCount: cartItems.length,
+          orderTotal,
+          language: req.body.language || 'de'
+        });
+        
+        confirmationSent = await emailService.sendOrderConfirmationEmail({
+          ...orderEmailData,
+          customerEmail: customerInfo.email, // Sicherstellen dass an Kunden-Email gesendet wird
+          language: req.body.language || 'de' // Sprache aus Request übernehmen
+        });
+        
+        if (confirmationSent) {
+          console.log(`✅ Cart order confirmation email sent successfully to customer: ${customerInfo.email}`);
+        } else {
+          console.log(`❌ Cart order confirmation email failed (returned false): ${customerInfo.email}`);
+        }
+      } catch (confirmError) {
+        console.error('⚠️ Failed to send cart order confirmation email to customer:', confirmError);
+        console.error('🔍 Cart confirmation error stack:', confirmError.stack);
+        // Bestellung trotzdem als erfolgreich behandeln
+      }
 
       if (emailSent) {
         res.json({
           success: true,
           message: 'Warenkorb-Bestellung erfolgreich versendet',
           orderNumber: order.order_number,
-          orderId: order.id
+          orderId: order.id,
+          confirmationSent: confirmationSent
         });
-        console.log(`✅ Cart order email sent for order ${order.order_number}`);
+        console.log(`✅ Cart order email sent for order ${order.order_number} (confirmation: ${confirmationSent ? 'sent' : 'failed'})`);
       } else {
         await orderService.updateOrderStatus(order.id, 'cancelled', req.accessToken!, 'Email sending failed');
         res.status(500).json({
