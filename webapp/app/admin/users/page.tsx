@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -89,7 +89,7 @@ export default function UserManagement() {
       setError(err instanceof Error ? err.message : 'Failed to load users');
       
       // Fallback to mock data for development
-      const mockUsers = [
+      const mockUsers: User[] = [
       {
         id: 'user-1',
         email: 'john@example.com',
@@ -101,7 +101,7 @@ export default function UserManagement() {
         account_status: 'approved',
         standard_discount: 5.00,
         registration_code_used: '123456',
-        admin_notes: null,
+        admin_notes: undefined,
         created_at: '2024-01-15T10:00:00Z',
         updated_at: '2024-01-20T15:30:00Z'
       },
@@ -116,7 +116,7 @@ export default function UserManagement() {
         account_status: 'pending',
         standard_discount: 0.00,
         registration_code_used: '987654',
-        admin_notes: null,
+        admin_notes: undefined,
         created_at: '2024-01-18T14:00:00Z',
         updated_at: '2024-01-18T14:00:00Z'
       },
@@ -143,11 +143,7 @@ export default function UserManagement() {
     }
   };
 
-  useEffect(() => {
-    filterUsers();
-  }, [users, searchTerm, statusFilter]);
-
-  const filterUsers = () => {
+  const filterUsers = useCallback(() => {
     let filtered = users;
 
     // Search filter
@@ -166,7 +162,11 @@ export default function UserManagement() {
     }
 
     setFilteredUsers(filtered);
-  };
+  }, [users, searchTerm, statusFilter]);
+
+  useEffect(() => {
+    filterUsers();
+  }, [filterUsers]);
 
   const updateUserStatus = async (userId: string, status: string, notes?: string) => {
     try {

@@ -16,31 +16,26 @@ import { filterService } from '@/lib/services/filterService';
 
 export default function ProductsPage() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
   const [products, setProducts] = useState<VysnProduct[]>([]);
-  const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
   // Filter-related state
   const [currentFilters, setCurrentFilters] = useState<ProductFilters>({});
   const [filterOptions, setFilterOptions] = useState<FilterOptions | undefined>();
-  const [isFilteredSearch, setIsFilteredSearch] = useState(false);
   
   // Load products and categories from Supabase
   useEffect(() => {
     const loadData = async () => {
       try {
         setLoading(true);
-        const [productsData, categoriesData, filterOpts] = await Promise.all([
+        const [productsData, , filterOpts] = await Promise.all([
           getAllProducts(),
           getCategories(),
           filterService.getFilterOptions().catch(() => undefined) // Don't fail if filter options can't be loaded
         ]);
         
         setProducts(productsData);
-        const allCategories = [...new Set([...categoriesData.category1, ...categoriesData.category2])];
-        setCategories(allCategories.sort());
         setFilterOptions(filterOpts);
       } catch (err) {
         console.error('Error loading products:', err);
@@ -57,7 +52,6 @@ export default function ProductsPage() {
   const handleApplyFilters = async (filters: ProductFilters) => {
     try {
       setLoading(true);
-      setIsFilteredSearch(true);
       
       // Include search query in filters if present
       const filtersWithSearch = {
@@ -108,23 +102,6 @@ export default function ProductsPage() {
     }
   };
 
-  const handleClearFilters = () => {
-    setCurrentFilters({});
-    setIsFilteredSearch(false);
-    // Reload original products
-    const loadData = async () => {
-      try {
-        setLoading(true);
-        const productsData = await getAllProducts();
-        setProducts(productsData);
-      } catch (err) {
-        console.error('Error reloading products:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadData();
-  };
   
   const filteredProducts = useMemo(() => {
     return products.filter(product => {
@@ -133,12 +110,9 @@ export default function ProductsPage() {
         product.itemNumberVysn?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (product.longDescription || product.shortDescription)?.toLowerCase().includes(searchQuery.toLowerCase());
       
-      const matchesCategory = selectedCategory === '' || 
-        product.category1 === selectedCategory || product.category2 === selectedCategory;
-      
-      return matchesSearch && matchesCategory;
+      return matchesSearch;
     });
-  }, [products, searchQuery, selectedCategory]);
+  }, [products, searchQuery]);
 
 
   // Loading state

@@ -31,7 +31,6 @@ export default function AiChatPage() {
   const [showKeyboard, setShowKeyboard] = useState(false);
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

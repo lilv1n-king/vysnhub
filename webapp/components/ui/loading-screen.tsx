@@ -10,7 +10,6 @@ interface LoadingScreenProps {
 }
 
 export function LoadingScreen({ 
-  message = "Lade deine Beleuchtungslösungen...", 
   size = 'large',
   showLogo = true 
 }: LoadingScreenProps) {

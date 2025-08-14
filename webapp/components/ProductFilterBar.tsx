@@ -130,7 +130,7 @@ interface PriceRangeProps {
   onRangeChange: (min: number | undefined, max: number | undefined) => void;
 }
 
-const PriceRange: React.FC<PriceRangeProps> = ({ min, max, currentMin, currentMax, onRangeChange }) => {
+const PriceRange: React.FC<PriceRangeProps> = ({ currentMin, currentMax, onRangeChange }) => {
   // Preise in sinnvolle Bereiche aufteilen
   const priceSteps = [
     { label: 'Bis €50', max: 50 },
@@ -222,7 +222,7 @@ export default function ProductFilterBar({
 
   // Render active filters as badges
   const renderActiveFilters = () => {
-    const activeFilterEntries = Object.entries(filters).filter(([key, value]) => 
+    const activeFilterEntries = Object.entries(filters).filter(([, value]) => 
       value !== undefined && value !== '' && value !== null
     );
 

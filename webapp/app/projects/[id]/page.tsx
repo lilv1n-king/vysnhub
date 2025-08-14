@@ -3,11 +3,9 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, Calendar, Package, Copy, ExternalLink, Download, FileText, FileSpreadsheet, Mail, ShoppingCart, Plus, Minus } from 'lucide-react';
+import { ArrowLeft, Calendar, Package, Copy, ExternalLink, Download, FileText, FileSpreadsheet, Mail, ShoppingCart } from 'lucide-react';
 import Header from '@/components/header';
-import React, { useState, useEffect } from 'react';
-import { getProductByItemNumber } from '@/lib/utils/product-data';
-import { VysnProduct } from '@/lib/types/product';
+import React, { useState } from 'react';
 
 // Project data with real VYSN products
 const getProjectById = (id: string) => {
@@ -83,18 +81,6 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   
   const project = resolvedParams ? getProjectById(resolvedParams.id) : null;
   
-  // State for editable quantities
-  const [quantities, setQuantities] = useState<{[key: string]: number}>({});
-  
-  // Initialize quantities when project is loaded
-  React.useEffect(() => {
-    if (project && resolvedParams?.id) {
-      setQuantities(project.products.reduce((acc, product) => {
-        acc[product.itemNumber] = product.quantity;
-        return acc;
-      }, {} as {[key: string]: number}));
-    }
-  }, [resolvedParams?.id]); // Only depend on the project ID, not the whole project object
 
   if (!resolvedParams) {
     return (
@@ -135,14 +121,6 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   // For now, set totalValue to 0 (will need product data loading)
   const totalValue = 0;
 
-  const updateQuantity = (itemNumber: string, newQuantity: number) => {
-    if (newQuantity >= 0) {
-      setQuantities(prev => ({
-        ...prev,
-        [itemNumber]: newQuantity
-      }));
-    }
-  };
 
   const handleExport = async (format: 'excel' | 'pdf' | 'csv') => {
     setIsExporting(prev => ({ ...prev, [format]: true }));
@@ -380,30 +358,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                   <div className="text-right ml-4">
                     {/* Quantity Controls */}
                     <div className="flex items-center gap-2 mb-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => updateQuantity(item.itemNumber, item.quantity - 1)}
-                        disabled={item.quantity <= 1}
-                        className="h-8 w-8 p-0"
-                      >
-                        <Minus className="h-3 w-3" />
-                      </Button>
-                      <Input
-                        type="number"
-                        value={item.quantity}
-                        onChange={(e) => updateQuantity(item.itemNumber, parseInt(e.target.value) || 0)}
-                        className="w-16 h-8 text-center text-sm"
-                        min="1"
-                      />
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => updateQuantity(item.itemNumber, item.quantity + 1)}
-                        className="h-8 w-8 p-0"
-                      >
-                        <Plus className="h-3 w-3" />
-                      </Button>
+                      <span className="text-sm font-medium">Menge: {item.quantity}</span>
                     </div>
                     <div className="text-sm text-gray-600">€0.00 each</div>
                     <div className="text-base font-bold text-black">€0.00</div>

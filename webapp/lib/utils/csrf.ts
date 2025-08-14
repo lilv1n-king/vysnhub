@@ -82,7 +82,7 @@ export async function csrfFetch(url: string, options: RequestInit = {}): Promise
         const bodyData = JSON.parse(options.body);
         bodyData._csrf = token;
         csrfOptions.body = JSON.stringify(bodyData);
-      } catch (e) {
+      } catch {
         // Body ist kein JSON, Token nur in Header
       }
     } else if (options.body instanceof FormData) {
@@ -235,9 +235,11 @@ if (typeof window !== 'undefined') {
   });
 }
 
-export default {
+const csrfUtils = {
   getCsrfToken,
   csrfFetch,
   CsrfApiClient,
   addCsrfToForm
 };
+
+export default csrfUtils;

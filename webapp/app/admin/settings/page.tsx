@@ -176,7 +176,7 @@ export default function AdminSettings() {
               <h4 className="font-medium mb-2">Initial Setup Steps:</h4>
               <ol className="list-decimal list-inside space-y-2 text-sm text-gray-600">
                 <li>Apply the database schema updates using the SQL file: <code className="bg-gray-100 px-2 py-1 rounded">database/add_admin_fields.sql</code></li>
-                <li>Set your admin status in the database: <code className="bg-gray-100 px-2 py-1 rounded">UPDATE profiles SET is_admin = true WHERE id = 'your-user-id';</code></li>
+                <li>Set your admin status in the database: <code className="bg-gray-100 px-2 py-1 rounded">UPDATE profiles SET is_admin = true WHERE id = &apos;your-user-id&apos;;</code></li>
                 <li>Configure your authentication token in the webapp</li>
                 <li>Start managing users and home content through the admin interface</li>
               </ol>

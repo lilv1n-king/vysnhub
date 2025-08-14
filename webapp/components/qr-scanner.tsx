@@ -1,10 +1,9 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { AlertCircle, Keyboard, CheckCircle, Home, Search } from 'lucide-react';
-import Link from 'next/link';
+import { AlertCircle, Keyboard, Search } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { getProductByBarcode, searchProducts } from '@/lib/utils/product-data';
 
@@ -20,7 +19,7 @@ export default function BarcodeScanner() {
   const scannerRef = useRef<any>(null);
 
   // Funktion zum Weiterleiten zur Produktseite
-  const navigateToProduct = async (barcodeOrItemNumber: string) => {
+  const navigateToProduct = useCallback(async (barcodeOrItemNumber: string) => {
     try {
       // Erst versuchen, Produkt per Barcode zu finden
       const productByBarcode = await getProductByBarcode(barcodeOrItemNumber);
@@ -53,7 +52,7 @@ export default function BarcodeScanner() {
       console.error('Error searching for product:', error);
       setError('Fehler beim Suchen des Produkts');
     }
-  };
+  }, [router]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -90,7 +89,7 @@ export default function BarcodeScanner() {
         setError('');
 
         // Start scanning
-        reader.decodeFromVideoDevice(null, videoRef.current, async (result, err) => {
+        reader.decodeFromVideoDevice(null, videoRef.current, async (result) => {
           if (result) {
             const barcodeText = result.getText();
             console.log('Barcode gefunden:', barcodeText);
@@ -125,12 +124,13 @@ export default function BarcodeScanner() {
         scannerRef.current.reset();
       }
       // Stop video stream
-      if (videoRef.current?.srcObject) {
-        const stream = videoRef.current.srcObject as MediaStream;
+      const currentVideo = videoRef.current;
+      if (currentVideo?.srcObject) {
+        const stream = currentVideo.srcObject as MediaStream;
         stream.getTracks().forEach(track => track.stop());
       }
     };
-  }, [showManualInput, scanResult]);
+  }, [navigateToProduct, showManualInput, scanResult]);
 
   const handleManualSubmit = async () => {
     if (!manualInput.trim()) return;
@@ -157,21 +157,6 @@ export default function BarcodeScanner() {
     window.location.reload();
   };
 
-  const toggleMode = () => {
-    if (scannerRef.current) {
-      scannerRef.current.reset();
-    }
-    // Stop video stream
-    if (videoRef.current?.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      stream.getTracks().forEach(track => track.stop());
-    }
-    setShowManualInput(!showManualInput);
-    setError('');
-    setScanResult('');
-    setManualInput('');
-    setSearchResults([]);
-  };
 
   return (
     <div className="h-full w-full bg-black relative">
