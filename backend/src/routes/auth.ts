@@ -16,6 +16,7 @@ router.post('/register', validateRegistration, authController.register); // Admi
 router.post('/validate', authController.validateToken); // Token validation
 router.post('/refresh', authController.refreshToken); // Token refresh
 router.post('/reset-password', authController.resetPassword);
+router.post('/check-admin', authController.checkAdminStatus); // Check if user is admin
 
 // Protected routes (auth required) 
 router.get('/validate', authenticateToken, authController.validateCurrentToken); // GET token validation

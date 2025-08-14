@@ -54,7 +54,7 @@ Native App → Supabase Auth (Login/Register)
 ### Environment Variablen
 ```bash
 # Backend API
-EXPO_PUBLIC_API_BASE_URL=http://localhost:3001
+EXPO_PUBLIC_API_BASE_URL=https://api.vysnlighting.com
 
 # Supabase (nur für Auth)
 EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co

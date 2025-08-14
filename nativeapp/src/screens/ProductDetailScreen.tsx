@@ -15,53 +15,9 @@ import { useAuth } from '../../lib/contexts/AuthContext';
 import { useCart } from '../../lib/contexts/CartContext';
 import { projectService } from '../../lib/services/projectService';
 import { useTranslation } from 'react-i18next';
+import { formatStockDisplay, getDisplayStockQuantity } from '../../lib/utils/stockUtils';
 
-// Stock categorization utility
-const getStockCategory = (stockQuantity?: number, t: any) => {
-  if (!stockQuantity || stockQuantity === 0) {
-    return {
-      text: t('products.stock.notAvailable'),
-      color: '#ef4444', // red
-      backgroundColor: '#fef2f2',
-      borderColor: '#fecaca'
-    };
-  } else if (stockQuantity <= 10) {
-    return {
-      text: t('products.stock.tenPlusAvailable'),
-      color: '#f59e0b', // amber
-      backgroundColor: '#fffbeb',
-      borderColor: '#fed7aa'
-    };
-  } else if (stockQuantity <= 20) {
-    return {
-      text: t('products.stock.twentyPlusAvailable'),
-      color: '#f59e0b', // amber
-      backgroundColor: '#fffbeb',
-      borderColor: '#fed7aa'
-    };
-  } else if (stockQuantity <= 30) {
-    return {
-      text: t('products.stock.thirtyPlusAvailable'),
-      color: '#10b981', // emerald
-      backgroundColor: '#f0fdf4',
-      borderColor: '#bbf7d0'
-    };
-  } else if (stockQuantity <= 40) {
-    return {
-      text: t('products.stock.fortyPlusAvailable'),
-      color: '#10b981', // emerald
-      backgroundColor: '#f0fdf4',
-      borderColor: '#bbf7d0'
-    };
-  } else {
-    return {
-      text: t('products.stock.fortyPlusAvailable'),
-      color: '#10b981', // emerald
-      backgroundColor: '#f0fdf4',
-      borderColor: '#bbf7d0'
-    };
-  }
-};
+
 
 const styles = StyleSheet.create({
   container: {
@@ -590,11 +546,16 @@ export default function ProductDetailScreen() {
   };
 
   const getStockStatus = () => {
-    const stockCategory = getStockCategory(product.stockQuantity, t);
+    const stockQuantity = getDisplayStockQuantity(product);
+    const itemNumber = product.itemNumberVysn || product.item_number_vysn;
+    const stockStatus = formatStockDisplay(stockQuantity, itemNumber, t);
+    
     return {
-      text: stockCategory.text,
-      color: stockCategory.color,
-      bgColor: stockCategory.backgroundColor
+      text: stockStatus.text,
+      color: '#ffffff', // Weiße Schrift
+      bgColor: stockStatus.color, // Hintergrundfarbe aus stockUtils
+      available: stockStatus.available,
+      onRequest: stockStatus.onRequest
     };
   };
 

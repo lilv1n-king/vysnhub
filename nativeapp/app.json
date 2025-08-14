@@ -1,50 +1,60 @@
 {
   "expo": {
-    "name": "VYSN Hub",
+    "name": "VYSN",
     "slug": "vysnhub-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/applogo.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/applogo.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.vysn.hub",
+      "bundleIdentifier": "com.vysnlighting.app",
+      "buildNumber": "2",
       "infoPlist": {
-        "NSCameraUsageDescription": "Allow VYSN Hub to access your camera to scan QR codes and barcodes."
+        "NSCameraUsageDescription": "Allow VYSN to access your camera to scan QR codes and barcodes.",
+        "NSLocationWhenInUseUsageDescription": "Allow VYSN to access your location for project-related features.",
+        "NSPhotoLibraryUsageDescription": "Allow VYSN to access your photo library for project images."
       }
     },
     "android": {
+      "icon": "./assets/applogo.png",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/applogo.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
       "package": "com.vysn.hub",
+      "versionCode": 2,
       "permissions": [
-        "android.permission.CAMERA"
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/applogo.png"
     },
     "plugins": [
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow VYSN Hub to access your camera to scan QR codes and barcodes."
+          "cameraPermission": "Allow VYSN to access your camera to scan QR codes and barcodes."
         }
       ]
     ],
     "extra": {
       "supabaseUrl": "PLACEHOLDER_SUPABASE_URL",
       "supabaseAnonKey": "PLACEHOLDER_SUPABASE_ANON_KEY",
-      "apiBaseUrl": "http://192.168.2.128:3001"
-    }
+      "apiBaseUrl": "https://api.vysnlighting.com",
+      "eas": {
+        "projectId": "07d03833-4323-48c1-b1f3-6e99acb85f4d"
+      }
+    },
+    "owner": "vysn"
   }
 }

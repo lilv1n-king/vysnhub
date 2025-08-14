@@ -324,6 +324,7 @@ export default function ProductsScreen() {
   
   // Infinite Scrolling State
   const [allProducts, setAllProducts] = useState<VysnProduct[]>([]);
+  const [originalProducts, setOriginalProducts] = useState<VysnProduct[]>([]); // Für das Zurücksetzen der Filter
   const [currentPage, setCurrentPage] = useState(0);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMoreProducts, setHasMoreProducts] = useState(true);
@@ -357,29 +358,49 @@ export default function ProductsScreen() {
   };
 
   const loadMoreProducts = async () => {
-    if (isLoadingMore || !hasMoreProducts || isFilteredSearch) return;
+    if (isLoadingMore || !hasMoreProducts) return;
     
     setIsLoadingMore(true);
     try {
-      // Berechne nächste Produkte basierend auf der Seite
-      const startIndex = (currentPage + 1) * PRODUCTS_PER_PAGE;
-      const endIndex = startIndex + PRODUCTS_PER_PAGE;
-      
-      if (startIndex >= allProducts.length) {
-        setHasMoreProducts(false);
-        return;
+      if (isFilteredSearch) {
+        // Bei gefilterten Ergebnissen: berechne nächste Seite basierend auf bereits geladenen gefilterten Produkten
+        const startIndex = filteredProducts.length;
+        const endIndex = startIndex + PRODUCTS_PER_PAGE;
+        
+        // Verwende allProducts als Basis für weitere gefilterte Ergebnisse
+        if (startIndex >= allProducts.length) {
+          setHasMoreProducts(false);
+          return;
+        }
+        
+        const nextProducts = allProducts.slice(startIndex, endIndex);
+        setFilteredProducts(prev => [...prev, ...nextProducts]);
+        
+        if (endIndex >= allProducts.length) {
+          setHasMoreProducts(false);
+        }
+        
+        console.log(`📦 Loaded filtered page: ${nextProducts.length} more products (${filteredProducts.length + nextProducts.length}/${allProducts.length} total)`);
+      } else {
+        // Normale Pagination ohne Filter
+        const startIndex = (currentPage + 1) * PRODUCTS_PER_PAGE;
+        const endIndex = startIndex + PRODUCTS_PER_PAGE;
+        
+        if (startIndex >= allProducts.length) {
+          setHasMoreProducts(false);
+          return;
+        }
+        
+        const nextProducts = allProducts.slice(startIndex, endIndex);
+        setFilteredProducts(prev => [...prev, ...nextProducts]);
+        setCurrentPage(prev => prev + 1);
+        
+        if (endIndex >= allProducts.length) {
+          setHasMoreProducts(false);
+        }
+        
+        console.log(`📦 Loaded page ${currentPage + 1}: ${nextProducts.length} products`);
       }
-      
-      const nextProducts = allProducts.slice(startIndex, endIndex);
-      setFilteredProducts(prev => [...prev, ...nextProducts]);
-      setCurrentPage(prev => prev + 1);
-      
-      // Prüfe ob mehr Produkte verfügbar sind
-      if (endIndex >= allProducts.length) {
-        setHasMoreProducts(false);
-      }
-      
-      console.log(`📦 Loaded page ${currentPage + 1}: ${nextProducts.length} products`);
     } catch (error) {
       console.error('Error loading more products:', error);
     } finally {
@@ -404,6 +425,7 @@ export default function ProductsScreen() {
         console.log('📦 After filtering and sorting:', sortedProducts.length);
         
         setAllProducts(sortedProducts); // Speichere alle Produkte
+        setOriginalProducts(sortedProducts); // Speichere Originaldaten für Filter-Reset
         setProducts(sortedProducts);
         setFilteredProducts(sortedProducts.slice(0, PRODUCTS_PER_PAGE)); // Zeige erste 20
         setCurrentPage(0);
@@ -520,13 +542,26 @@ export default function ProductsScreen() {
         productPicture6: product.product_picture_6,
         productPicture7: product.product_picture_7,
         productPicture8: product.product_picture_8,
+        stockQuantity: product.stock_quantity,
         // Add other fields as needed
       }));
       
-      // Filter und sortiere auch Filter-Ergebnisse (mit Components falls Suche)
-      const hasSearchQuery = searchQuery.trim().length > 0;
-      const filteredAndSorted = filterAndSortProducts(convertedProducts, hasSearchQuery);
-      setFilteredProducts(filteredAndSorted);
+      // Filter und sortiere Filter-Ergebnisse - Components NICHT filtern bei Filtern
+      const filteredAndSorted = filterAndSortProducts(convertedProducts, true);
+      console.log(`🔍 Filter results: ${result.products.length} from backend -> ${filteredAndSorted.length} after sorting`);
+      console.log('🏠 Applied filters:', filters);
+      
+      // Bei Filtern: Zeige alle Ergebnisse mit Scrolling falls mehr als eine Page
+      if (filteredAndSorted.length > PRODUCTS_PER_PAGE) {
+        setFilteredProducts(filteredAndSorted.slice(0, PRODUCTS_PER_PAGE));
+        setCurrentPage(0);
+        setHasMoreProducts(true);
+        // Speichere alle gefilterten Produkte für Infinite Scrolling
+        setAllProducts(filteredAndSorted);
+      } else {
+        setFilteredProducts(filteredAndSorted);
+        setHasMoreProducts(false);
+      }
       setCurrentFilters(filters);
     } catch (error) {
       console.error('Error applying filters:', error);
@@ -539,9 +574,11 @@ export default function ProductsScreen() {
   const handleClearFilters = () => {
     setCurrentFilters({});
     setIsFilteredSearch(false);
-    setFilteredProducts(allProducts.slice(0, PRODUCTS_PER_PAGE)); // allProducts ist bereits gefiltert und sortiert
+    // Verwende originalProducts für das Zurücksetzen
+    setAllProducts(originalProducts);
+    setFilteredProducts(originalProducts.slice(0, PRODUCTS_PER_PAGE));
     setCurrentPage(0);
-    setHasMoreProducts(allProducts.length > PRODUCTS_PER_PAGE);
+    setHasMoreProducts(originalProducts.length > PRODUCTS_PER_PAGE);
   };
 
   const handleShowFilterModal = () => {

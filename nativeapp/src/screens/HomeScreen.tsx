@@ -299,6 +299,7 @@ export default function HomeScreen() {
             
             <View style={styles.catalogButtonContainer}>
               <Button 
+                onPress={() => handleHighlightPress(highlight)}
                 style={{ backgroundColor: '#000000', paddingVertical: 14, width: '100%' }}
                 textStyle={{ color: '#ffffff', fontSize: 16, fontWeight: '600' }}
               >
@@ -340,6 +341,7 @@ export default function HomeScreen() {
           )}
           
           <Button 
+            onPress={() => console.log('Register for event:', event.id)}
             style={{ backgroundColor: '#000000', paddingHorizontal: 16, paddingVertical: 12, marginTop: 8 }}
             textStyle={{ color: '#ffffff', fontSize: 14, fontWeight: '500' }}
           >

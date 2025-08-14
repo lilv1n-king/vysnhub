@@ -69,12 +69,19 @@ class FilterService {
    */
   async searchProductsWithFilters(filters: ProductFilters): Promise<FilteredProductsResponse> {
     try {
+      // Setze ein hohes Limit für alle Ergebnisse (oder lade alle)
+      const filtersWithLimit = {
+        ...filters,
+        limit: 10000, // Hohes Limit um alle Ergebnisse zu bekommen
+        offset: 0
+      };
+
       const response = await fetch(`${this.baseURL}/api/products/search/filtered`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(filters),
+        body: JSON.stringify(filtersWithLimit),
       });
 
       if (!response.ok) {

@@ -15,6 +15,7 @@ import { apiService } from '../../lib/services/apiService';
 import { VysnProduct } from '../../lib/types/product';
 import { getProductByItemNumber } from '../../lib/utils/product-data';
 import { useTranslation } from 'react-i18next';
+import i18n from '../../lib/i18n/i18n';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 const styles = StyleSheet.create({
@@ -46,16 +47,20 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 3.84,
     elevation: 5,
+    zIndex: 20,
   },
   headerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 24,
+    minHeight: 44,
+    zIndex: 10,
   },
   titleContainer: {
     flex: 1,
     marginHorizontal: 16,
+    zIndex: 5,
   },
   headerTitle: {
     fontSize: 18,
@@ -321,19 +326,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     backgroundColor: '#f9fafb',
     borderRadius: 8,
+    minHeight: 52,
   },
   quantityControlsLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 12,
+    flex: 1,
   },
   quantityButton: {
-    width: 32,
-    height: 32,
+    width: 40,
+    height: 40,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
@@ -342,15 +349,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
   },
   quantityInput: {
-    width: 50,
-    height: 32,
+    width: 64,
+    height: 40,
     textAlign: 'center',
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: Platform.OS === 'android' ? 16 : 18,
+    fontWeight: '700',
     borderWidth: 1,
     borderColor: '#d1d5db',
     borderRadius: 6,
     backgroundColor: '#ffffff',
+    paddingHorizontal: Platform.OS === 'android' ? 2 : 4,
+    paddingVertical: Platform.OS === 'android' ? 2 : 4,
+    color: '#000000',
+    includeFontPadding: false,
+    textAlignVertical: 'center',
   },
 
   priceRow: {
@@ -1136,6 +1148,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  sectionLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 8,
+    marginTop: 16,
+  },
 });
 
 type ProjectDetailScreenNavigationProp = StackNavigationProp<ProjectsStackParamList, 'ProjectDetail'>;
@@ -1195,6 +1214,13 @@ export default function ProjectDetailScreen() {
   const [showExportForm, setShowExportForm] = useState(false);
   const [customerEmail, setCustomerEmail] = useState('');
   const [customerMessage, setCustomerMessage] = useState('');
+  const [customerName, setCustomerName] = useState('');
+  const [customerCompany, setCustomerCompany] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [customerAddress, setCustomerAddress] = useState('');
+  const [customerCity, setCustomerCity] = useState('');
+  const [customerPostalCode, setCustomerPostalCode] = useState('');
+
   const [isExporting, setIsExporting] = useState(false);
 
   // Safety check
@@ -1742,10 +1768,10 @@ export default function ProjectDetailScreen() {
   };
 
   const handleSendQuote = async () => {
-    if (!customerEmail.trim()) {
+    if (!customerEmail.trim() || !customerName.trim()) {
       Alert.alert(
         t('common.error'),
-        t('projects.export.emailRequired'),
+        t('projects.export.nameEmailRequired'),
         [{ text: 'OK' }]
       );
       return;
@@ -1768,6 +1794,13 @@ export default function ProjectDetailScreen() {
       const response = await apiService.post('/api/email/quote', {
         projectId: project?.id,
         customerEmail: customerEmail.trim(),
+        customerName: customerName.trim(),
+        customerCompany: customerCompany.trim() || undefined,
+        customerPhone: customerPhone.trim() || undefined,
+        customerAddress: customerAddress.trim() || undefined,
+        customerCity: customerCity.trim() || undefined,
+        customerPostalCode: customerPostalCode.trim() || undefined,
+        language: i18n.language || 'de',
         message: customerMessage.trim() || undefined
       });
       
@@ -1842,7 +1875,7 @@ export default function ProjectDetailScreen() {
 
     Alert.alert(
       orderStatus?.hasOrders ? t('projects.order.reorderTitle', { orderNumber }) : t('projects.order.title'),
-      `${message}\n\n${t('projects.order.newItems')}:\n${itemsList}`,
+      `${message}\n\n${t('projects.order.newItems')}:\n${itemsList}\n\n${t('projects.order.priceNote')}\n${t('projects.order.finalPriceNote')}\n\n${t('projects.order.legalNote')}`,
       [
         { text: t('projects.cancel'), style: 'cancel' },
         {
@@ -1875,7 +1908,8 @@ export default function ProjectDetailScreen() {
                 },
                 orderNotes: isReorder 
                   ? `${orderNumber}. Nachbestellung über VYSN Hub App\nProjekt: ${project.project_name}\nNur neue Artikel: ${orderItems.length}`
-                  : `1. Bestellung über VYSN Hub App\nProjekt: ${project.project_name}`
+                  : `1. Bestellung über VYSN Hub App\nProjekt: ${project.project_name}`,
+                language: i18n.language || 'de' // Aktuelle App-Sprache übertragen
               });
 
               if (response.success) {
@@ -2024,7 +2058,7 @@ export default function ProjectDetailScreen() {
                   return (
                     <View style={styles.orderedProductControls}>
                       <Text style={{ color: '#6b7280', fontWeight: '500', fontSize: 16 }}>{quantity}</Text>
-                      <Text style={[styles.productQuantity, { marginLeft: 8 }]}>{t('projects.pieces')}</Text>
+
                       
                       <View style={styles.orderedBadge}>
                         <Text style={styles.orderedBadgeText}>{t('projects.ordered')}</Text>
@@ -2049,7 +2083,7 @@ export default function ProjectDetailScreen() {
                       disabled={quantity <= 1}
                       activeOpacity={0.7}
                     >
-                      <Minus size={16} color={quantity <= 1 ? '#9ca3af' : '#000000'} />
+                      <Minus size={18} color={quantity <= 1 ? '#9ca3af' : '#000000'} />
                     </TouchableOpacity>
                     
                     <TextInput
@@ -2079,10 +2113,10 @@ export default function ProjectDetailScreen() {
                       disabled={quantity >= 99}
                       activeOpacity={0.7}
                     >
-                      <Plus size={16} color={quantity >= 99 ? '#9ca3af' : '#000000'} />
+                      <Plus size={18} color={quantity >= 99 ? '#9ca3af' : '#000000'} />
                     </TouchableOpacity>
                     
-                    <Text style={styles.productQuantity}>{t('projects.pieces')}</Text>
+
                   </>
                 );
               })()}
@@ -2120,7 +2154,7 @@ export default function ProjectDetailScreen() {
               
               <View style={[styles.priceRow, { backgroundColor: '#f0f9ff', padding: 6, borderRadius: 4, marginTop: 8 }]}>
                 <Text style={[styles.priceLabel, { fontWeight: '600' }]}>
-                  {t('projects.total')} ({quantity.toString()} {t('projects.pieces')}):
+                  {t('projects.total')} ({quantity.toString()}):
                 </Text>
               </View>
               
@@ -2387,6 +2421,12 @@ export default function ProjectDetailScreen() {
                             {t('projects.withCustomerDiscount', { discount: project?.customer_discount || 0 })}
                           </Text>
                         )}
+                        <Text style={{ fontSize: 12, color: '#6b7280', textAlign: 'right', marginTop: 8, fontStyle: 'italic' }}>
+                          {t('projects.order.priceNote')}
+                        </Text>
+                        <Text style={{ fontSize: 12, color: '#6b7280', textAlign: 'right', marginTop: 2, fontStyle: 'italic' }}>
+                          {t('projects.order.finalPriceNote')}
+                        </Text>
                       </>
                     );
                   })()}
@@ -2495,6 +2535,13 @@ export default function ProjectDetailScreen() {
                         setShowExportForm(false);
                         setCustomerEmail('');
                         setCustomerMessage('');
+                        setCustomerName('');
+                        setCustomerCompany('');
+                        setCustomerPhone('');
+                        setCustomerAddress('');
+                        setCustomerCity('');
+                        setCustomerPostalCode('');
+
                       } else {
                         handleExport();
                       }
@@ -2508,6 +2555,26 @@ export default function ProjectDetailScreen() {
                   
                   {showExportForm && (
                     <View style={styles.exportForm}>
+                      <Text style={styles.sectionLabel}>{t('projects.export.customerData')} *</Text>
+                      
+                      <TextInput
+                        style={styles.emailInput}
+                        value={customerName}
+                        onChangeText={setCustomerName}
+                        placeholder={t('projects.export.customerName')}
+                        autoCapitalize="words"
+                        autoCorrect={false}
+                      />
+                      
+                      <TextInput
+                        style={styles.emailInput}
+                        value={customerCompany}
+                        onChangeText={setCustomerCompany}
+                        placeholder={t('projects.export.customerCompany')}
+                        autoCapitalize="words"
+                        autoCorrect={false}
+                      />
+                      
                       <TextInput
                         style={styles.emailInput}
                         value={customerEmail}
@@ -2517,6 +2584,50 @@ export default function ProjectDetailScreen() {
                         autoCapitalize="none"
                         autoCorrect={false}
                       />
+                      
+                      <TextInput
+                        style={styles.emailInput}
+                        value={customerPhone}
+                        onChangeText={setCustomerPhone}
+                        placeholder={t('projects.export.customerPhone')}
+                        keyboardType="phone-pad"
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                      />
+                      
+                      <Text style={styles.sectionLabel}>{t('projects.export.customerAddress')}</Text>
+                      
+                      <TextInput
+                        style={styles.emailInput}
+                        value={customerAddress}
+                        onChangeText={setCustomerAddress}
+                        placeholder={t('projects.export.streetAddress')}
+                        autoCapitalize="words"
+                        autoCorrect={false}
+                      />
+                      
+                      <View style={{flexDirection: 'row', gap: 10}}>
+                        <TextInput
+                          style={[styles.emailInput, {flex: 1}]}
+                          value={customerPostalCode}
+                          onChangeText={setCustomerPostalCode}
+                          placeholder={t('projects.export.postalCode')}
+                          keyboardType="numeric"
+                          autoCapitalize="none"
+                          autoCorrect={false}
+                        />
+                        <TextInput
+                          style={[styles.emailInput, {flex: 2}]}
+                          value={customerCity}
+                          onChangeText={setCustomerCity}
+                          placeholder={t('projects.export.city')}
+                          autoCapitalize="words"
+                          autoCorrect={false}
+                        />
+                      </View>
+                      
+
+                      <Text style={styles.sectionLabel}>{t('projects.export.message')}</Text>
                       <TextInput
                         style={styles.messageInput}
                         value={customerMessage}
@@ -2530,10 +2641,10 @@ export default function ProjectDetailScreen() {
                       <TouchableOpacity 
                         style={[
                           styles.sendButton,
-                          (!customerEmail.trim() || isExporting) && { opacity: 0.5 }
+                          (!customerEmail.trim() || !customerName.trim() || isExporting) && { opacity: 0.5 }
                         ]}
                         onPress={handleSendQuote}
-                        disabled={!customerEmail.trim() || isExporting}
+                        disabled={!customerEmail.trim() || !customerName.trim() || isExporting}
                       >
                         <Text style={styles.sendButtonText}>
                           {isExporting ? t('projects.export.sending') : t('projects.export.send')}

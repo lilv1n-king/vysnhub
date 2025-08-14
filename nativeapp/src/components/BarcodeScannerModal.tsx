@@ -195,7 +195,7 @@ export default function BarcodeScannerModal({
             </TouchableOpacity>
           </View>
           <View style={styles.permissionContainer}>
-            <Text style={styles.permissionText}>Kamera wird vorbereitet...</Text>
+            <Text style={styles.permissionText}>{t('scanner.preparingCamera')}</Text>
           </View>
         </SafeAreaView>
       </Modal>
@@ -211,26 +211,26 @@ export default function BarcodeScannerModal({
             showLogout={false}
           />
           <View style={styles.toolbar}>
-            <Text style={styles.title}>Kamera-Berechtigung</Text>
+            <Text style={styles.title}>{t('scanner.permissionRequired')}</Text>
             <TouchableOpacity onPress={onClose} style={styles.toolbarButton}>
               <X size={20} color="#000" />
             </TouchableOpacity>
           </View>
           <View style={styles.permissionContainer}>
             <Camera size={64} color="#000" style={styles.permissionIcon} />
-            <Text style={styles.permissionTitle}>Kamera-Zugriff erforderlich</Text>
+            <Text style={styles.permissionTitle}>{t('scanner.cameraPermission')}</Text>
             <Text style={styles.permissionText}>
-              Wir benötigen Zugriff auf Ihre Kamera, um Barcodes und QR-Codes zu scannen.
+              {t('scanner.needCameraAccess')}
             </Text>
             <Button onPress={requestPermission} style={styles.permissionButton}>
-              Berechtigung erteilen
+              {t('scanner.grantPermission')}
             </Button>
             <Button 
               variant="outline" 
               onPress={() => setShowManualInput(true)}
               style={styles.manualPermissionButton}
             >
-              Manuelle Eingabe verwenden
+              {t('scanner.useManualInput')}
             </Button>
           </View>
         </SafeAreaView>
@@ -269,7 +269,7 @@ export default function BarcodeScannerModal({
                 <Input
                   value={manualInput}
                   onChangeText={setManualInput}
-                  placeholder="Barcode oder Artikelnummer eingeben"
+                  placeholder={t('scanner.enterCode')}
                   returnKeyType="search"
                   onSubmitEditing={handleManualSearch}
                   style={styles.searchInput}
@@ -297,7 +297,7 @@ export default function BarcodeScannerModal({
 
             {searchResults.length > 0 && (
               <ScrollView style={styles.resultsContainer}>
-                <Text style={styles.resultsTitle}>Suchergebnisse:</Text>
+                <Text style={styles.resultsTitle}>{t('scanner.searchResults')}</Text>
                 {searchResults.map((product) => (
                   <Card key={product.itemNumberVysn} style={styles.productCard}>
                     <CardContent style={styles.productContent}>
@@ -384,7 +384,7 @@ export default function BarcodeScannerModal({
                     variant="outline"
                     style={styles.scanAgainButton}
                   >
-                    Erneut scannen
+                    {t('scanner.scanAgain')}
                   </Button>
                 )}
               </View>
@@ -400,7 +400,7 @@ export default function BarcodeScannerModal({
               {searchResults.length > 0 && (
                 <Card style={styles.resultsCard}>
                   <CardContent style={styles.resultsContent}>
-                    <Text style={styles.resultsTitle}>Suchergebnisse:</Text>
+                    <Text style={styles.resultsTitle}>{t('scanner.searchResults')}</Text>
                     <ScrollView style={styles.resultsScroll}>
                       {searchResults.map((product) => (
                         <TouchableOpacity

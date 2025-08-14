@@ -80,6 +80,7 @@ const styles = StyleSheet.create({
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
+    paddingRight: 56, // Platz für das X-Button
   },
   itemImage: {
     width: 80,
@@ -133,10 +134,10 @@ const styles = StyleSheet.create({
   },
   removeButton: {
     position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 32,
-    height: 32,
+    top: 12,
+    right: 12,
+    width: 36,
+    height: 36,
     borderRadius: 8,
     backgroundColor: '#fee2e2',
     justifyContent: 'center',
@@ -214,6 +215,19 @@ const styles = StyleSheet.create({
   checkoutButtonDisabled: {
     backgroundColor: '#d1d5db',
   },
+  priceNotesContainer: {
+    marginTop: 16,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+  },
+  priceNote: {
+    fontSize: 12,
+    color: '#6b7280',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    marginBottom: 4,
+  },
 });
 
 export default function CheckoutScreen() {
@@ -252,9 +266,30 @@ export default function CheckoutScreen() {
     );
   };
 
-  const handleCheckout = async () => {
+  const handleCheckout = () => {
     if (!auth?.user || items.length === 0) return;
 
+    // Erstelle Artikel-Liste für Bestätigung
+    const itemsList = items.map(item => {
+      return `• ${item.product.vysnName} (${item.quantity}x)`;
+    }).join('\n');
+
+    Alert.alert(
+      t('cart.confirmOrder'),
+      `${t('cart.confirmOrderMessage')}\n\n${t('cart.total')}: ${formatPrice(total)}`,
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('cart.placeOrder'),
+          onPress: () => performCheckout()
+        }
+      ]
+    );
+  };
+
+  const performCheckout = async () => {
+    if (!auth?.user) return;
+    
     setIsOrdering(true);
     try {
       // Create order data from cart items
@@ -278,8 +313,6 @@ export default function CheckoutScreen() {
           discountPercentage: userDiscount,
           discountAmount: discountAmount,
           subtotalAfterDiscount: subtotalAfterDiscount,
-          shipping: shipping,
-          tax: tax,
           total: total
         },
         orderNotes: `Bestellung über VYSN Hub App - Warenkorb\nAnzahl Artikel: ${items.length}${userDiscount > 0 ? `\nKundenrabatt: ${userDiscount}%` : ''}`,
@@ -336,9 +369,8 @@ export default function CheckoutScreen() {
   const subtotal = getTotalPrice();
   const discountAmount = userDiscount > 0 ? subtotal * (userDiscount / 100) : 0;
   const subtotalAfterDiscount = subtotal - discountAmount;
-  const shipping = 0; // Free shipping for now
-  const tax = subtotalAfterDiscount * 0.19; // 19% VAT on discounted price
-  const total = subtotalAfterDiscount + shipping + tax;
+  // Keine Steuer- und Versandberechnung mehr - kommt per Rechnung
+  const total = subtotalAfterDiscount;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -359,7 +391,7 @@ export default function CheckoutScreen() {
                   style={styles.removeButton}
                   onPress={() => handleRemoveItem(item.product.id)}
                 >
-                  <X size={16} color="#dc2626" />
+                  <X size={18} color="#dc2626" />
                 </TouchableOpacity>
 
                 {item.product.product_picture_1 ? (
@@ -424,21 +456,15 @@ export default function CheckoutScreen() {
               </View>
             )}
             
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>{t('cart.shipping')}</Text>
-              <Text style={styles.summaryValue}>
-                {shipping === 0 ? t('cart.freeShipping') : formatPrice(shipping)}
-              </Text>
-            </View>
-            
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>{t('cart.tax')} (19%)</Text>
-              <Text style={styles.summaryValue}>{formatPrice(tax)}</Text>
-            </View>
-            
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>{t('cart.total')}</Text>
               <Text style={styles.totalValue}>{formatPrice(total)}</Text>
+            </View>
+            
+            {/* Preis-Hinweise */}
+            <View style={styles.priceNotesContainer}>
+              <Text style={styles.priceNote}>{t('cart.netNote')}</Text>
+              <Text style={styles.priceNote}>{t('cart.finalPriceNote')}</Text>
             </View>
           </CardContent>
         </Card>

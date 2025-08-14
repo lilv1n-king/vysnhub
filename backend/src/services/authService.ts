@@ -25,6 +25,11 @@ export class AuthService {
     this.supabaseAdmin = createClient(supabaseUrl, supabaseServiceRole);
   }
 
+  // Getter for admin client (bypasses RLS)
+  getAdminClient(): SupabaseClient {
+    return this.supabaseAdmin;
+  }
+
   // Login mit Email und Password
   async login(email: string, password: string): Promise<{ 
     user: User; 

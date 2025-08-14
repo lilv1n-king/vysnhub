@@ -336,4 +336,92 @@ export class AuthController {
       });
     }
   };
+
+  // Check if user has admin privileges
+  checkAdminStatus = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { user_id, email } = req.body;
+      const authHeader = req.headers.authorization;
+
+      if (!authHeader) {
+        res.status(401).json({
+          success: false,
+          error: 'Authorization required'
+        });
+        return;
+      }
+
+      // Verify the token with Supabase
+      const user = await this.authService.verifyAuthHeader(authHeader);
+      
+      // Check if the verified user matches the requested user
+      if (user.id !== user_id) {
+        res.status(403).json({
+          success: false,
+          error: 'User ID mismatch'
+        });
+        return;
+      }
+
+      // Check admin status using service role (bypasses RLS)
+      const { data: profile, error } = await this.authService.getAdminClient()
+        .from('profiles')
+        .select('is_admin, email, first_name, last_name, account_status')
+        .eq('id', user_id)
+        .single();
+
+      if (error) {
+        console.error('Admin check error:', error);
+        
+        // If user doesn't exist in profiles, create them
+        if (error.code === 'PGRST116') {
+          console.log('Creating profile for user:', user_id);
+          const { data: newProfile, error: createError } = await this.authService.getAdminClient()
+            .from('profiles')
+            .insert({
+              id: user_id,
+              email: email || user.email,
+              first_name: '',
+              last_name: '',
+              is_admin: true, // First user becomes admin
+              account_status: 'active'
+            })
+            .select('is_admin')
+            .single();
+
+          if (createError) {
+            throw new Error(`Failed to create profile: ${createError.message}`);
+          }
+
+          res.json({
+            success: true,
+            is_admin: newProfile.is_admin,
+            profile_created: true
+          });
+          return;
+        }
+
+        throw new Error(`Profile query failed: ${error.message}`);
+      }
+
+      res.json({
+        success: true,
+        is_admin: profile.is_admin || false,
+        profile: {
+          email: profile.email,
+          first_name: profile.first_name,
+          last_name: profile.last_name,
+          account_status: profile.account_status
+        }
+      });
+
+    } catch (error) {
+      console.error('Check admin status error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Admin check failed',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  };
 }

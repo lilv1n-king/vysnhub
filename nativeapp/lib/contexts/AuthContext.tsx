@@ -40,7 +40,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function useAuth(): AuthContextType | null {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    console.error('useAuth must be used within an AuthProvider');
+    if (__DEV__) console.error('useAuth must be used within an AuthProvider');
     // Return null instead of throwing to prevent crashes
     return null;
   }
@@ -64,12 +64,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const loadProfile = useCallback(async (): Promise<Profile | null> => {
     try {
       const response = await apiService.get<Profile>(API_ENDPOINTS.AUTH_PROFILE);
-      console.log('🔄 loadProfile: Raw response:', response);
-      console.log('🔍 loadProfile: analytics_consent in response.data:', response.data?.analytics_consent);
-      console.log('🔍 loadProfile: marketing_consent in response.data:', response.data?.marketing_consent);
+      if (__DEV__) {
+        console.log('🔄 loadProfile: Raw response:', response);
+        console.log('🔍 loadProfile: analytics_consent in response.data:', response.data?.analytics_consent);
+        console.log('🔍 loadProfile: marketing_consent in response.data:', response.data?.marketing_consent);
+      }
       
       if (response.success && response.data) {
-        console.log('🔄 loadProfile: Returning profile data:', response.data);
+        if (__DEV__) console.log('🔄 loadProfile: Returning profile data:', response.data);
         
         // Ensure the consent fields are properly mapped
         const profileData = {
@@ -78,7 +80,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           marketing_consent: response.data.marketing_consent
         };
         
-        console.log('🔍 loadProfile: Final profile with consent fields:', {
+        if (__DEV__) console.log('🔍 loadProfile: Final profile with consent fields:', {
           analytics_consent: profileData.analytics_consent,
           marketing_consent: profileData.marketing_consent
         });
@@ -86,10 +88,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
         return profileData;
       }
       
-      console.error('🔄 loadProfile: No data in response');
+      if (__DEV__) console.error('🔄 loadProfile: No data in response');
       return null;
     } catch (error) {
-      console.error('Error loading profile:', error);
+      if (__DEV__) console.error('Error loading profile:', error);
       return null;
     }
   }, []);
@@ -110,7 +112,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const loginResult = await signIn({ email: userData.email, password: userData.password });
       return loginResult;
     } catch (error) {
-      console.error('Sign up exception:', error);
+      if (__DEV__) console.error('Sign up exception:', error);
       return { error: error as Error };
     } finally {
       setLoading(false);
@@ -160,7 +162,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       return { error: null };
     } catch (error) {
-      console.error('Sign in exception:', error);
+      if (__DEV__) console.error('Sign in exception:', error);
       return { error: error as Error };
     } finally {
       setLoading(false);
@@ -176,7 +178,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       try {
         await apiService.post('/api/auth/logout', {});
       } catch (error) {
-        console.warn('Logout API call failed:', error);
+        if (__DEV__) console.warn('Logout API call failed:', error);
       }
       
       // Always clear local state
@@ -187,7 +189,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       return { error: null };
     } catch (error) {
-      console.error('Sign out exception:', error);
+      if (__DEV__) console.error('Sign out exception:', error);
       // Still clear local state
       setUser(null);
       setAccessToken(null);
@@ -210,7 +212,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       
       return { error: null };
     } catch (error) {
-      console.error('Reset password exception:', error);
+      if (__DEV__) console.error('Reset password exception:', error);
       return { error: error as Error };
     }
   }, []);
@@ -222,30 +224,32 @@ export function AuthProvider({ children }: AuthProviderProps) {
         return { error: new Error('No user logged in') };
       }
 
-      console.log('🔄 updateProfile: Sending updates:', updates);
+      if (__DEV__) console.log('🔄 updateProfile: Sending updates:', updates);
       const response = await apiService.put(API_ENDPOINTS.AUTH_PROFILE, updates);
-      console.log('🔄 updateProfile: Response:', response);
+      if (__DEV__) console.log('🔄 updateProfile: Response:', response);
       
       if (!response.success) {
         return { error: new Error(response.error || 'Profile update failed') };
       }
 
       // Force a fresh profile load since backend now returns complete updated profile
-      console.log('🔄 updateProfile: Loading fresh profile from backend...');
+      if (__DEV__) console.log('🔄 updateProfile: Loading fresh profile from backend...');
       const freshProfile = await loadProfile();
       if (freshProfile) {
-        console.log('🔄 updateProfile: Fresh profile loaded:', freshProfile);
-        console.log('🔄 updateProfile: Setting user with fresh profile...');
+        if (__DEV__) {
+          console.log('🔄 updateProfile: Fresh profile loaded:', freshProfile);
+          console.log('🔄 updateProfile: Setting user with fresh profile...');
+        }
         setUser(currentUser => {
           const updatedUser = {
             ...currentUser,
             profile: freshProfile
           };
-          console.log('🔄 updateProfile: Updated user state:', updatedUser);
+          if (__DEV__) console.log('🔄 updateProfile: Updated user state:', updatedUser);
           return updatedUser;
         });
       } else {
-        console.error('🔄 updateProfile: Failed to load fresh profile - falling back to response data');
+        if (__DEV__) console.error('🔄 updateProfile: Failed to load fresh profile - falling back to response data');
         // Fallback: use the response data
         if (response.data) {
           setUser(currentUser => ({
@@ -261,7 +265,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       return { error: null };
     } catch (error) {
-      console.error('Update profile exception:', error);
+      if (__DEV__) console.error('Update profile exception:', error);
       return { error: error as Error };
     }
   }, [user]);
@@ -279,7 +283,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         });
       }
     } catch (error) {
-      console.error('Failed to refresh profile:', error);
+      if (__DEV__) console.error('Failed to refresh profile:', error);
     }
   }, [user, loadProfile]);
 
@@ -298,9 +302,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Handle token refresh callback
   const handleTokenRefresh = useCallback((newToken: string) => {
-    console.log('🔄 AuthContext: Token refreshed, updating state...');
+    if (__DEV__) console.log('🔄 AuthContext: Token refreshed, updating state...');
     setAccessToken(newToken);
   }, []);
+
+  // Register the token refresh callback with apiService
+  useEffect(() => {
+    apiService.setTokenRefreshCallback(handleTokenRefresh);
+    if (__DEV__) console.log('✅ Token refresh callback registered with apiService');
+  }, [handleTokenRefresh]);
 
   // Initialize auth state by checking existing token
   useEffect(() => {
@@ -315,20 +325,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
         const storedToken = await apiService.getStoredToken();
         
         if (storedToken) {
-          console.log('🔑 Found stored token, attempting to restore session...');
+          if (__DEV__) console.log('🔑 Found stored token, attempting to restore session...');
           
           // First check if we have a refresh token - if not, try direct validation
           const refreshToken = await apiService.getStoredRefreshToken();
           
           if (!refreshToken) {
-            console.log('❌ No refresh token found, clearing session');
+            if (__DEV__) console.log('❌ No refresh token found, clearing session');
             await apiService.clearStoredToken();
             return;
           }
           
           // Try refresh token first (safer approach)
           try {
-            console.log('🔄 Using refresh token to get new access token...');
+            if (__DEV__) console.log('🔄 Using refresh token to get new access token...');
             const refreshSuccess = await apiService.refreshAccessToken();
             
             if (refreshSuccess) {
@@ -348,19 +358,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
                     profile: profile || undefined
                   });
                   
-                  console.log('✅ Session restored with refresh token');
+                  if (__DEV__) console.log('✅ Session restored with refresh token');
                   return; // Success
                 }
               }
             }
             
-            console.log('❌ Refresh token failed or invalid - clearing session');
+            if (__DEV__) console.log('❌ Refresh token failed or invalid - clearing session');
             await apiService.clearStoredToken();
             setUser(null);
             setAccessToken(null);
             
           } catch (refreshError) {
-            console.warn('❌ Refresh token error:', refreshError);
+            if (__DEV__) console.warn('❌ Refresh token error:', refreshError);
             
             // Clear everything on refresh error
             await apiService.clearStoredToken();
@@ -369,7 +379,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           }
         }
       } catch (error) {
-        console.error('Error initializing auth:', error);
+        if (__DEV__) console.error('Error initializing auth:', error);
       } finally {
         if (mounted) {
           setLoading(false);
@@ -394,7 +404,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     lastName?: string;
   }): Promise<boolean> => {
     try {
-      console.log('🔄 Registering with code:', data.registrationCode);
+      if (__DEV__) console.log('🔄 Registering with code:', data.registrationCode);
       
       const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/registration/register`, {
         method: 'POST',
@@ -409,10 +419,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
         throw new Error(errorData.message || 'Registration failed');
       }
 
-      console.log('✅ Registration with code successful');
+      if (__DEV__) console.log('✅ Registration with code successful');
       return true;
     } catch (error) {
-      console.error('❌ Registration error:', error);
+      if (__DEV__) console.error('❌ Registration error:', error);
       throw error;
     }
   }, []);
@@ -420,7 +430,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Email Verification with Code
   const verifyEmailCode = useCallback(async (code: string, email: string): Promise<boolean> => {
     try {
-      console.log('🔄 Verifying email code:', code, 'for email:', email);
+      if (__DEV__) console.log('🔄 Verifying email code:', code, 'for email:', email);
       
       const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/registration/verify-code`, {
         method: 'POST',
@@ -436,10 +446,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
 
       const result = await response.json();
-      console.log('✅ Email verification successful');
+      if (__DEV__) console.log('✅ Email verification successful');
       return result.success;
     } catch (error) {
-      console.error('❌ Email verification error:', error);
+      if (__DEV__) console.error('❌ Email verification error:', error);
       throw error;
     }
   }, []);
@@ -447,7 +457,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Resend Verification Email
   const resendVerificationEmail = useCallback(async (email: string): Promise<boolean> => {
     try {
-      console.log('🔄 Resending verification email to:', email);
+      if (__DEV__) console.log('🔄 Resending verification email to:', email);
       
       const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/registration/resend-verification`, {
         method: 'POST',
@@ -462,10 +472,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
         throw new Error(errorData.message || 'Resend failed');
       }
 
-      console.log('✅ Verification email resent successfully');
+      if (__DEV__) console.log('✅ Verification email resent successfully');
       return true;
     } catch (error) {
-      console.error('❌ Resend verification error:', error);
+      if (__DEV__) console.error('❌ Resend verification error:', error);
       throw error;
     }
   }, []);

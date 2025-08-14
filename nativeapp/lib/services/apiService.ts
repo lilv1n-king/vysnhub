@@ -8,6 +8,9 @@ export class ApiService {
   // Track consecutive 401 errors to prevent infinite loops
   private consecutive401Errors = 0;
   private readonly MAX_401_RETRIES = 2;
+  
+  // Track refresh operation to prevent concurrent refreshes
+  private refreshPromise: Promise<boolean> | null = null;
 
   constructor() {
     this.baseURL = API_BASE_URL;
@@ -285,8 +288,9 @@ export class ApiService {
       // Clear from storage
       await AsyncStorage.multiRemove(['auth_token', 'refresh_token', 'token_expires_at']);
       
-      // Reset consecutive error counter
+      // Reset consecutive error counter and refresh promise
       this.consecutive401Errors = 0;
+      this.refreshPromise = null;
       
       console.log('🧹 All tokens cleared successfully');
     } catch (error) {
@@ -304,6 +308,25 @@ export class ApiService {
 
   // Refresh access token using refresh token
   async refreshAccessToken(): Promise<boolean> {
+    // If refresh is already in progress, wait for it
+    if (this.refreshPromise) {
+      console.log('🔄 Token refresh already in progress, waiting...');
+      return await this.refreshPromise;
+    }
+
+    // Start new refresh operation
+    this.refreshPromise = this.performTokenRefresh();
+    
+    try {
+      const result = await this.refreshPromise;
+      return result;
+    } finally {
+      // Clear the promise when done
+      this.refreshPromise = null;
+    }
+  }
+
+  private async performTokenRefresh(): Promise<boolean> {
     try {
       const refreshToken = await this.getStoredRefreshToken();
       if (!refreshToken) {
@@ -366,11 +389,24 @@ export class ApiService {
     
     // Need all tokens to refresh
     if (!expiresAt || !accessToken || !refreshToken) {
+      console.log('🔍 Missing tokens for refresh check:', { 
+        hasExpiresAt: !!expiresAt, 
+        hasAccessToken: !!accessToken, 
+        hasRefreshToken: !!refreshToken 
+      });
       return false;
     }
     
+    // Supabase expiresAt is in seconds (Unix timestamp)
     const now = Math.floor(Date.now() / 1000);
     const timeUntilExpiry = expiresAt - now;
+    
+    console.log('⏰ Token expiry check:', {
+      expiresAt: new Date(expiresAt * 1000).toISOString(),
+      now: new Date(now * 1000).toISOString(),
+      timeUntilExpiry: `${timeUntilExpiry}s`,
+      shouldRefresh: timeUntilExpiry < 300
+    });
     
     // Refresh if less than 5 minutes remaining
     return timeUntilExpiry < 300; // 5 minutes = 300 seconds

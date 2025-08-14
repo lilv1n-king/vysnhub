@@ -14,6 +14,7 @@ import cartRouter from './routes/cart';
 import privacyRouter from './routes/privacy';
 import registrationRouter from './routes/registration';
 import { homeContentRouter } from './routes/homeContent';
+import { adminRouter } from './routes/admin';
 import { errorHandler } from './middleware/errorHandler';
 
 // Lade .env Datei ZUERST
@@ -45,6 +46,7 @@ app.use('/api/cart', cartRouter); // Warenkorb
 app.use('/api/privacy', privacyRouter); // Datenschutz
 app.use('/api/registration', registrationRouter); // Custom Registration
 app.use('/api/home-content', homeContentRouter); // Home Screen Content
+app.use('/api/admin', adminRouter); // Admin Management
 
 // Error handling
 app.use(errorHandler);

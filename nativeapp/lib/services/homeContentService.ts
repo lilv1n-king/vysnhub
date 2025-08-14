@@ -1,4 +1,5 @@
 import { apiService } from './apiService';
+import { API_BASE_URL } from '../config/api';
 import { 
   HomeEvent, 
   HomeHighlight, 
@@ -11,7 +12,7 @@ export class HomeContentService {
   private baseURL: string;
 
   constructor() {
-    this.baseURL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000';
+    this.baseURL = API_BASE_URL;
   }
 
   /**

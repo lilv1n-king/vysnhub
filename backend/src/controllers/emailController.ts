@@ -128,8 +128,24 @@ export class EmailController {
         orderId: order.id
       };
 
-      // 3. E-Mail senden
+      // 3. E-Mail senden (an VYSN)
       const emailSent = await emailService.sendOrderEmail(orderEmailData);
+      
+      // 4. Bestätigungsmail an Kunden senden
+      let confirmationSent = false;
+      try {
+        confirmationSent = await emailService.sendOrderConfirmationEmail({
+          ...orderEmailData,
+          customerEmail: customerInfo.email, // Sicherstellen dass an Kunden-Email gesendet wird
+          language: req.body.language || 'de' // Sprache aus Request übernehmen
+        });
+        if (confirmationSent) {
+          console.log(`✅ Order confirmation email sent to customer: ${customerInfo.email}`);
+        }
+      } catch (confirmError) {
+        console.error('⚠️ Failed to send confirmation email to customer:', confirmError);
+        // Bestellung trotzdem als erfolgreich behandeln
+      }
 
       if (emailSent) {
         console.log(`✅ Order email sent successfully for project: ${project.project_name}`);
@@ -176,14 +192,25 @@ export class EmailController {
    */
   sendQuoteEmail = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { projectId, customerEmail, customerName, customerCompany, message } = req.body;
+      const { 
+        projectId, 
+        customerEmail, 
+        customerName, 
+        customerCompany, 
+        customerPhone,
+        customerAddress,
+        customerCity,
+        customerPostalCode,
+        language,
+        message 
+      } = req.body;
 
       // Validierung
-      if (!projectId || !customerEmail) {
+      if (!projectId || !customerEmail || !customerName) {
         res.status(400).json({
           success: false,
           error: 'Missing required fields',
-          message: 'projectId and customerEmail are required'
+          message: 'projectId, customerEmail and customerName are required'
         });
         return;
       }
@@ -229,9 +256,15 @@ export class EmailController {
 
       // Angebot-E-Mail-Daten zusammenstellen
       const quoteEmailData = {
-        customerName: customerName || 'Sehr geehrte Damen und Herren',
+        customerName: customerName || customerEmail.split('@')[0] || 'Kunde',
         customerEmail: customerEmail,
         customerCompany: customerCompany || '',
+        customerPhone: customerPhone || '',
+        customerAddress: customerAddress || '',
+        customerCity: customerCity || '',
+        customerPostalCode: customerPostalCode || '',
+        customerDiscount: project.customer_discount || 0,
+        language: language || 'de',
         message: message || '',
         project,
         products,
@@ -248,12 +281,17 @@ export class EmailController {
         console.log(`✅ Quote email sent successfully for project: ${project.project_name}`);
         res.status(200).json({
           success: true,
-          message: 'Quote email sent successfully',
+          message: 'Quote email with PDF attachment sent successfully',
           data: {
             projectName: project.project_name,
             productCount: products.length,
             quoteTotal,
-            recipient: customerEmail
+            recipient: customerEmail,
+            features: {
+              pdfAttachment: true,
+              taxBreakdown: true,
+              improvedGreeting: true
+            }
           }
         });
       } else {

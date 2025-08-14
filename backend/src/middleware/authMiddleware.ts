@@ -37,8 +37,10 @@ export const authenticateToken = async (
     // Token mit Supabase validieren
     const user = await authService.verifyAuthHeader(authHeader);
     
-    console.log('🔐 Authenticated User ID:', user.id);
-    console.log('👤 Authenticated User:', { id: user.id, email: user.email });
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔐 Authenticated User ID:', user.id);
+      console.log('👤 Authenticated User:', { id: user.id, email: user.email });
+    }
     
     // User und Token zum Request hinzufügen
     req.user = user;
@@ -46,7 +48,9 @@ export const authenticateToken = async (
     next();
 
   } catch (error) {
-    console.error('Auth middleware error:', error);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Auth middleware error:', error);
+    }
     
     let message = 'Authentication failed';
     if (error instanceof Error) {

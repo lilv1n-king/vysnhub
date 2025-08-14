@@ -1,5 +1,44 @@
 import * as nodemailer from 'nodemailer';
 import { Project } from '../models/Project';
+import { pdfService } from './pdfService';
+
+// E-Mail-Übersetzungen
+const emailTranslations = {
+  de: {
+    quoteSubject: 'Ihr Angebot für',
+    hello: 'Hallo',
+    quoteTitle: 'Angebot',
+    thankYou: 'Vielen Dank für Ihr Interesse!',
+    quoteAttached: 'Anbei finden Sie unser detailliertes Angebot für Ihr Projekt:',
+    projectName: 'Projektname',
+    totalAmount: 'Gesamtsumme',
+    nextSteps: 'Nächste Schritte',
+    questions: 'Bei Fragen können Sie mich gerne direkt kontaktieren.',
+    bestRegards: 'Mit freundlichen Grüßen',
+    location: 'Standort',
+    listPrice: 'Listenpreis',
+    customerDiscount: 'Kundendiscount',
+    totalNet: 'Gesamtsumme (netto)',
+    vatNotice: 'Alle Preise verstehen sich zzgl. der gesetzlichen Mehrwertsteuer'
+  },
+  en: {
+    quoteSubject: 'Your Quote for',
+    hello: 'Hello',
+    quoteTitle: 'Quote',
+    thankYou: 'Thank you for your interest!',
+    quoteAttached: 'Please find attached our detailed quote for your project:',
+    projectName: 'Project Name',
+    totalAmount: 'Total Amount',
+    nextSteps: 'Next Steps',
+    questions: 'If you have any questions, please feel free to contact me directly.',
+    bestRegards: 'Best regards',
+    location: 'Location',
+    listPrice: 'List Price',
+    customerDiscount: 'Customer Discount',
+    totalNet: 'Total (net)',
+    vatNotice: 'All prices are net prices plus VAT'
+  }
+};
 
 interface EmailConfig {
   host: string;
@@ -27,12 +66,19 @@ interface OrderEmailData {
   orderNotes?: string;
   orderNumber?: string;
   orderId?: string;
+  language?: string;
 }
 
 interface QuoteEmailData {
   customerName: string;
   customerEmail: string;
   customerCompany?: string;
+  customerPhone?: string;
+  customerAddress?: string;
+  customerCity?: string;
+  customerPostalCode?: string;
+  customerDiscount?: number;
+  language?: string;
   message?: string;
   project: Project;
   products: Array<{
@@ -51,6 +97,12 @@ interface QuoteEmailData {
 
 export class EmailService {
   private transporter: nodemailer.Transporter;
+
+  private t(key: string, language: string = 'de'): string {
+    return emailTranslations[language as keyof typeof emailTranslations]?.[key as keyof typeof emailTranslations.de] || 
+           emailTranslations.de[key as keyof typeof emailTranslations.de] || 
+           key;
+  }
   private recipientEmail: string;
 
   constructor() {
@@ -123,22 +175,89 @@ export class EmailService {
   }
 
   /**
+   * Sendet eine Bestätigungsmail an den Kunden
+   */
+  async sendOrderConfirmationEmail(orderData: OrderEmailData): Promise<boolean> {
+    try {
+      console.log(`📧 Sending order confirmation to customer: ${orderData.customerEmail}`);
+
+      const htmlContent = this.generateOrderConfirmationHTML(orderData);
+      const textContent = this.generateOrderConfirmationText(orderData);
+
+      const mailOptions = {
+        from: {
+          name: 'VYSN Hub',
+          address: process.env.SMTP_USER || 'noreply@vysnhub.com'
+        },
+        to: orderData.customerEmail,
+        subject: `✅ ${this.tOrder('subject', orderData.language || 'de')} ${orderData.orderNumber ? orderData.orderNumber : ''} - ${orderData.project.project_name}`,
+        text: textContent,
+        html: htmlContent,
+        // DSGVO-konforme Header
+        headers: {
+          'X-Privacy-Policy': 'DSGVO-konform - Daten werden nur zur Bestellabwicklung verwendet',
+          'X-Data-Retention': '30 Tage nach Bestellabwicklung',
+          'X-Data-Purpose': 'Bestellbestätigung und Kundensupport'
+        }
+      };
+
+      const result = await this.transporter.sendMail(mailOptions);
+      console.log('✅ Order confirmation email sent successfully:', result.messageId);
+      return true;
+
+    } catch (error) {
+      console.error('❌ Failed to send order confirmation email:', error);
+      return false;
+    }
+  }
+
+  /**
    * Sendet ein Angebot per E-Mail an einen Kunden
    */
   async sendQuoteEmail(quoteData: QuoteEmailData): Promise<boolean> {
+    let pdfBuffer: Buffer | null = null;
+    
     try {
       console.log(`📧 Sending quote email to: ${quoteData.customerEmail}`);
+
+      // PDF generieren
+      console.log('📄 Generating PDF attachment...');
+      try {
+        pdfBuffer = await pdfService.generateQuotePDF({
+          customerName: quoteData.customerName,
+          customerEmail: quoteData.customerEmail,
+          customerCompany: quoteData.customerCompany,
+          customerPhone: quoteData.customerPhone,
+          customerAddress: quoteData.customerAddress,
+          customerCity: quoteData.customerCity,
+          customerPostalCode: quoteData.customerPostalCode,
+          customerDiscount: quoteData.customerDiscount || 0,
+          language: quoteData.language || 'de',
+          message: quoteData.message,
+          project: quoteData.project,
+          products: quoteData.products,
+          quoteTotal: quoteData.quoteTotal,
+          senderName: quoteData.senderName,
+          senderEmail: quoteData.senderEmail,
+          senderCompany: quoteData.senderCompany,
+          taxRate: 19
+        });
+        console.log('✅ PDF generated successfully');
+      } catch (pdfError) {
+        console.error('⚠️ PDF generation failed, sending email without attachment:', pdfError);
+        // Weiter ohne PDF - E-Mail soll trotzdem gesendet werden
+      }
 
       const htmlContent = this.generateQuoteEmailHTML(quoteData);
       const textContent = this.generateQuoteEmailText(quoteData);
 
-      const mailOptions = {
+      const mailOptions: any = {
         from: {
-          name: `${quoteData.senderName} (via VYSN Hub)`,
+          name: quoteData.senderName,
           address: process.env.SMTP_USER || 'mail@mupmails.de'
         },
         to: quoteData.customerEmail,
-        subject: `💡 Ihr Angebot für ${quoteData.project.project_name}`,
+        subject: `💡 ${this.t('quoteSubject', quoteData.language)} ${quoteData.project.project_name}`,
         text: textContent,
         html: htmlContent,
         replyTo: {
@@ -152,6 +271,16 @@ export class EmailService {
           'X-Data-Purpose': 'Angebotsübermittlung'
         }
       };
+
+      // PDF als Anhang hinzufügen, wenn erfolgreich generiert
+      if (pdfBuffer) {
+        mailOptions.attachments = [{
+          filename: `Angebot_${quoteData.project.project_name.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`,
+          content: pdfBuffer,
+          contentType: 'application/pdf'
+        }];
+        console.log('📎 PDF attachment added to email');
+      }
 
       const result = await this.transporter.sendMail(mailOptions);
       console.log('✅ Quote email sent successfully:', result.messageId);
@@ -167,14 +296,26 @@ export class EmailService {
    * Generiert HTML-Inhalt für das Angebot
    */
   private generateQuoteEmailHTML(quoteData: QuoteEmailData): string {
-    const { customerName, customerCompany, message, project, products, quoteTotal, senderName, senderEmail, senderCompany } = quoteData;
+    const { customerName, customerCompany, message, project, products, quoteTotal, senderName, senderEmail, senderCompany, language = 'de', customerDiscount = 0 } = quoteData;
+    
+    // Preisberechnung (ohne MwSt, wie im PDF)
+    const netTotal = quoteTotal;
+    
+    // Wenn ein Kundendiscount vorliegt, berechne den ursprünglichen Preis
+    const originalTotal = customerDiscount > 0 ? netTotal / (1 - customerDiscount / 100) : netTotal;
+    const discountAmount = originalTotal - netTotal;
+
+    // Verbesserte Begrüßung
+    const greeting = customerCompany && customerCompany.trim() !== '' 
+      ? `${customerName}<br><strong>${customerCompany}</strong>`
+      : `${this.t('hello', language)} ${customerName}`;
 
     return `
 <!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
-<title>Angebot ${project.project_name}</title>
+<title>${this.t('quoteTitle', language)} ${project.project_name}</title>
 <style>
 body{font-family:Arial,sans-serif;margin:0;padding:15px;background:#fff;color:#000}
 .c{max-width:700px;margin:0 auto;background:#fff;border:2px solid #000;border-radius:10px;overflow:hidden}
@@ -192,38 +333,61 @@ body{font-family:Arial,sans-serif;margin:0;padding:15px;background:#fff;color:#0
 .img{width:80px;height:80px;border:1px solid #ccc;border-radius:4px;object-fit:contain;margin-right:12px;display:block}
 .pn{font-weight:bold;margin-bottom:2px}
 .ps{font-size:11px;color:#666;font-family:monospace}
-.total{border:2px solid #000;border-radius:6px;padding:15px;text-align:center;margin:15px 0}
-.ta{font-size:24px;font-weight:bold}
+.pricing{border:2px solid #000;border-radius:6px;padding:15px;margin:15px 0}
+.pricing-table{width:100%;border-collapse:collapse;margin:10px 0}
+.pricing-table td{padding:8px 0;border-bottom:1px solid #ddd}
+.pricing-table .label{font-weight:normal;text-align:left}
+.pricing-table .value{font-weight:bold;text-align:right}
+.pricing-table .total{font-size:20px;border-top:2px solid #000;padding-top:12px;margin-top:8px}
 .msg{border:1px solid #000;border-radius:6px;padding:12px;margin:15px 0}
 .info{text-align:center;margin:15px 0;padding:15px;background:#f5f5f5;border-radius:6px}
 .f{border-top:2px solid #000;padding:15px;text-align:center;font-size:14px}
+.pdf-note{background:#e8f4fd;border:1px solid #007acc;border-radius:6px;padding:12px;margin:15px 0;font-size:14px}
 </style>
 </head>
 <body>
 <div class="c">
 <div class="h">
-<h1>Ihr Angebot</h1>
-<div>Professionelle Beleuchtungslösungen</div>
+<h1>${this.t('quoteTitle', language)}</h1>
+<div>${this.t('thankYou', language)}</div>
 </div>
 <div class="content">
-<div class="greeting">${customerCompany ? `${customerName}<br>${customerCompany}` : `Hallo ${customerName}`}</div>
+<div class="greeting">${greeting}</div>
 ${message ? `<div class="msg">${message.replace(/\n/g, '<br>')}</div>` : ''}
 <div class="project">
 <div class="pt">${project.project_name}</div>
-${project.project_location ? `<div><b>Standort:</b> ${project.project_location}</div>` : ''}
-<div><b>Datum:</b> ${new Date().toLocaleDateString('de-DE')}</div>
+${project.project_location ? `<div><b>${this.t('location', language)}:</b> ${project.project_location}</div>` : ''}
+<div><b>${this.t('quoteDate', language)}:</b> ${new Date().toLocaleDateString(language === 'en' ? 'en-US' : 'de-DE')}</div>
 </div>
+
 <table class="table">
-<tr><th>Produkt</th><th class="qty">Menge</th><th class="price">Einzelpreis</th><th class="price">Gesamtpreis</th></tr>
-${this.generateCompactProductRows(products)}
+<tr><th>Produkt</th><th class="qty">Menge</th><th class="price">Einzelpreis (netto)</th><th class="price">Gesamtpreis (netto)</th></tr>
+${this.generateCompactProductRowsWithTax(products, 0)}
 </table>
-<div class="total">
-<div><b>GESAMTPREIS</b></div>
-<div class="ta">${this.formatPrice(quoteTotal)}</div>
-<div style="font-size:11px">Alle Preise zzgl. MwSt.</div>
+<div class="pricing">
+<table class="pricing-table">
+${customerDiscount > 0 ? `
+<tr>
+<td class="label">${this.t('listPrice', language)}:</td>
+<td class="value">${this.formatPrice(originalTotal)}</td>
+</tr>
+<tr>
+<td class="label">${this.t('customerDiscount', language)} (${customerDiscount}%):</td>
+<td class="value" style="color: #d32f2f;">-${this.formatPrice(discountAmount)}</td>
+</tr>
+` : ''}
+<tr class="total">
+<td class="label"><strong>${this.t('totalNet', language)}:</strong></td>
+<td class="value"><strong>${this.formatPrice(netTotal)}</strong></td>
+</tr>
+</table>
+<div style="margin-top: 10px; font-size: 12px; color: #666; text-align: right;">
+<em>${this.t('vatNotice', language)}</em>
+</div>
 </div>
 <div class="info">
-<b>Für Fragen antworten Sie einfach auf diese E-Mail</b>
+<strong>Für Fragen oder Bestellungen antworten Sie einfach auf diese E-Mail!</strong><br>
+<small>Angebot gültig 30 Tage ab Ausstellungsdatum</small>
 </div>
 </div>
 <div class="f">
@@ -241,13 +405,25 @@ ${senderCompany ? `<div>${senderCompany}</div>` : ''}
    * Generiert Text-Inhalt für das Angebot (Fallback)
    */
   private generateQuoteEmailText(quoteData: QuoteEmailData): string {
-    const { customerName, customerCompany, message, project, products, quoteTotal, senderName, senderEmail } = quoteData;
+    const { customerName, customerCompany, message, project, products, quoteTotal, senderName, senderEmail, language = 'de', customerDiscount = 0 } = quoteData;
+    
+    // Preisberechnung (ohne MwSt, wie im PDF)
+    const netTotal = quoteTotal;
+    
+    // Wenn ein Kundendiscount vorliegt, berechne den ursprünglichen Preis
+    const originalTotal = customerDiscount > 0 ? netTotal / (1 - customerDiscount / 100) : netTotal;
+    const discountAmount = originalTotal - netTotal;
+
+    // Verbesserte Begrüßung
+    const greeting = customerCompany && customerCompany.trim() !== '' 
+      ? `${customerName}\n${customerCompany}`
+      : `Hallo ${customerName}`;
 
     return `
-💡 IHR ANGEBOT - VYSN HUB
+💡 IHR ANGEBOT
 ${'='.repeat(50)}
 
-${customerCompany ? `${customerName}\n${customerCompany}` : `Hallo ${customerName}`}
+${greeting}
 
 ${message ? `NACHRICHT:
 ${message}
@@ -258,22 +434,32 @@ ${project.project_description ? `Beschreibung: ${project.project_description}` :
 ${project.project_location ? `Standort: ${project.project_location}` : ''}
 Angebotsdatum: ${new Date().toLocaleDateString('de-DE')}
 
+📄 VOLLSTÄNDIGES ANGEBOT IM PDF-ANHANG
+Ein detailliertes PDF-Angebot mit allen Produktbildern und Spezifikationen 
+ist als Anhang beigefügt.
+
 📦 ANGEBOTENE PRODUKTE:
 ${'-'.repeat(60)}
-${products.map(product => 
-  `${product.itemNumber} | ${product.name}
-  Menge: ${product.quantity}x | Einzelpreis: ${this.formatPrice(product.unitPrice)} | Total: ${this.formatPrice(product.totalPrice)}`
-).join('\n\n')}
+${products.map(product => {
+  return `${product.itemNumber} | ${product.name}
+  Menge: ${product.quantity}x | Einzelpreis (netto): ${this.formatPrice(product.unitPrice)} | Total (netto): ${this.formatPrice(product.totalPrice)}`;
+}).join('\n\n')}
 
 ${'-'.repeat(60)}
-GESAMTPREIS: ${this.formatPrice(quoteTotal)}
-(Alle Preise zzgl. MwSt.)
+PREISAUFSTELLUNG:
+${customerDiscount > 0 ? `Listenpreis:          ${this.formatPrice(originalTotal)}
+Kundendiscount (${customerDiscount}%): -${this.formatPrice(discountAmount)}
+${'-'.repeat(30)}` : ''}
+GESAMTSUMME (netto):  ${this.formatPrice(netTotal)}
+
+Alle Preise verstehen sich zzgl. der gesetzlichen Mehrwertsteuer
 
 📧 KONTAKT:
 ${senderName}
 ${senderEmail}
 
 Für Fragen oder Bestellungen antworten Sie einfach auf diese E-Mail.
+Angebot gültig 30 Tage ab Ausstellungsdatum.
 
 ${'-'.repeat(50)}
 🔒 DSGVO-konform | www.vysn.de
@@ -509,6 +695,320 @@ VYSN Hub - Professionelle Beleuchtungslösungen
     return statusLabels[status] || status;
   }
 
+  private orderConfirmationTranslations = {
+    de: {
+      subject: 'Bestellbestätigung',
+      orderSuccessful: 'Bestellung erfolgreich!',
+      thankYou: 'Vielen Dank, {{customerName}}! Ihre Bestellung wurde erfolgreich abgesendet.',
+      orderInfo: 'Bestellinformationen',
+      orderNumber: 'Bestellnummer',
+      orderNumberTbd: 'Wird zugeteilt',
+      orderId: 'Bestell-ID',
+      orderDate: 'Bestelldatum',
+      status: 'Status',
+      statusProcessing: 'In Bearbeitung',
+      project: 'Projekt',
+      customer: 'Kunde',
+      orderedProducts: 'Bestellte Produkte',
+      article: 'Artikel',
+      quantity: 'Menge',
+      unitPrice: 'Einzelpreis',
+      total: 'Gesamt',
+      totalAmount: 'Gesamtsumme',
+      priceNote: 'Alle Preise sind Nettopreise zzgl. MwSt.',
+      nextSteps: 'Wie geht es weiter?',
+      processing: 'Ihre Bestellung wird von unserem Team bearbeitet',
+      detailedOffer: 'Sie erhalten ein detailliertes Angebot per E-Mail',
+      questions: 'Bei Fragen können Sie uns direkt antworten',
+      deliveryTime: 'Lieferzeiten werden Ihnen mit dem Angebot mitgeteilt',
+      questionsReply: 'Bei Fragen antworten Sie einfach auf diese E-Mail.',
+      thankYouTrust: 'Vielen Dank für Ihr Vertrauen!',
+      companyName: 'VYSN Hub',
+      companyTagline: 'Professionelle Beleuchtungslösungen',
+      autoGenerated: 'Diese E-Mail wurde automatisch generiert. Alle Daten werden DSGVO-konform verarbeitet.',
+      dataUsage: 'Daten werden nur zur Bestellabwicklung verwendet und nach 30 Tagen gelöscht.',
+      gdprCompliant: 'DSGVO-konform | Daten nur zur Bestellabwicklung',
+      hello: 'Hallo {{customerName}},'
+    },
+    en: {
+      subject: 'Order Confirmation',
+      orderSuccessful: 'Order successful!',
+      thankYou: 'Thank you, {{customerName}}! Your order has been successfully submitted.',
+      orderInfo: 'Order Information',
+      orderNumber: 'Order Number',
+      orderNumberTbd: 'To be assigned',
+      orderId: 'Order ID',
+      orderDate: 'Order Date',
+      status: 'Status',
+      statusProcessing: 'Processing',
+      project: 'Project',
+      customer: 'Customer',
+      orderedProducts: 'Ordered Products',
+      article: 'Article',
+      quantity: 'Quantity',
+      unitPrice: 'Unit Price',
+      total: 'Total',
+      totalAmount: 'Total Amount',
+      priceNote: 'All prices are net prices plus VAT.',
+      nextSteps: 'What happens next?',
+      processing: 'Your order will be processed by our team',
+      detailedOffer: 'You will receive a detailed offer via email',
+      questions: 'For questions you can reply directly',
+      deliveryTime: 'Delivery times will be communicated with the offer',
+      questionsReply: 'For questions simply reply to this email.',
+      thankYouTrust: 'Thank you for your trust!',
+      companyName: 'VYSN Hub',
+      companyTagline: 'Professional Lighting Solutions',
+      autoGenerated: 'This email was automatically generated. All data is processed GDPR-compliant.',
+      dataUsage: 'Data is only used for order processing and deleted after 30 days.',
+      gdprCompliant: 'GDPR-compliant | Data only for order processing',
+      hello: 'Hello {{customerName}},'
+    }
+  };
+
+  private tOrder(key: string, language: string = 'de', replacements: { [key: string]: string } = {}): string {
+    const translations = this.orderConfirmationTranslations[language as keyof typeof this.orderConfirmationTranslations] 
+      || this.orderConfirmationTranslations.de;
+    
+    let text = translations[key as keyof typeof translations] || key;
+    
+    // Ersetzungen durchführen
+    Object.keys(replacements).forEach(placeholder => {
+      text = text.replace(new RegExp(`{{${placeholder}}}`, 'g'), replacements[placeholder]);
+    });
+    
+    return text;
+  }
+
+  /**
+   * Generiert HTML-Inhalt für Bestätigungsmail an Kunden
+   */
+  private generateOrderConfirmationHTML(orderData: OrderEmailData): string {
+    const { customerName, customerEmail, project, products, orderTotal, orderNumber, orderId, language = 'de' } = orderData;
+
+    return `
+<!DOCTYPE html>
+<html lang="${language}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${this.tOrder('subject', language)}</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            line-height: 1.6; 
+            color: #333; 
+            margin: 0; 
+            padding: 20px; 
+            background-color: #f5f5f5; 
+        }
+        .container { 
+            max-width: 600px; 
+            margin: 0 auto; 
+            background: white; 
+            padding: 30px; 
+            border-radius: 10px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+        }
+        .header { 
+            text-align: center; 
+            margin-bottom: 30px; 
+            border-bottom: 2px solid #000; 
+            padding-bottom: 20px; 
+        }
+        .header h1 { 
+            color: #000; 
+            margin: 0; 
+            font-size: 24px; 
+        }
+        .confirmation-box { 
+            background: #f0f9ff; 
+            border: 2px solid #22c55e; 
+            border-radius: 8px; 
+            padding: 20px; 
+            margin: 20px 0; 
+            text-align: center; 
+        }
+        .confirmation-box h2 { 
+            color: #22c55e; 
+            margin: 0 0 10px 0; 
+            font-size: 20px; 
+        }
+        .order-info { 
+            background: #f8f9fa; 
+            padding: 15px; 
+            border-radius: 5px; 
+            margin: 20px 0; 
+        }
+        .products-table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin: 20px 0; 
+        }
+        .products-table th, .products-table td { 
+            padding: 12px; 
+            text-align: left; 
+            border-bottom: 1px solid #ddd; 
+        }
+        .products-table th { 
+            background: #f8f9fa; 
+            font-weight: bold; 
+        }
+        .total-box { 
+            background: #000; 
+            color: white; 
+            padding: 15px; 
+            border-radius: 5px; 
+            text-align: center; 
+            margin: 20px 0; 
+        }
+        .footer { 
+            margin-top: 30px; 
+            padding-top: 20px; 
+            border-top: 1px solid #ddd; 
+            text-align: center; 
+            color: #666; 
+            font-size: 14px; 
+        }
+        .legal-note { 
+            background: #f9f9f9; 
+            padding: 15px; 
+            border-radius: 5px; 
+            margin: 20px 0; 
+            font-size: 12px; 
+            color: #666; 
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>${this.tOrder('companyName', language)}</h1>
+            <p>${this.tOrder('companyTagline', language)}</p>
+        </div>
+
+        <div class="confirmation-box">
+            <h2>✅ ${this.tOrder('orderSuccessful', language)}</h2>
+            <p>${this.tOrder('thankYou', language, { customerName })}</p>
+        </div>
+
+        <div class="order-info">
+            <h3>📋 ${this.tOrder('orderInfo', language)}</h3>
+            <p><strong>${this.tOrder('orderNumber', language)}:</strong> ${orderNumber || this.tOrder('orderNumberTbd', language)}</p>
+            ${orderId ? `<p><strong>${this.tOrder('orderId', language)}:</strong> ${orderId}</p>` : ''}
+            <p><strong>${this.tOrder('orderDate', language)}:</strong> ${new Date().toLocaleDateString(language === 'en' ? 'en-US' : 'de-DE')}</p>
+            <p><strong>${this.tOrder('status', language)}:</strong> ${this.tOrder('statusProcessing', language)}</p>
+            <p><strong>${this.tOrder('project', language)}:</strong> ${project.project_name}</p>
+            <p><strong>${this.tOrder('customer', language)}:</strong> ${customerName} (${customerEmail})</p>
+        </div>
+
+        <h3>📦 ${this.tOrder('orderedProducts', language)}</h3>
+        <table class="products-table">
+            <thead>
+                <tr>
+                    <th>${this.tOrder('article', language)}</th>
+                    <th>${this.tOrder('quantity', language)}</th>
+                    <th>${this.tOrder('unitPrice', language)}</th>
+                    <th>${this.tOrder('total', language)}</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${products.map(product => `
+                    <tr>
+                        <td>
+                            <strong>${product.name}</strong><br>
+                            <small>Art.-Nr.: ${product.itemNumber}</small>
+                        </td>
+                        <td>${product.quantity}x</td>
+                        <td>${this.formatPrice(product.unitPrice)}</td>
+                        <td>${this.formatPrice(product.totalPrice)}</td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+
+        <div class="total-box">
+            <h3>${this.tOrder('totalAmount', language)}: ${this.formatPrice(orderTotal)}</h3>
+            <p style="margin: 0; font-size: 14px;">${this.tOrder('priceNote', language)}</p>
+        </div>
+
+        <div class="legal-note">
+            <h4>⏭️ ${this.tOrder('nextSteps', language)}</h4>
+            <ul style="margin: 0; padding-left: 20px;">
+                <li>${this.tOrder('processing', language)}</li>
+                <li>${this.tOrder('detailedOffer', language)}</li>
+                <li>${this.tOrder('questions', language)}</li>
+                <li>${this.tOrder('deliveryTime', language)}</li>
+            </ul>
+        </div>
+
+        <div class="footer">
+            <p><strong>${this.tOrder('companyName', language)}</strong></p>
+            <p>${this.tOrder('companyTagline', language)}</p>
+            <p>${this.tOrder('questionsReply', language)}</p>
+            <br>
+            <p style="font-size: 12px;">
+                ${this.tOrder('autoGenerated', language)}<br>
+                ${this.tOrder('dataUsage', language)}
+            </p>
+        </div>
+    </div>
+</body>
+</html>
+    `;
+  }
+
+  /**
+   * Generiert Text-Inhalt für Bestätigungsmail an Kunden
+   */
+  private generateOrderConfirmationText(orderData: OrderEmailData): string {
+    const { customerName, customerEmail, project, products, orderTotal, orderNumber, orderId, language = 'de' } = orderData;
+
+    return `
+✅ ${this.tOrder('subject', language).toUpperCase()} - ${this.tOrder('companyName', language).toUpperCase()}
+${'='.repeat(50)}
+
+${this.tOrder('hello', language, { customerName })}
+
+${this.tOrder('thankYou', language, { customerName })}
+
+📋 ${this.tOrder('orderInfo', language).toUpperCase()}:
+${this.tOrder('orderNumber', language)}: ${orderNumber || this.tOrder('orderNumberTbd', language)}
+${orderId ? `${this.tOrder('orderId', language)}: ${orderId}` : ''}
+${this.tOrder('orderDate', language)}: ${new Date().toLocaleString(language === 'en' ? 'en-US' : 'de-DE')}
+${this.tOrder('status', language)}: ${this.tOrder('statusProcessing', language)}
+${this.tOrder('project', language)}: ${project.project_name}
+${this.tOrder('customer', language)}: ${customerName} (${customerEmail})
+
+📦 ${this.tOrder('orderedProducts', language).toUpperCase()}:
+${'-'.repeat(50)}
+${products.map(product => 
+  `${product.itemNumber} | ${product.name}
+  ${this.tOrder('quantity', language)}: ${product.quantity}x | ${this.tOrder('unitPrice', language)}: ${this.formatPrice(product.unitPrice)} | ${this.tOrder('total', language)}: ${this.formatPrice(product.totalPrice)}`
+).join('\n\n')}
+
+${'-'.repeat(50)}
+${this.tOrder('totalAmount', language).toUpperCase()}: ${this.formatPrice(orderTotal)}
+(${this.tOrder('priceNote', language)})
+
+⏭️ ${this.tOrder('nextSteps', language).toUpperCase()}
+- ${this.tOrder('processing', language)}
+- ${this.tOrder('detailedOffer', language)}
+- ${this.tOrder('questions', language)}
+- ${this.tOrder('deliveryTime', language)}
+
+📧 ${this.tOrder('questionsReply', language)}
+
+${this.tOrder('thankYouTrust', language)}
+
+${this.tOrder('companyName', language)} - ${this.tOrder('companyTagline', language)}
+
+${'='.repeat(50)}
+🔒 ${this.tOrder('gdprCompliant', language)}
+${this.tOrder('dataUsage', language)}
+    `;
+  }
+
   private formatPrice(price: number): string {
     return new Intl.NumberFormat('de-DE', {
       style: 'currency',
@@ -536,6 +1036,34 @@ VYSN Hub - Professionelle Beleuchtungslösungen
 <td class="qty">${product.quantity}x</td>
 <td class="price">${this.formatPrice(product.unitPrice)}</td>
 <td class="price">${this.formatPrice(product.totalPrice)}</td>
+</tr>`;
+    }).join('');
+  }
+
+  private generateCompactProductRowsWithTax(products: any[], taxRate: number): string {
+    return products.map(product => {
+      let imageUrl = '';
+      if (product.productData && product.productData.product_picture_1) {
+        imageUrl = product.productData.product_picture_1;
+      }
+      
+      // Netto-Preise berechnen
+      const netUnitPrice = product.unitPrice / (1 + taxRate / 100);
+      const netTotalPrice = product.totalPrice / (1 + taxRate / 100);
+      
+      return `<tr>
+<td style="padding:15px;">
+  <div style="display:flex;align-items:center;">
+    ${imageUrl ? `<img src="${imageUrl}" alt="${product.name}" class="img" style="flex-shrink:0;" />` : ''}
+    <div>
+      <div class="pn">${product.name}</div>
+      <div class="ps">${product.itemNumber}</div>
+    </div>
+  </div>
+</td>
+<td class="qty">${product.quantity}x</td>
+<td class="price">${this.formatPrice(netUnitPrice)}</td>
+<td class="price">${this.formatPrice(netTotalPrice)}</td>
 </tr>`;
     }).join('');
   }

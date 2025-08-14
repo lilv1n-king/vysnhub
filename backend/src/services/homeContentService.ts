@@ -265,4 +265,205 @@ export class HomeContentService {
       throw error;
     }
   }
+
+  // ====== ADMIN METHODS ======
+
+  /**
+   * Get all highlights (including inactive) for admin management
+   */
+  async getAllHighlights(): Promise<any[]> {
+    try {
+      const { data, error } = await supabase
+        .from('home_highlights')
+        .select(`
+          id,
+          title_de,
+          title_en,
+          description_de,
+          description_en,
+          badge_text_de,
+          badge_text_en,
+          badge_type,
+          button_text_de,
+          button_text_en,
+          image_url,
+          action_type,
+          action_params,
+          product_id,
+          is_active,
+          sort_order,
+          created_at,
+          updated_at
+        `)
+        .order('sort_order', { ascending: true });
+
+      if (error) {
+        console.error('Error loading all highlights:', error);
+        throw new Error(`Failed to load highlights: ${error.message}`);
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('Error loading all highlights:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create new highlight
+   */
+  async createHighlight(highlightData: any): Promise<any> {
+    try {
+      // Get the next sort order
+      const { data: maxSort, error: sortError } = await supabase
+        .from('home_highlights')
+        .select('sort_order')
+        .order('sort_order', { ascending: false })
+        .limit(1)
+        .single();
+
+      const nextSortOrder = maxSort?.sort_order ? maxSort.sort_order + 1 : 1;
+
+      const { data, error } = await supabase
+        .from('home_highlights')
+        .insert({
+          ...highlightData,
+          sort_order: nextSortOrder,
+          is_active: highlightData.is_active ?? true
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating highlight:', error);
+        throw new Error(`Failed to create highlight: ${error.message}`);
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Error creating highlight:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update existing highlight
+   */
+  async updateHighlight(id: string, updateData: any): Promise<any> {
+    try {
+      const { data, error } = await supabase
+        .from('home_highlights')
+        .update({
+          ...updateData,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error updating highlight:', error);
+        throw new Error(`Failed to update highlight: ${error.message}`);
+      }
+
+      if (!data) {
+        throw new Error('Highlight not found');
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Error updating highlight:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete highlight
+   */
+  async deleteHighlight(id: string): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('home_highlights')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        console.error('Error deleting highlight:', error);
+        throw new Error(`Failed to delete highlight: ${error.message}`);
+      }
+    } catch (error) {
+      console.error('Error deleting highlight:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Toggle highlight active status
+   */
+  async toggleHighlightStatus(id: string): Promise<any> {
+    try {
+      // First get current status
+      const { data: current, error: fetchError } = await supabase
+        .from('home_highlights')
+        .select('is_active')
+        .eq('id', id)
+        .single();
+
+      if (fetchError || !current) {
+        throw new Error('Highlight not found');
+      }
+
+      // Toggle the status
+      const { data, error } = await supabase
+        .from('home_highlights')
+        .update({
+          is_active: !current.is_active,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error toggling highlight status:', error);
+        throw new Error(`Failed to toggle highlight status: ${error.message}`);
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Error toggling highlight status:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Reorder highlights
+   */
+  async reorderHighlights(highlights: Array<{id: string, sort_order: number}>): Promise<void> {
+    try {
+      // Update all highlights in a transaction-like manner
+      const updates = highlights.map(highlight => 
+        supabase
+          .from('home_highlights')
+          .update({ 
+            sort_order: highlight.sort_order,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', highlight.id)
+      );
+
+      const results = await Promise.all(updates);
+      
+      // Check for errors
+      const errors = results.filter(result => result.error);
+      if (errors.length > 0) {
+        console.error('Error reordering highlights:', errors[0].error);
+        throw new Error(`Failed to reorder highlights: ${errors[0].error.message}`);
+      }
+
+    } catch (error) {
+      console.error('Error reordering highlights:', error);
+      throw error;
+    }
+  }
 }
