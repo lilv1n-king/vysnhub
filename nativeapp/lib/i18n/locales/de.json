@@ -48,6 +48,8 @@
     "downloadManual": "Anleitung herunterladen",
     "available": "Verfügbar",
     "notAvailable": "Nicht verfügbar",
+    "notAvailableInCart": "Nicht über Warenkorb verfügbar", 
+    "useProjectForOnRequest": "Bitte verwenden Sie 'Zu Projekt hinzufügen' für Artikel auf Anfrage",
     "lowStock": "Wenig Lager",
     "stock": "Lager",
     "delivery": "Lieferung",
@@ -164,6 +166,7 @@
     "luminousFlux": "Lichtstrom",
     "unnamedProduct": "Unbenanntes Produkt",
     "maximumPiecesOrderable": "Maximal {{count}} Stück bestellbar",
+    "maxQuantityReached": "Maximale Menge von {{count}} erreicht",
     "onlyXPiecesLeft": "Nur noch {{count}} Stück auf Lager",
     "item": "Artikel",
     "stock": {

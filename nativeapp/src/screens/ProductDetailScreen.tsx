@@ -560,16 +560,30 @@ export default function ProductDetailScreen() {
   };
 
   const getMaxQuantity = () => {
-    return product.stockQuantity || 0;
+    // Für PRO-Artikel (-1) und nicht verfügbare Artikel (0) erlaube bis zu 999
+    // Für normale Lagerartikel verwende die verfügbare Menge
+    if (!product.stockQuantity || product.stockQuantity <= 0) {
+      return 999; // Große Menge für Projekt-Bestellungen
+    }
+    return product.stockQuantity;
   };
 
   const handleQuantityChange = (value: number) => {
     if (value < 1) return;
     const maxQty = getMaxQuantity();
-    if (value > maxQty) {
-      Alert.alert(t('products.warning'), t('products.onlyXPiecesAvailable', { count: maxQty }));
+    
+    // Spezielle Warnung für normale Lagerartikel
+    if (product.stockQuantity && product.stockQuantity > 0 && value > product.stockQuantity) {
+      Alert.alert(t('products.warning'), t('products.onlyXPiecesAvailable', { count: product.stockQuantity }));
       return;
     }
+    
+    // Allgemeine Obergrenze
+    if (value > maxQty) {
+      Alert.alert(t('products.warning'), t('products.maxQuantityReached', { count: maxQty }));
+      return;
+    }
+    
     setQuantity(value);
   };
 
@@ -594,12 +608,10 @@ export default function ProductDetailScreen() {
   };
 
   const handleAddToProject = async () => {
-    if (!product.stockQuantity || product.stockQuantity === 0) {
-      Alert.alert(t('products.notAvailable'), t('products.notAvailable'));
-      return;
-    }
-    if (quantity > (product.stockQuantity || 0)) {
-      Alert.alert(t('products.notEnoughStock'), t('products.onlyXPiecesAvailable', { count: product.stockQuantity || 0 }));
+    // Erlaube Hinzufügen zu Projekten auch für PRO-Artikel (-1) und nicht verfügbare Artikel (0)
+    // Nur bei normalen Lagerprodukten prüfe die verfügbare Menge
+    if (product.stockQuantity && product.stockQuantity > 0 && quantity > product.stockQuantity) {
+      Alert.alert(t('products.notEnoughStock'), t('products.onlyXPiecesAvailable', { count: product.stockQuantity }));
       return;
     }
     
@@ -675,8 +687,20 @@ export default function ProductDetailScreen() {
   const handleAddToCart = async () => {
     if (!product) return;
     
-    if (!product.stockQuantity || product.stockQuantity === 0) {
-      Alert.alert(t('products.notAvailable'), t('products.notAvailable'));
+    // Verhindere direkten Warenkorb für PRO-Artikel (-1) und nicht verfügbare Artikel (0)
+    if (!product.stockQuantity || product.stockQuantity <= 0) {
+      const stockStatus = formatStockDisplay(product.stockQuantity, product.itemNumberVysn, t);
+      Alert.alert(
+        t('products.notAvailableInCart'), 
+        stockStatus.onRequest 
+          ? t('products.useProjectForOnRequest')
+          : t('products.notAvailable')
+      );
+      return;
+    }
+    
+    if (quantity > product.stockQuantity) {
+      Alert.alert(t('products.notEnoughStock'), t('products.onlyXPiecesAvailable', { count: product.stockQuantity }));
       return;
     }
     
@@ -907,8 +931,8 @@ export default function ProductDetailScreen() {
             </View>
           </View>
 
-          {/* Stock Warning */}
-          {product.stockQuantity && quantity > product.stockQuantity && (
+          {/* Stock Warning - nur für normale Lagerartikel, nicht für PRO-Artikel */}
+          {product.stockQuantity && product.stockQuantity > 0 && quantity > product.stockQuantity && (
             <View style={styles.stockWarning}>
               <Text style={styles.stockWarningText}>
                 ⚠️ {t('products.notEnoughStock')}
@@ -942,7 +966,7 @@ export default function ProductDetailScreen() {
         {/* Action Buttons */}
         <Button 
           onPress={handleAddToProject}
-          disabled={isAddingToProject || !product.stockQuantity || quantity > product.stockQuantity}
+          disabled={isAddingToProject}
           style={styles.actionButton}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
@@ -952,9 +976,7 @@ export default function ProductDetailScreen() {
               <ShoppingCart size={20} color="#ffffff" style={{ marginRight: 8 }} />
             )}
             <Text style={{ color: '#ffffff', fontWeight: '600', fontSize: 16 }}>
-                              {!product.stockQuantity 
-                ? t('products.notAvailable') 
-                : isAddingToProject 
+              {isAddingToProject 
                 ? t('products.adding') 
                 : t('products.addToProject')}
             </Text>
@@ -964,7 +986,7 @@ export default function ProductDetailScreen() {
         <Button 
           variant="outline"
           onPress={handleAddToCart}
-          disabled={isAddingToCart || !product.stockQuantity || quantity > product.stockQuantity}
+          disabled={isAddingToCart || !product.stockQuantity || product.stockQuantity <= 0 || quantity > (product.stockQuantity || 0)}
           style={styles.actionButtonSecondary}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
@@ -974,8 +996,8 @@ export default function ProductDetailScreen() {
               <ShoppingCart size={20} color="#374151" style={{ marginRight: 8 }} />
             )}
             <Text style={{ color: '#374151', fontWeight: '600', fontSize: 16 }}>
-                              {!product.stockQuantity 
-                ? t('products.notAvailable') 
+              {(!product.stockQuantity || product.stockQuantity <= 0)
+                ? t('products.notAvailableInCart') 
                 : isAddingToCart 
                 ? t('cart.adding') 
                 : t('cart.addToCart')}

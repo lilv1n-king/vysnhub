@@ -97,7 +97,7 @@ export function usePushNotifications() {
     setIsLoading(true);
 
     try {
-      const response = await fetch('http://your-backend-url/api/push/subscribe', {
+      const response = await fetch('https://api.vysnlighting.com/api/push/subscribe', {
         method: 'POST',
         headers: {
           'Accept': 'application/json',
@@ -132,7 +132,7 @@ export function usePushNotifications() {
     }
 
     try {
-      const response = await fetch('http://your-backend-url/api/push/send', {
+      const response = await fetch('https://api.vysnlighting.com/api/push/send', {
         method: 'POST',
         headers: {
           'Accept': 'application/json',

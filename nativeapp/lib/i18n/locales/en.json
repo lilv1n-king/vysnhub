@@ -48,6 +48,8 @@
     "downloadManual": "Download Manual",
     "available": "Available",
     "notAvailable": "Not available",
+    "notAvailableInCart": "Not available via cart",
+    "useProjectForOnRequest": "Please use 'Add to Project' for items on request",
     "lowStock": "Low stock",
     "stock": "Stock",
     "delivery": "Delivery",
@@ -164,6 +166,7 @@
     "luminousFlux": "Luminous flux",
     "unnamedProduct": "Unnamed Product",
     "maximumPiecesOrderable": "Maximum {{count}} pieces can be ordered",
+    "maxQuantityReached": "Maximum quantity of {{count}} reached",
     "onlyXPiecesLeft": "Only {{count}} pieces left in stock",
     "item": "Item",
     "stock": {
