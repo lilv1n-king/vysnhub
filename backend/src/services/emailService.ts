@@ -552,6 +552,9 @@ VYSN Hub - Professionelle Beleuchtungslösungen
 <body>
     <div class="container">
         <div class="header">
+            <div style="text-align: center; margin-bottom: 15px;">
+                <img src="https://app.vysnlighting.com/logo.png" alt="VYSN Logo" style="height: 60px; width: auto; margin-bottom: 10px;" />
+            </div>
             <h1>🛒 Neue Bestellung eingegangen</h1>
             <p>VYSN Hub - Beleuchtungslösungen</p>
         </div>
@@ -948,8 +951,8 @@ body{font-family:Arial,sans-serif;margin:0;padding:15px;background:#fff;color:#0
 <body>
 <div class="c">
 <div class="h">
-<div style="display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 10px;">
-<img src="https://vysn.de/wp-content/uploads/2023/11/logo-vysn.png" alt="VYSN Logo" style="height: 40px; width: auto;" />
+<div style="text-align: center; margin-bottom: 20px;">
+        <img src="https://app.vysnlighting.com/logo.png" alt="VYSN Logo" style="height: 80px; width: auto; margin-bottom: 15px;" />
 <h1 style="margin: 0; font-size: 24px;">✅ ${this.tOrder('subject', language)}</h1>
 </div>
 <div>${this.tOrder('thankYou', language, { customerName })}</div>
@@ -1009,8 +1012,8 @@ ${showProject ? `<div><b>${this.tOrder('project', language)}:</b> ${project.proj
 
 </div>
 <div class="f">
-    <div style="display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 15px;">
-        <img src="https://vysn.de/wp-content/uploads/2023/11/logo-vysn.png" alt="VYSN Logo" style="height: 30px; width: auto;" />
+    <div style="text-align: center; margin-bottom: 15px;">
+        <img src="https://app.vysnlighting.com/logo.png" alt="VYSN Logo" style="height: 60px; width: auto; margin-bottom: 10px;" />
         <div><b>${this.tOrder('companyName', language)}</b></div>
     </div>
     <div>${this.tOrder('companyTagline', language)}</div>

@@ -151,8 +151,23 @@ export class PDFService {
       
       // HTML setzen
       await page.setContent(htmlContent, { 
-        waitUntil: 'domcontentloaded',
+        waitUntil: 'networkidle0',
         timeout: 60000 
+      });
+
+      // Warten bis alle Bilder geladen sind
+      await page.evaluate(() => {
+        const images = Array.from(document.querySelectorAll('img'));
+        return Promise.all(images.map(img => {
+          if (img.complete) return Promise.resolve(undefined);
+          return new Promise<void>((resolve, reject) => {
+            img.onload = () => resolve();
+            img.onerror = () => {
+              console.log(`Image failed to load: ${img.src}`);
+              resolve(); // Continue even if image fails
+            };
+          });
+        }));
       });
 
       // PDF generieren
@@ -657,10 +672,20 @@ export class PDFService {
                     const originalUnitPrice = customerDiscount > 0 ? product.unitPrice / (1 - customerDiscount / 100) : product.unitPrice;
                     const originalTotalPrice = customerDiscount > 0 ? product.totalPrice / (1 - customerDiscount / 100) : product.totalPrice;
                     
+                    // Get product image from productData
+                    let imageUrl = '';
+                    if (product.productData && product.productData.product_picture_1) {
+                        imageUrl = product.productData.product_picture_1;
+                    }
+                    
                     return `
                 <tr>
                     <td style="text-align: center;">
+                        ${imageUrl ? `
+                        <img src="${imageUrl}" alt="${product.name}" style="width: 50px; height: 50px; object-fit: cover; border: 1px solid #ddd; border-radius: 3px;" />
+                        ` : `
                         <div style="width: 50px; height: 50px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 3px; display: flex; align-items: center; justify-content: center; font-size: 8pt; color: #999;">IMG</div>
+                        `}
                     </td>
                     <td>
                         <div class="product-name">${product.name}</div>

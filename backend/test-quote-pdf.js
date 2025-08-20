@@ -27,7 +27,8 @@ const testQuoteData = {
       totalPrice: 381.81,
       productData: {
         item_number_vysn: 'V107051T1B',
-        short_description: 'Bounto P3, amber'
+        short_description: 'Bounto P3, amber',
+        product_picture_1: 'https://vysn.de/wp-content/uploads/2023/11/V107051T1B_1.jpg'
       }
     },
     {
@@ -38,7 +39,8 @@ const testQuoteData = {
       totalPrice: 71.02,
       productData: {
         item_number_vysn: 'PRO-0410-B',
-        short_description: '3 Phase track, 1 meter'
+        short_description: '3 Phase track, 1 meter',
+        product_picture_1: 'https://vysn.de/wp-content/uploads/2023/11/PRO-0410-B_1.jpg'
       }
     },
     {
@@ -49,7 +51,8 @@ const testQuoteData = {
       totalPrice: 310.61,
       productData: {
         item_number_vysn: 'V107002T1B',
-        short_description: 'Bounto P2'
+        short_description: 'Bounto P2',
+        product_picture_1: 'https://vysn.de/wp-content/uploads/2023/11/V107002T1B_1.jpg'
       }
     }
   ],
