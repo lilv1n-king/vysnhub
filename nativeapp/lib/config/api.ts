@@ -2,7 +2,7 @@ import Constants from 'expo-constants';
 
 // Backend API Configuration
 // ⚠️ SICHERHEITSWARNUNG: Development URL sollte nicht hardcoded sein!
-const API_BASE_URL_DEV = 'https://api.vysnlighting.com'; // Development URL (Production Server)
+const API_BASE_URL_DEV = 'http://192.168.2.128:3001'; // Development URL (Local Backend)
 const API_BASE_URL_PROD = 'https://api.vysnlighting.com'; // Production URL
 
 // Versuche Umgebungsvariablen zu laden, fallback auf Development-Werte

@@ -49,11 +49,14 @@ const translations = {
     totalPrice: 'Gesamtpreis',
     listPrice: 'Listenpreis',
     customerDiscount: 'Kundendiscount',
+    discountPrice: 'Rabattpreis',
     netTotal: 'Gesamtsumme (netto)',
     contact: 'Kontakt für Rückfragen',
     companyName: '',
     companyTagline: '',
     vatNotice: 'Alle Preise verstehen sich zzgl. der gesetzlichen Mehrwertsteuer',
+    reverseChargeNotice: 'Bei grenzüberschreitenden Geschäften (z.B. Schweiz) kann das Reverse-Charge-Verfahren angewendet werden',
+    quoteNotice: 'Dies ist nur ein unverbindliches Angebot. Bei grenzüberschreitenden Geschäften (z.B. Schweiz) kann das Reverse-Charge-Verfahren angewendet werden - entsprechende steuerliche Bestimmungen kommen dann mit der Rechnung zur Anwendung.',
     termsNotice: 'Alle Preise sind Nettopreise zzgl. MwSt. | Angebot gültig 30 Tage ab Ausstellungsdatum | Irrtümer und Preisänderungen vorbehalten',
     shippingTitle: 'Versand & Lieferung',
     shippingText: 'Lieferzeiten und Versandkosten werden Ihnen nach Auftragsbestätigung mitgeteilt.<br>Bei Fragen zur Verfügbarkeit oder Lieferung kontaktieren Sie uns gerne.'
@@ -75,11 +78,14 @@ const translations = {
     totalPrice: 'Total Price',
     listPrice: 'List Price',
     customerDiscount: 'Customer Discount',
+    discountPrice: 'Discount Price',
     netTotal: 'Total (net)',
     contact: 'Contact for inquiries',
     companyName: '',
     companyTagline: '',
     vatNotice: 'All prices are net prices plus VAT',
+    reverseChargeNotice: 'For cross-border transactions (e.g. Switzerland), reverse charge procedures may apply',
+    quoteNotice: 'This is a non-binding quote only. For cross-border transactions (e.g. Switzerland), reverse charge procedures may apply - corresponding tax regulations will then be applied with the invoice.',
     termsNotice: 'All prices are net prices plus VAT | Quote valid for 30 days from issue date | Errors and price changes reserved',
     shippingTitle: 'Shipping & Delivery',
     shippingText: 'Delivery times and shipping costs will be communicated after order confirmation.<br>For questions about availability or delivery, please contact us.'
@@ -114,13 +120,27 @@ export class PDFService {
       // Browser starten
       browser = await puppeteer.launch({
         headless: true,
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
           '--disable-dev-shm-usage',
           '--disable-gpu',
           '--disable-web-security',
-          '--disable-features=VizDisplayCompositor'
+          '--disable-features=VizDisplayCompositor',
+          '--disable-background-timer-throttling',
+          '--disable-backgrounding-occluded-windows',
+          '--disable-renderer-backgrounding',
+          '--disable-extensions',
+          '--disable-plugins',
+          '--disable-default-apps',
+          '--disable-hang-monitor',
+          '--disable-prompt-on-repost',
+          '--disable-sync',
+          '--metrics-recording-only',
+          '--no-first-run',
+          '--safebrowsing-disable-auto-update',
+          '--disable-ipc-flooding-protection'
         ]
       });
 
@@ -131,8 +151,8 @@ export class PDFService {
       
       // HTML setzen
       await page.setContent(htmlContent, { 
-        waitUntil: 'networkidle2',
-        timeout: 30000 
+        waitUntil: 'domcontentloaded',
+        timeout: 60000 
       });
 
       // PDF generieren
@@ -203,7 +223,7 @@ export class PDFService {
     <style>
         @page {
             size: A4;
-            margin: 0;
+            margin: 20mm 15mm;
         }
         
         /* Verbessertes Seitenumbruch-Management */
@@ -225,22 +245,26 @@ export class PDFService {
             page-break-after: avoid;
         }
         
-        .message-section {
-            page-break-inside: avoid;
-            page-break-after: avoid;
-        }
         
         .products-section {
             page-break-inside: avoid;
+            page-break-after: auto;
         }
         
         .products-table {
-            page-break-inside: avoid;
+            page-break-inside: auto;
+            page-break-before: avoid;
+        }
+        
+        .section-title {
+            page-break-after: avoid;
+            page-break-before: auto;
         }
         
         .totals-section {
-            page-break-inside: avoid;
-            page-break-before: avoid;
+            page-break-inside: avoid !important;
+            page-break-before: avoid !important;
+            page-break-after: avoid !important;
         }
         
         .footer {
@@ -251,11 +275,23 @@ export class PDFService {
         @media print {
             .products-section {
                 break-inside: avoid;
+                break-after: avoid;
+            }
+            
+            .products-table {
+                break-inside: auto;
+                break-before: avoid;
+            }
+            
+            .section-title {
+                break-after: avoid;
+                break-before: avoid;
             }
             
             .totals-section {
-                break-inside: avoid;
-                break-before: avoid;
+                break-inside: avoid !important;
+                break-before: avoid !important;
+                break-after: avoid !important;
             }
             
             /* Vermeide Umbrüche zwischen zusammengehörigen Elementen */
@@ -263,11 +299,7 @@ export class PDFService {
                 break-before: avoid;
             }
             
-            .project-section + .message-section {
-                break-before: avoid;
-            }
-            
-            .message-section + .products-section {
+            .project-section + .products-section {
                 break-before: avoid;
             }
             
@@ -288,15 +320,16 @@ export class PDFService {
             line-height: 1.4;
             color: #2c2c2c;
             background: white;
-            padding: 20mm 15mm;
+            padding: 0;
+            margin: 0;
         }
         
         .header {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            margin-bottom: 25px;
-            padding-bottom: 15px;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
             border-bottom: 3px solid #000;
             page-break-after: avoid;
         }
@@ -343,7 +376,7 @@ export class PDFService {
         }
         
         .customer-section {
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             page-break-inside: avoid;
             page-break-after: avoid;
         }
@@ -362,7 +395,7 @@ export class PDFService {
         }
         
         .project-section {
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             page-break-inside: avoid;
             page-break-after: avoid;
         }
@@ -386,12 +419,14 @@ export class PDFService {
         .info-row {
             display: flex;
             margin-bottom: 8px;
+            align-items: baseline;
         }
         
         .info-label {
             font-weight: bold;
-            width: 120px;
+            width: 140px;
             color: #555;
+            margin-right: 10px;
         }
         
         .info-value {
@@ -464,6 +499,7 @@ export class PDFService {
         .totals-table {
             width: 350px;
             border-collapse: collapse;
+            page-break-inside: avoid !important;
             font-size: 12pt;
         }
         
@@ -490,22 +526,17 @@ export class PDFService {
         .total-row td {
             padding: 15px 12px;
             border: none;
+        }
+        
+        /* Gesamter Rechnungsblock - niemals aufteilen */
+        .billing-block {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+            orphans: 10;
+            widows: 10;
             font-weight: bold;
         }
         
-        .message-section {
-            margin: 30px 0;
-            padding: 20px;
-            background: #f0f8ff;
-            border-left: 5px solid #007acc;
-            border-radius: 0 5px 5px 0;
-        }
-        
-        .message-title {
-            font-weight: bold;
-            margin-bottom: 10px;
-            color: #007acc;
-        }
         
         .footer {
             margin-top: 40px;
@@ -601,18 +632,11 @@ export class PDFService {
             ` : ''}
             <div class="info-row">
                 <span class="info-label">${this.t('quoteDate', language)}:</span>
-                <span class="info-value">${new Date().toLocaleDateString(language === 'en' ? 'en-US' : 'de-DE')}</span>
+                <span class="info-value" style="margin-left: 10px;">${new Date().toLocaleDateString(language === 'en' ? 'en-US' : 'de-DE')}</span>
             </div>
         </div>
     </div>
 
-    ${message ? `
-    <!-- Persönliche Nachricht -->
-    <div class="message-section">
-        <div class="message-title">${this.t('personalMessage', language)}:</div>
-        <div>${message.replace(/\n/g, '<br>')}</div>
-    </div>
-    ` : ''}
 
     <!-- Produkttabelle -->
     <div class="products-section">
@@ -621,36 +645,40 @@ export class PDFService {
             <thead>
                 <tr>
                     <th style="width: 70px;">${this.t('image', language)}</th>
-                    <th style="width: 200px;">${this.t('product', language)}</th>
-                    <th style="width: 80px; text-align: center;">${this.t('quantity', language)}</th>
-                    <th style="width: 100px; text-align: right;">${this.t('unitPrice', language)}</th>
-                    <th style="width: 100px; text-align: right;">${this.t('totalPrice', language)}</th>
+                    <th style="width: ${customerDiscount > 0 ? '180px' : '200px'};">${this.t('product', language)}</th>
+                    <th style="width: 60px; text-align: center;">${this.t('quantity', language)}</th>
+                    ${customerDiscount > 0 ? `<th style="width: 90px; text-align: right;">${this.t('listPrice', language)}</th>` : ''}
+                    <th style="width: ${customerDiscount > 0 ? '90px' : '100px'}; text-align: right;">${customerDiscount > 0 ? this.t('discountPrice', language) : this.t('unitPrice', language)}</th>
+                    <th style="width: ${customerDiscount > 0 ? '90px' : '100px'}; text-align: right;">${this.t('totalPrice', language)}</th>
                 </tr>
             </thead>
             <tbody>
-                ${products.map(product => `
+                ${products.map(product => {
+                    const originalUnitPrice = customerDiscount > 0 ? product.unitPrice / (1 - customerDiscount / 100) : product.unitPrice;
+                    const originalTotalPrice = customerDiscount > 0 ? product.totalPrice / (1 - customerDiscount / 100) : product.totalPrice;
+                    
+                    return `
                 <tr>
                     <td style="text-align: center;">
-                        ${product.productData?.product_picture_1 ? 
-                            `<img src="${product.productData.product_picture_1}" alt="${product.name}" class="product-image">` : 
-                            '<div style="width: 50px; height: 50px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 3px;"></div>'
-                        }
+                        <div style="width: 50px; height: 50px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 3px; display: flex; align-items: center; justify-content: center; font-size: 8pt; color: #999;">IMG</div>
                     </td>
                     <td>
                         <div class="product-name">${product.name}</div>
                         <div class="product-sku">${product.itemNumber}</div>
                     </td>
                     <td class="quantity">${product.quantity}x</td>
-                    <td class="price">${this.formatPrice(product.unitPrice)}</td>
-                    <td class="price">${this.formatPrice(product.totalPrice)}</td>
+                    ${customerDiscount > 0 ? `<td class="price">${this.formatPrice(originalUnitPrice)}</td>` : ''}
+                    <td class="price" ${customerDiscount > 0 ? 'style="color: #d32f2f; font-weight: bold;"' : ''}>${this.formatPrice(product.unitPrice)}</td>
+                    <td class="price" ${customerDiscount > 0 ? 'style="color: #d32f2f; font-weight: bold;"' : ''}>${this.formatPrice(product.totalPrice)}</td>
                 </tr>
-                `).join('')}
+                `;
+                }).join('')}
             </tbody>
         </table>
     </div>
 
     <!-- Preissummen -->
-    <div class="totals-section">
+    <div class="totals-section billing-block">
         <table class="totals-table">
             ${customerDiscount > 0 ? `
             <tr>
@@ -667,8 +695,10 @@ export class PDFService {
                 <td class="value"><strong>${this.formatPrice(netTotal)}</strong></td>
             </tr>
         </table>
-        <div class="tax-notice" style="margin-top: 10px; font-size: 10pt; color: #666; text-align: right;">
-            <em>${this.t('vatNotice', language)}</em>
+        <div class="tax-notice billing-block" style="margin-top: 10px; font-size: 10pt; color: #666; text-align: right;">
+            <em>${this.t('vatNotice', language)}</em><br>
+            <em>${this.t('reverseChargeNotice', language)}</em><br>
+            <strong style="color: #d32f2f;">${this.t('quoteNotice', language)}</strong>
         </div>
     </div>
 

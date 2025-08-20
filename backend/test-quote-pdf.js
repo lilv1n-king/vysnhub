@@ -12,41 +12,52 @@ const testQuoteData = {
   customerAddress: 'Musterstraße 1',
   customerCity: 'München',
   customerPostalCode: '80333',
-  message: 'Test-Nachricht für das Angebot',
   project: {
     id: 'test-123',
-    project_name: 'LED Beleuchtung Büro',
-    location: 'München, Deutschland',
-    description: 'Moderne LED-Beleuchtung für Büroräume',
-    customer_discount: 10
+    project_name: 'Martijn',
+    project_location: 'München, Deutschland',
+    project_description: 'Moderne LED-Beleuchtung für Büroräume'
   },
   products: [
     {
-      productName: 'LED Spot 10W',
-      quantity: 5,
-      unitPrice: 25.00,
-      totalPrice: 125.00,
+      itemNumber: 'V107051T1B',
+      name: 'Bounto P3, amber',
+      quantity: 1,
+      unitPrice: 381.81,
+      totalPrice: 381.81,
       productData: {
-        item_number_vysn: 'LED-001',
-        short_description: 'Moderner LED Spot'
+        item_number_vysn: 'V107051T1B',
+        short_description: 'Bounto P3, amber'
       }
     },
     {
-      productName: 'LED Streifen 5m',
+      itemNumber: 'PRO-0410-B', 
+      name: '3 Phase track, 1 meter',
       quantity: 2,
-      unitPrice: 45.00,
-      totalPrice: 90.00,
+      unitPrice: 35.51,
+      totalPrice: 71.02,
       productData: {
-        item_number_vysn: 'LED-002',
-        short_description: 'Flexibler LED Streifen'
+        item_number_vysn: 'PRO-0410-B',
+        short_description: '3 Phase track, 1 meter'
+      }
+    },
+    {
+      itemNumber: 'V107002T1B',
+      name: 'Bounto P2',
+      quantity: 1,
+      unitPrice: 310.61,
+      totalPrice: 310.61,
+      productData: {
+        item_number_vysn: 'V107002T1B',
+        short_description: 'Bounto P2'
       }
     }
   ],
-  quoteTotal: 215.00,
-  senderName: 'VYSN Partner',
-  senderEmail: 'partner@vysn.de',
-  senderCompany: 'VYSN GmbH',
-  customerDiscount: 10,
+  quoteTotal: 763.44,
+  senderName: 'Levin Normann',
+  senderEmail: 'levin.normann98@gmail.com',
+  senderCompany: 'CaNa Factory UG',
+  customerDiscount: 11,
   language: 'de',
   taxRate: 19
 };

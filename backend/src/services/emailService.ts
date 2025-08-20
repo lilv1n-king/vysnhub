@@ -19,7 +19,15 @@ const emailTranslations = {
     listPrice: 'Listenpreis',
     customerDiscount: 'Kundendiscount',
     totalNet: 'Gesamtsumme (netto)',
-    vatNotice: 'Alle Preise verstehen sich zzgl. der gesetzlichen Mehrwertsteuer'
+    vatNotice: 'Alle Preise verstehen sich zzgl. der gesetzlichen Mehrwertsteuer',
+    quoteDate: 'Angebotsdatum',
+    product: 'Produkt',
+    quantity: 'Menge',
+    unitPriceNet: 'Einzelpreis (netto)',
+    totalPriceNet: 'Gesamtpreis (netto)',
+    questionsContact: 'Für Fragen oder Bestellungen antworten Sie einfach auf diese E-Mail!',
+    quoteValidUntil: 'Angebot gültig 30 Tage ab Ausstellungsdatum',
+    quoteNotice: 'Dies ist nur ein unverbindliches Angebot. Bei grenzüberschreitenden Geschäften (z.B. Schweiz) kann das Reverse-Charge-Verfahren angewendet werden - entsprechende steuerliche Bestimmungen kommen dann mit der Rechnung zur Anwendung.'
   },
   en: {
     quoteSubject: 'Your Quote for',
@@ -36,7 +44,15 @@ const emailTranslations = {
     listPrice: 'List Price',
     customerDiscount: 'Customer Discount',
     totalNet: 'Total (net)',
-    vatNotice: 'All prices are net prices plus VAT'
+    vatNotice: 'All prices are net prices plus VAT',
+    quoteDate: 'Quote Date',
+    product: 'Product',
+    quantity: 'Quantity',
+    unitPriceNet: 'Unit Price (net)',
+    totalPriceNet: 'Total Price (net)',
+    questionsContact: 'For questions or orders, simply reply to this email!',
+    quoteValidUntil: 'Quote valid for 30 days from issue date',
+    quoteNotice: 'This is a non-binding quote only. For cross-border transactions (e.g. Switzerland), reverse charge procedures may apply - corresponding tax regulations will then be applied with the invoice.'
   }
 };
 
@@ -61,12 +77,17 @@ interface OrderEmailData {
     quantity: number;
     unitPrice: number;
     totalPrice: number;
+    productData?: any;
   }>;
   orderTotal: number;
   orderNotes?: string;
   orderNumber?: string;
   orderId?: string;
   language?: string;
+  customerDiscount?: number;
+  userProfile?: {
+    standard_discount?: number;
+  };
 }
 
 interface QuoteEmailData {
@@ -106,7 +127,7 @@ export class EmailService {
   private recipientEmail: string;
 
   constructor() {
-    // DSGVO-konforme Email-Konfiguration
+    // Email configuration
     // Hier würde normalerweise ein deutscher Provider wie mail.de, web.de oder t-online verwendet
     // Für Tests verwenden wir Gmail, aber für Produktion sollte ein EU-Provider gewählt werden
     const emailConfig: EmailConfig = {
@@ -156,11 +177,11 @@ export class EmailService {
         text: textContent,
         html: htmlContent,
         replyTo: orderData.customerEmail,
-        // DSGVO-konforme Header
+        // Privacy headers
         headers: {
-          'X-Privacy-Policy': 'DSGVO-konform - Daten werden nur zur Bestellabwicklung verwendet',
-          'X-Data-Retention': '30 Tage nach Bestellabwicklung',
-          'X-Data-Purpose': 'Bestellabwicklung und Kundensupport'
+          'X-Privacy-Policy': 'Data used only for order processing',
+          'X-Data-Retention': '30 days after order processing',
+          'X-Data-Purpose': 'Order processing and customer support'
         }
       };
 
@@ -200,11 +221,11 @@ export class EmailService {
         subject: `✅ ${this.tOrder('subject', orderData.language || 'de')} ${orderData.orderNumber ? orderData.orderNumber : ''} - ${orderData.project.project_name}`,
         text: textContent,
         html: htmlContent,
-        // DSGVO-konforme Header
+        // Privacy headers
         headers: {
-          'X-Privacy-Policy': 'DSGVO-konform - Daten werden nur zur Bestellabwicklung verwendet',
-          'X-Data-Retention': '30 Tage nach Bestellabwicklung',
-          'X-Data-Purpose': 'Bestellbestätigung und Kundensupport'
+          'X-Privacy-Policy': 'Data used only for order processing',
+          'X-Data-Retention': '30 days after order processing',
+          'X-Data-Purpose': 'Order confirmation and customer support'
         }
       };
 
@@ -282,11 +303,11 @@ export class EmailService {
           name: quoteData.senderName,
           address: quoteData.senderEmail
         },
-        // DSGVO-konforme Header
+        // Privacy headers
         headers: {
-          'X-Privacy-Policy': 'DSGVO-konform - Daten werden nur zur Angebotsübermittlung verwendet',
-          'X-Data-Retention': 'Nach Ihrer Anfrage',
-          'X-Data-Purpose': 'Angebotsübermittlung'
+          'X-Privacy-Policy': 'Data used only for quote transmission',
+          'X-Data-Retention': 'As per your request',
+          'X-Data-Purpose': 'Quote transmission'
         }
       };
 
@@ -369,7 +390,10 @@ body{font-family:Arial,sans-serif;margin:0;padding:15px;background:#fff;color:#0
 <body>
 <div class="c">
 <div class="h">
-<h1>${this.t('quoteTitle', language)}</h1>
+<div style="display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 10px;">
+<img src="https://vysn.de/wp-content/uploads/2023/11/logo-vysn.png" alt="VYSN Logo" style="height: 40px; width: auto;" />
+<h1 style="margin: 0; font-size: 24px;">${this.t('quoteTitle', language)}</h1>
+</div>
 <div>${this.t('thankYou', language)}</div>
 </div>
 <div class="content">
@@ -382,8 +406,8 @@ ${project.project_location ? `<div><b>${this.t('location', language)}:</b> ${pro
 </div>
 
 <table class="table">
-<tr><th>Produkt</th><th class="qty">Menge</th><th class="price">Einzelpreis (netto)</th><th class="price">Gesamtpreis (netto)</th></tr>
-${this.generateCompactProductRowsWithTax(products, 0)}
+${customerDiscount > 0 ? `<tr><th>${this.t('product', language)}</th><th class="qty">${this.t('quantity', language)}</th><th class="price">${this.t('listPrice', language)}</th><th class="price">${this.t('unitPriceNet', language)}</th><th class="price">${this.t('totalPriceNet', language)}</th></tr>` : `<tr><th>${this.t('product', language)}</th><th class="qty">${this.t('quantity', language)}</th><th class="price">${this.t('unitPriceNet', language)}</th><th class="price">${this.t('totalPriceNet', language)}</th></tr>`}
+${this.generateCompactProductRowsWithDiscount(products, customerDiscount || 0, language)}
 </table>
 <div class="pricing">
 <table class="pricing-table">
@@ -407,15 +431,18 @@ ${customerDiscount > 0 ? `
 </div>
 </div>
 <div class="info">
-<strong>Für Fragen oder Bestellungen antworten Sie einfach auf diese E-Mail!</strong><br>
-<small>Angebot gültig 30 Tage ab Ausstellungsdatum</small>
+<strong>${this.t('questionsContact', language)}</strong><br>
+<small>${this.t('quoteValidUntil', language)}</small>
+</div>
+<div class="info" style="margin-top: 15px; font-size: 12px; background: #f8f9fa; border-left: 3px solid #ffc107;">
+<em>${this.t('quoteNotice', language)}</em>
 </div>
 </div>
 <div class="f">
 <div><b>${senderName}</b></div>
 ${senderCompany ? `<div>${senderCompany}</div>` : ''}
 <div>${senderEmail}</div>
-<div style="font-size:11px;margin-top:10px">DSGVO-konform | VYSN Hub</div>
+<div style="font-size:11px;margin-top:10px">VYSN Hub</div>
 </div>
 </div>
 </body>
@@ -479,11 +506,13 @@ Alle Preise verstehen sich zzgl. der gesetzlichen Mehrwertsteuer
 ${senderName}
 ${senderEmail}
 
-Für Fragen oder Bestellungen antworten Sie einfach auf diese E-Mail.
-Angebot gültig 30 Tage ab Ausstellungsdatum.
+${this.t('questionsContact', language)}
+${this.t('quoteValidUntil', language)}
+
+${this.t('quoteNotice', language)}
 
 ${'-'.repeat(50)}
-🔒 DSGVO-konform | www.vysn.de
+www.vysn.de
 VYSN Hub - Professionelle Beleuchtungslösungen
     `;
   }
@@ -640,7 +669,7 @@ VYSN Hub - Professionelle Beleuchtungslösungen
 
         <div class="footer">
             <p>📅 Bestellung eingegangen am: ${new Date().toLocaleString('de-DE')}</p>
-            <p>🔒 Diese E-Mail wurde DSGVO-konform versendet | Daten werden nur zur Bestellabwicklung verwendet</p>
+            <p>Diese E-Mail wurde automatisch versendet | Daten werden nur zur Bestellabwicklung verwendet</p>
             <p>VYSN Hub - Professionelle Beleuchtungslösungen</p>
         </div>
     </div>
@@ -699,7 +728,7 @@ ${orderNotes}
 - Liefertermin koordinieren
 
 📅 Bestellung eingegangen am: ${new Date().toLocaleString('de-DE')}
-🔒 DSGVO-konform | Daten nur zur Bestellabwicklung
+Daten nur zur Bestellabwicklung
 
 VYSN Hub - Professionelle Beleuchtungslösungen
     `;
@@ -739,17 +768,18 @@ VYSN Hub - Professionelle Beleuchtungslösungen
       priceNote: 'Alle Preise sind Nettopreise zzgl. MwSt.',
       nextSteps: 'Wie geht es weiter?',
       processing: 'Ihre Bestellung wird von unserem Team bearbeitet',
-      detailedOffer: 'Sie erhalten ein detailliertes Angebot per E-Mail',
+      detailedInvoice: 'Sie erhalten eine detaillierte Rechnung per E-Mail',
       questions: 'Bei Fragen können Sie uns direkt antworten',
-      deliveryTime: 'Lieferzeiten werden Ihnen mit dem Angebot mitgeteilt',
+      deliveryTime: 'Lieferzeiten werden Ihnen mit der Rechnung mitgeteilt',
       questionsReply: 'Bei Fragen antworten Sie einfach auf diese E-Mail.',
       thankYouTrust: 'Vielen Dank für Ihr Vertrauen!',
       companyName: 'VYSN Hub',
       companyTagline: 'Professionelle Beleuchtungslösungen',
-      autoGenerated: 'Diese E-Mail wurde automatisch generiert. Alle Daten werden DSGVO-konform verarbeitet.',
+      autoGenerated: 'Diese E-Mail wurde automatisch generiert.',
       dataUsage: 'Daten werden nur zur Bestellabwicklung verwendet und nach 30 Tagen gelöscht.',
-      gdprCompliant: 'DSGVO-konform | Daten nur zur Bestellabwicklung',
-      hello: 'Hallo {{customerName}},'
+      gdprCompliant: 'Daten nur zur Bestellabwicklung',
+      hello: 'Hallo {{customerName}},',
+      discountReceived: 'Sie haben {{discount}}% Rabatt erhalten!'
     },
     en: {
       subject: 'Order Confirmation',
@@ -773,17 +803,18 @@ VYSN Hub - Professionelle Beleuchtungslösungen
       priceNote: 'All prices are net prices plus VAT.',
       nextSteps: 'What happens next?',
       processing: 'Your order will be processed by our team',
-      detailedOffer: 'You will receive a detailed offer via email',
+      detailedInvoice: 'You will receive a detailed invoice via email',
       questions: 'For questions you can reply directly',
-      deliveryTime: 'Delivery times will be communicated with the offer',
+      deliveryTime: 'Delivery times will be communicated with the invoice',
       questionsReply: 'For questions simply reply to this email.',
       thankYouTrust: 'Thank you for your trust!',
       companyName: 'VYSN Hub',
       companyTagline: 'Professional Lighting Solutions',
-      autoGenerated: 'This email was automatically generated. All data is processed GDPR-compliant.',
+      autoGenerated: 'This email was automatically generated.',
       dataUsage: 'Data is only used for order processing and deleted after 30 days.',
-      gdprCompliant: 'GDPR-compliant | Data only for order processing',
-      hello: 'Hello {{customerName}},'
+      gdprCompliant: 'Data only for order processing',
+      hello: 'Hello {{customerName}},',
+      discountReceived: 'You received {{discount}}% discount!'
     }
   };
 
@@ -802,178 +833,191 @@ VYSN Hub - Professionelle Beleuchtungslösungen
   }
 
   /**
-   * Generiert HTML-Inhalt für Bestätigungsmail an Kunden
+   * Generiert HTML-Inhalt für Bestätigungsmail an Kunden (neuer Stil wie Quote-Mail)
    */
   private generateOrderConfirmationHTML(orderData: OrderEmailData): string {
-    const { customerName, customerEmail, project, products, orderTotal, orderNumber, orderId, language = 'de' } = orderData;
+    const { customerName, project, products, orderTotal, orderNumber, language = 'de', customerDiscount = 0, userProfile } = orderData;
+    
+    console.log(`🔍 Order confirmation data:`, {
+      customerName,
+      orderTotal,
+      customerDiscount,
+      userProfile,
+      standard_discount: userProfile?.standard_discount,
+      productsCount: products.length,
+      firstProduct: products[0] ? {
+        name: products[0].name,
+        unitPrice: products[0].unitPrice,
+        totalPrice: products[0].totalPrice,
+        hasProductData: !!products[0].productData
+      } : null
+    });
+    
+    // Don't show generic project names like "Warenkorb-Bestellung"
+    const showProject = project.project_name && !project.project_name.startsWith('Warenkorb-Bestellung');
+    
+    // Detect discount from multiple sources
+    let detectedDiscount = customerDiscount;
+    
+    // Try to get discount from user profile if not provided
+    if (detectedDiscount === 0 && userProfile?.standard_discount) {
+      detectedDiscount = userProfile.standard_discount;
+      console.log(`✅ Using standard_discount from user profile: ${detectedDiscount}%`);
+    } else if (detectedDiscount > 0) {
+      console.log(`✅ Using provided customer discount: ${detectedDiscount}%`);
+    }
+    
+    if (detectedDiscount === 0 && products.length > 0) {
+      // Try to detect discount from product data - check all products
+      let totalListPrice = 0;
+      let totalActualPrice = 0;
+      let hasListPrices = false;
+      
+      products.forEach(product => {
+        console.log(`🔍 Product: ${product.name}, unitPrice: ${product.unitPrice}, totalPrice: ${product.totalPrice}, productData:`, product.productData);
+        
+        // Check multiple possible sources for list price
+        let listPrice = null;
+        if (product.productData) {
+          listPrice = product.productData.listPrice || 
+                     product.productData.originalPrice || 
+                     product.productData.list_price ||
+                     product.productData.basePrice;
+        }
+        
+        if (listPrice && listPrice > product.unitPrice) {
+          totalListPrice += listPrice * product.quantity;
+          totalActualPrice += product.unitPrice * product.quantity;
+          hasListPrices = true;
+          console.log(`📊 Product ${product.name}: List ${listPrice} → Actual ${product.unitPrice} (${Math.round((1 - product.unitPrice/listPrice) * 100)}% off)`);
+        }
+      });
+      
+      if (hasListPrices && totalListPrice > totalActualPrice) {
+        detectedDiscount = Math.round((1 - (totalActualPrice / totalListPrice)) * 100);
+        console.log(`🎯 Detected discount: ${detectedDiscount}% (List: ${totalListPrice}, Actual: ${totalActualPrice})`);
+      } else {
+        console.log(`❌ No discount detected - hasListPrices: ${hasListPrices}, totalListPrice: ${totalListPrice}, totalActualPrice: ${totalActualPrice}`);
+      }
+    }
+    
+    console.log(`📧 Order confirmation - Customer discount: ${customerDiscount}%, User profile discount: ${userProfile?.standard_discount || 'none'}, Final detected discount: ${detectedDiscount}%`);
+    
+    // Verbesserte Begrüßung
+    const greeting = customerName && customerName.trim() !== '' 
+      ? `${this.t('hello', language)} ${customerName}`
+      : `${this.t('hello', language)}`;
 
     return `
 <!DOCTYPE html>
-<html lang="${language}">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${this.tOrder('subject', language)}</title>
-    <style>
-        body { 
-            font-family: Arial, sans-serif; 
-            line-height: 1.6; 
-            color: #333; 
-            margin: 0; 
-            padding: 20px; 
-            background-color: #f5f5f5; 
-        }
-        .container { 
-            max-width: 600px; 
-            margin: 0 auto; 
-            background: white; 
-            padding: 30px; 
-            border-radius: 10px; 
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
-        }
-        .header { 
-            text-align: center; 
-            margin-bottom: 30px; 
-            border-bottom: 2px solid #000; 
-            padding-bottom: 20px; 
-        }
-        .header h1 { 
-            color: #000; 
-            margin: 0; 
-            font-size: 24px; 
-        }
-        .confirmation-box { 
-            background: #f0f9ff; 
-            border: 2px solid #22c55e; 
-            border-radius: 8px; 
-            padding: 20px; 
-            margin: 20px 0; 
-            text-align: center; 
-        }
-        .confirmation-box h2 { 
-            color: #22c55e; 
-            margin: 0 0 10px 0; 
-            font-size: 20px; 
-        }
-        .order-info { 
-            background: #f8f9fa; 
-            padding: 15px; 
-            border-radius: 5px; 
-            margin: 20px 0; 
-        }
-        .products-table { 
-            width: 100%; 
-            border-collapse: collapse; 
-            margin: 20px 0; 
-        }
-        .products-table th, .products-table td { 
-            padding: 12px; 
-            text-align: left; 
-            border-bottom: 1px solid #ddd; 
-        }
-        .products-table th { 
-            background: #f8f9fa; 
-            font-weight: bold; 
-        }
-        .total-box { 
-            background: #000; 
-            color: white; 
-            padding: 15px; 
-            border-radius: 5px; 
-            text-align: center; 
-            margin: 20px 0; 
-        }
-        .footer { 
-            margin-top: 30px; 
-            padding-top: 20px; 
-            border-top: 1px solid #ddd; 
-            text-align: center; 
-            color: #666; 
-            font-size: 14px; 
-        }
-        .legal-note { 
-            background: #f9f9f9; 
-            padding: 15px; 
-            border-radius: 5px; 
-            margin: 20px 0; 
-            font-size: 12px; 
-            color: #666; 
-        }
+<meta charset="utf-8">
+<title>${this.tOrder('subject', language)} ${orderNumber || ''}</title>
+<style>
+body{font-family:Arial,sans-serif;margin:0;padding:15px;background:#fff;color:#000}
+.c{max-width:700px;margin:0 auto;background:#fff;border:2px solid #000;border-radius:10px;overflow:hidden}
+.h{background:#000;color:#fff;padding:20px;text-align:center}
+.h h1{margin:0;font-size:24px;font-weight:bold}
+.content{padding:20px}
+.greeting{font-size:16px;margin-bottom:15px;font-weight:bold}
+.confirmation{border:2px solid #22c55e;border-radius:6px;padding:15px;margin-bottom:15px;background:#f0f9ff;text-align:center}
+.confirmation h2{color:#22c55e;margin:0 0 10px 0;font-size:20px}
+.order-info{border:1px solid #000;border-radius:6px;padding:15px;margin-bottom:15px}
+.pt{font-size:16px;font-weight:bold;margin-bottom:8px}
+.table{width:100%;border-collapse:collapse;border:2px solid #000;border-radius:6px;overflow:hidden;margin:15px 0}
+.table th,.table td{padding:10px;border:1px solid #000}
+.table th{background:#000;color:#fff;font-weight:bold}
+.qty{text-align:center}
+.price{text-align:right;font-weight:bold}
+.img{width:80px;height:80px;border:1px solid #ccc;border-radius:4px;object-fit:contain;margin-right:12px;display:block}
+.pn{font-weight:bold;margin-bottom:2px}
+.ps{font-size:11px;color:#666;font-family:monospace}
+.pricing{border:2px solid #000;border-radius:6px;padding:15px;margin:15px 0}
+.pricing-table{width:100%;border-collapse:collapse;margin:10px 0}
+.pricing-table td{padding:8px 0;border-bottom:1px solid #ddd}
+.pricing-table .label{font-weight:normal;text-align:left}
+.pricing-table .value{font-weight:bold;text-align:right}
+.pricing-table .total{font-size:20px;border-top:2px solid #000;padding-top:12px;margin-top:8px}
+.msg{border:1px solid #000;border-radius:6px;padding:12px;margin:15px 0}
+.info{text-align:center;margin:15px 0;padding:15px;background:#f5f5f5;border-radius:6px}
+.f{border-top:2px solid #000;padding:15px;text-align:center;font-size:14px}
+.pdf-note{background:#e8f4fd;border:1px solid #007acc;border-radius:6px;padding:12px;margin:15px 0;font-size:14px}
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>${this.tOrder('companyName', language)}</h1>
-            <p>${this.tOrder('companyTagline', language)}</p>
-        </div>
+<div class="c">
+<div class="h">
+<div style="display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 10px;">
+<img src="https://vysn.de/wp-content/uploads/2023/11/logo-vysn.png" alt="VYSN Logo" style="height: 40px; width: auto;" />
+<h1 style="margin: 0; font-size: 24px;">✅ ${this.tOrder('subject', language)}</h1>
+</div>
+<div>${this.tOrder('thankYou', language, { customerName })}</div>
+</div>
+<div class="content">
+<div class="greeting">${greeting}</div>
 
-        <div class="confirmation-box">
-            <h2>✅ ${this.tOrder('orderSuccessful', language)}</h2>
-            <p>${this.tOrder('thankYou', language, { customerName })}</p>
-        </div>
+<div class="confirmation">
+<h2>${this.tOrder('orderSuccessful', language)}</h2>
+<p>${this.tOrder('thankYou', language, { customerName })}</p>
+</div>
 
-        <div class="order-info">
-            <h3>📋 ${this.tOrder('orderInfo', language)}</h3>
-            <p><strong>${this.tOrder('orderNumber', language)}:</strong> ${orderNumber || this.tOrder('orderNumberTbd', language)}</p>
-            ${orderId ? `<p><strong>${this.tOrder('orderId', language)}:</strong> ${orderId}</p>` : ''}
-            <p><strong>${this.tOrder('orderDate', language)}:</strong> ${new Date().toLocaleDateString(language === 'en' ? 'en-US' : 'de-DE')}</p>
-            <p><strong>${this.tOrder('status', language)}:</strong> ${this.tOrder('statusProcessing', language)}</p>
-            <p><strong>${this.tOrder('project', language)}:</strong> ${project.project_name}</p>
-            <p><strong>${this.tOrder('customer', language)}:</strong> ${customerName} (${customerEmail})</p>
-        </div>
+<div class="order-info">
+<div class="pt">${this.tOrder('orderInfo', language)}</div>
+<div><b>${this.tOrder('orderNumber', language)}:</b> ${orderNumber || this.tOrder('orderNumberTbd', language)}</div>
+<div><b>${this.tOrder('orderDate', language)}:</b> ${new Date().toLocaleDateString(language === 'en' ? 'en-US' : 'de-DE')}</div>
+<div><b>${this.tOrder('status', language)}:</b> ${this.tOrder('statusProcessing', language)}</div>
+${showProject ? `<div><b>${this.tOrder('project', language)}:</b> ${project.project_name}</div>` : ''}
+</div>
 
-        <h3>📦 ${this.tOrder('orderedProducts', language)}</h3>
-        <table class="products-table">
-            <thead>
-                <tr>
-                    <th>${this.tOrder('article', language)}</th>
-                    <th>${this.tOrder('quantity', language)}</th>
-                    <th>${this.tOrder('unitPrice', language)}</th>
-                    <th>${this.tOrder('total', language)}</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${products.map(product => `
-                    <tr>
-                        <td>
-                            <strong>${product.name}</strong><br>
-                            <small>Art.-Nr.: ${product.itemNumber}</small>
-                        </td>
-                        <td>${product.quantity}x</td>
-                        <td>${this.formatPrice(product.unitPrice)}</td>
-                        <td>${this.formatPrice(product.totalPrice)}</td>
-                    </tr>
-                `).join('')}
-            </tbody>
+        <table class="table">
+            ${detectedDiscount > 0 ? `<tr><th>${this.t('product', language)}</th><th class="qty">${this.t('quantity', language)}</th><th class="price">${this.t('listPrice', language)}</th><th class="price">${this.t('unitPriceNet', language)}</th><th class="price">${this.t('totalPriceNet', language)}</th></tr>` : `<tr><th>${this.t('product', language)}</th><th class="qty">${this.t('quantity', language)}</th><th class="price">${this.t('unitPriceNet', language)}</th><th class="price">${this.t('totalPriceNet', language)}</th></tr>`}
+            ${this.generateOrderConfirmationProductRowsWithDiscount(products, detectedDiscount, language)}
         </table>
 
-        <div class="total-box">
-            <h3>${this.tOrder('totalAmount', language)}: ${this.formatPrice(orderTotal)}</h3>
-            <p style="margin: 0; font-size: 14px;">${this.tOrder('priceNote', language)}</p>
+        <div class="pricing">
+            <table class="pricing-table">
+                ${detectedDiscount > 0 ? `
+                <tr>
+                    <td class="label">${this.t('listPrice', language)}:</td>
+                    <td class="value">${this.formatPrice(orderTotal / (1 - detectedDiscount / 100))}</td>
+                </tr>
+                <tr>
+                    <td class="label">${this.t('customerDiscount', language)} (${detectedDiscount}%):</td>
+                    <td class="value" style="color: #d32f2f;">-${this.formatPrice((orderTotal / (1 - detectedDiscount / 100)) - orderTotal)}</td>
+                </tr>
+                ` : ''}
+                <tr class="total">
+                    <td class="label"><strong>${this.tOrder('totalAmount', language)}:</strong></td>
+                    <td class="value"><strong>${this.formatPrice(orderTotal)}</strong></td>
+                </tr>
+            </table>
+            <div style="margin-top: 10px; font-size: 12px; color: #666; text-align: right;">
+                <em>${this.tOrder('priceNote', language)}</em>
+            </div>
         </div>
 
-        <div class="legal-note">
+        <div class="info">
             <h4>⏭️ ${this.tOrder('nextSteps', language)}</h4>
-            <ul style="margin: 0; padding-left: 20px;">
+            <ul style="text-align: left; margin: 10px 0; padding-left: 20px;">
                 <li>${this.tOrder('processing', language)}</li>
-                <li>${this.tOrder('detailedOffer', language)}</li>
+                <li>${this.tOrder('detailedInvoice', language)}</li>
                 <li>${this.tOrder('questions', language)}</li>
                 <li>${this.tOrder('deliveryTime', language)}</li>
             </ul>
         </div>
 
-        <div class="footer">
-            <p><strong>${this.tOrder('companyName', language)}</strong></p>
-            <p>${this.tOrder('companyTagline', language)}</p>
-            <p>${this.tOrder('questionsReply', language)}</p>
-            <br>
-            <p style="font-size: 12px;">
-                ${this.tOrder('autoGenerated', language)}<br>
-                ${this.tOrder('dataUsage', language)}
-            </p>
-        </div>
+</div>
+<div class="f">
+    <div style="display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 15px;">
+        <img src="https://vysn.de/wp-content/uploads/2023/11/logo-vysn.png" alt="VYSN Logo" style="height: 30px; width: auto;" />
+        <div><b>${this.tOrder('companyName', language)}</b></div>
     </div>
+    <div>${this.tOrder('companyTagline', language)}</div>
+    <div>${this.tOrder('questionsReply', language)}</div>
+    <div style="font-size:11px;margin-top:10px">${this.tOrder('autoGenerated', language)}</div>
+</div>
+</div>
 </body>
 </html>
     `;
@@ -983,7 +1027,16 @@ VYSN Hub - Professionelle Beleuchtungslösungen
    * Generiert Text-Inhalt für Bestätigungsmail an Kunden
    */
   private generateOrderConfirmationText(orderData: OrderEmailData): string {
-    const { customerName, customerEmail, project, products, orderTotal, orderNumber, orderId, language = 'de' } = orderData;
+    const { customerName, project, products, orderTotal, orderNumber, language = 'de', customerDiscount = 0, userProfile } = orderData;
+    
+    // Don't show generic project names like "Warenkorb-Bestellung"
+    const showProject = project.project_name && !project.project_name.startsWith('Warenkorb-Bestellung');
+    
+    // Detect discount from multiple sources (same logic as HTML version)
+    let detectedDiscount = customerDiscount;
+    if (detectedDiscount === 0 && userProfile?.standard_discount) {
+      detectedDiscount = userProfile.standard_discount;
+    }
 
     return `
 ✅ ${this.tOrder('subject', language).toUpperCase()} - ${this.tOrder('companyName', language).toUpperCase()}
@@ -995,11 +1048,9 @@ ${this.tOrder('thankYou', language, { customerName })}
 
 📋 ${this.tOrder('orderInfo', language).toUpperCase()}:
 ${this.tOrder('orderNumber', language)}: ${orderNumber || this.tOrder('orderNumberTbd', language)}
-${orderId ? `${this.tOrder('orderId', language)}: ${orderId}` : ''}
 ${this.tOrder('orderDate', language)}: ${new Date().toLocaleString(language === 'en' ? 'en-US' : 'de-DE')}
 ${this.tOrder('status', language)}: ${this.tOrder('statusProcessing', language)}
-${this.tOrder('project', language)}: ${project.project_name}
-${this.tOrder('customer', language)}: ${customerName} (${customerEmail})
+${showProject ? `${this.tOrder('project', language)}: ${project.project_name}` : ''}
 
 📦 ${this.tOrder('orderedProducts', language).toUpperCase()}:
 ${'-'.repeat(50)}
@@ -1014,7 +1065,7 @@ ${this.tOrder('totalAmount', language).toUpperCase()}: ${this.formatPrice(orderT
 
 ⏭️ ${this.tOrder('nextSteps', language).toUpperCase()}
 - ${this.tOrder('processing', language)}
-- ${this.tOrder('detailedOffer', language)}
+- ${this.tOrder('detailedInvoice', language)}
 - ${this.tOrder('questions', language)}
 - ${this.tOrder('deliveryTime', language)}
 
@@ -1025,9 +1076,108 @@ ${this.tOrder('thankYouTrust', language)}
 ${this.tOrder('companyName', language)} - ${this.tOrder('companyTagline', language)}
 
 ${'='.repeat(50)}
-🔒 ${this.tOrder('gdprCompliant', language)}
+${this.tOrder('gdprCompliant', language)}
 ${this.tOrder('dataUsage', language)}
     `;
+  }
+
+  /**
+   * Generiert Produkt-Zeilen für Bestellbestätigung mit Bildern
+   */
+  private generateOrderConfirmationProductRows(products: any[], language: string = 'de'): string {
+    return products.map(product => {
+      let imageUrl = '';
+      if (product.productData && product.productData.product_picture_1) {
+        imageUrl = product.productData.product_picture_1;
+      }
+      
+      return `<tr>
+<td style="padding:15px;">
+  <div style="display:flex;align-items:center;">
+    ${imageUrl ? `<img src="${imageUrl}" alt="${product.name}" class="img" style="flex-shrink:0;" />` : ''}
+    <div>
+      <div class="pn">${product.name}</div>
+      <div class="ps">${product.itemNumber}</div>
+    </div>
+  </div>
+</td>
+<td class="qty">${product.quantity}x</td>
+<td class="price">${this.formatPrice(product.unitPrice)}</td>
+<td class="price">${this.formatPrice(product.totalPrice)}</td>
+</tr>`;
+    }).join('');
+  }
+
+  /**
+   * Generiert Produkt-Zeilen für Bestellbestätigung mit Bildern und Rabatt-Unterstützung
+   */
+  private generateOrderConfirmationProductRowsWithDiscount(products: any[], customerDiscount: number, language: string = 'de'): string {
+    return products.map(product => {
+      let imageUrl = '';
+      if (product.productData && product.productData.product_picture_1) {
+        imageUrl = product.productData.product_picture_1;
+      }
+      
+      // If there's a customer discount, calculate original prices
+      let listUnitPrice = product.unitPrice;
+      let listTotalPrice = product.totalPrice;
+      
+      if (customerDiscount > 0) {
+        // Check multiple possible sources for list price
+        let originalPrice = null;
+        if (product.productData) {
+          originalPrice = product.productData.listPrice || 
+                         product.productData.originalPrice || 
+                         product.productData.list_price ||
+                         product.productData.basePrice;
+        }
+        
+        if (originalPrice) {
+          listUnitPrice = originalPrice;
+          listTotalPrice = originalPrice * product.quantity;
+          console.log(`🏷️ Using original price from productData: ${originalPrice} for ${product.name}`);
+        } else {
+          // Fallback: Current prices are already discounted, so calculate original prices
+          listUnitPrice = product.unitPrice / (1 - customerDiscount / 100);
+          listTotalPrice = product.totalPrice / (1 - customerDiscount / 100);
+          console.log(`🧮 Calculated original price: ${listUnitPrice} (from discounted ${product.unitPrice} with ${customerDiscount}% off)`);
+        }
+        console.log(`💰 Product: ${product.name} - List: ${listUnitPrice}, Discounted: ${product.unitPrice}, Discount: ${customerDiscount}%`);
+      }
+      
+      if (customerDiscount > 0) {
+        return `<tr>
+<td style="padding:15px;">
+  <div style="display:flex;align-items:center;">
+    ${imageUrl ? `<img src="${imageUrl}" alt="${product.name}" class="img" style="flex-shrink:0;" />` : ''}
+    <div>
+      <div class="pn">${product.name}</div>
+      <div class="ps">${product.itemNumber}</div>
+    </div>
+  </div>
+</td>
+<td class="qty">${product.quantity}x</td>
+<td class="price" style="text-decoration: line-through; color: #999;">${this.formatPrice(listUnitPrice)}</td>
+<td class="price">${this.formatPrice(product.unitPrice)}</td>
+<td class="price">${this.formatPrice(product.totalPrice)}</td>
+</tr>`;
+      } else {
+        return `<tr>
+<td style="padding:15px;">
+  <div style="display:flex;align-items:center;">
+    ${imageUrl ? `<img src="${imageUrl}" alt="${product.name}" class="img" style="flex-shrink:0;" />` : ''}
+    <div>
+      <div class="pn">${product.name}</div>
+      <div class="ps">${product.itemNumber}</div>
+    </div>
+  </div>
+</td>
+<td class="qty">${product.quantity}x</td>
+<td class="price">${this.formatPrice(product.unitPrice)}</td>
+<td class="price">${this.formatPrice(product.totalPrice)}</td>
+</tr>`;
+      }
+    }).join('');
   }
 
   private formatPrice(price: number): string {
@@ -1086,6 +1236,58 @@ ${this.tOrder('dataUsage', language)}
 <td class="price">${this.formatPrice(netUnitPrice)}</td>
 <td class="price">${this.formatPrice(netTotalPrice)}</td>
 </tr>`;
+    }).join('');
+  }
+
+  private generateCompactProductRowsWithDiscount(products: any[], customerDiscount: number, language: string = 'de'): string {
+    return products.map(product => {
+      let imageUrl = '';
+      if (product.productData && product.productData.product_picture_1) {
+        imageUrl = product.productData.product_picture_1;
+      }
+      
+      // If there's a customer discount, calculate original prices
+      let listUnitPrice = product.unitPrice;
+      let listTotalPrice = product.totalPrice;
+      
+      if (customerDiscount > 0) {
+        // Current prices are already discounted, so calculate original prices
+        listUnitPrice = product.unitPrice / (1 - customerDiscount / 100);
+        listTotalPrice = product.totalPrice / (1 - customerDiscount / 100);
+      }
+      
+      if (customerDiscount > 0) {
+        return `<tr>
+<td style="padding:15px;">
+  <div style="display:flex;align-items:center;">
+    ${imageUrl ? `<img src="${imageUrl}" alt="${product.name}" class="img" style="flex-shrink:0;" />` : ''}
+    <div>
+      <div class="pn">${product.name}</div>
+      <div class="ps">${product.itemNumber}</div>
+    </div>
+  </div>
+</td>
+<td class="qty">${product.quantity}x</td>
+<td class="price" style="text-decoration: line-through; color: #999;">${this.formatPrice(listUnitPrice)}</td>
+<td class="price">${this.formatPrice(product.unitPrice)}</td>
+<td class="price">${this.formatPrice(product.totalPrice)}</td>
+</tr>`;
+      } else {
+        return `<tr>
+<td style="padding:15px;">
+  <div style="display:flex;align-items:center;">
+    ${imageUrl ? `<img src="${imageUrl}" alt="${product.name}" class="img" style="flex-shrink:0;" />` : ''}
+    <div>
+      <div class="pn">${product.name}</div>
+      <div class="ps">${product.itemNumber}</div>
+    </div>
+  </div>
+</td>
+<td class="qty">${product.quantity}x</td>
+<td class="price">${this.formatPrice(product.unitPrice)}</td>
+<td class="price">${this.formatPrice(product.totalPrice)}</td>
+</tr>`;
+      }
     }).join('');
   }
 
