@@ -48,7 +48,7 @@ class PrivacyServiceSimple {
     try {
       const { data: profile, error } = await supabase
         .from('profiles')
-        .select('privacy_consent_given, privacy_consent_version, privacy_withdrawn_date')
+        .select('analytics_consent, privacy_withdrawn_date')
         .eq('id', userId)
         .single();
 
@@ -61,12 +61,11 @@ class PrivacyServiceSimple {
         return false;
       }
 
-      // Prüfungen für gültige Zustimmung
-      const hasConsent = profile.privacy_consent_given === true;
-      const isCurrentVersion = profile.privacy_consent_version === this.CURRENT_PRIVACY_VERSION;
+      // Vereinfachte Prüfung: Nur analytics_consent muss true sein
+      const hasAnalyticsConsent = profile.analytics_consent === true;
       const notWithdrawn = !profile.privacy_withdrawn_date;
 
-      return hasConsent && isCurrentVersion && notWithdrawn;
+      return hasAnalyticsConsent && notWithdrawn;
     } catch (error) {
       console.error('Error checking valid consent:', error);
       return false;
@@ -80,7 +79,7 @@ class PrivacyServiceSimple {
     try {
       const { data: profile, error } = await supabase
         .from('profiles')
-        .select('privacy_consent_given, privacy_consent_version, privacy_consent_date, privacy_withdrawn_date')
+        .select('analytics_consent, marketing_consent, privacy_withdrawn_date, created_at')
         .eq('id', userId)
         .single();
 
@@ -96,10 +95,10 @@ class PrivacyServiceSimple {
       const hasValidConsent = await this.hasValidConsent(userId);
       const updateRequired = !hasValidConsent;
 
-      const currentConsent = profile.privacy_consent_date ? {
-        given: profile.privacy_consent_given || false,
-        version: profile.privacy_consent_version || '',
-        date: profile.privacy_consent_date,
+      const currentConsent = profile.analytics_consent !== null ? {
+        given: profile.analytics_consent === true,
+        version: this.CURRENT_PRIVACY_VERSION,
+        date: profile.created_at || new Date().toISOString(),
         withdrawn: !!profile.privacy_withdrawn_date
       } : null;
 
