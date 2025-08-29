@@ -1,4 +1,4 @@
-# 📧 VYSN Hub Email Service
+# 📧 VYSN App Email Service
 
 ## Überblick
 
@@ -98,7 +98,7 @@ Authorization: Bearer <token>
 
 ### Inhalt der Bestell-E-Mail
 
-- **Header**: VYSN Hub Branding
+- **Header**: VYSN App Branding
 - **Kundeninformationen**: Name, E-Mail, Unternehmen
 - **Projektdetails**: Name, Status, Budget, Beschreibung
 - **Produktliste**: Artikelnummer, Name, Menge, Preise

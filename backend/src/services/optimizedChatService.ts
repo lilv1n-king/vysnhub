@@ -11,6 +11,7 @@
 import { GPTService } from './gptService';
 import { ProductService } from './productService';
 import { AgentService } from './agentService';
+import { logger } from '../utils/logger';
 import { 
   extractIPFromMessage, 
   extractLuminaireType, 
@@ -55,12 +56,15 @@ export class OptimizedChatService {
     try {
       // 0. KONTEXT-RELEVANZ: Lass GPT entscheiden ob vorheriger Kontext relevant ist
       const relevantContext = await this.filterRelevantContext(message, context);
-      console.log(`DEBUG: Original context: ${context?.length || 0} messages, Relevant: ${relevantContext.length} messages`);
+      logger.debug('Context filtering completed', { 
+        originalCount: context?.length || 0, 
+        relevantCount: relevantContext.length 
+      });
       
       // 1. FAST PATH: Direkte Pattern-Erkennung ohne GPT
       const fastResult = await this.tryFastPath(message, relevantContext);
       if (fastResult) {
-        console.log(`Fast path completed in ${Date.now() - startTime}ms`);
+        logger.performance('Fast path completed', Date.now() - startTime);
         return fastResult;
       }
 
@@ -68,17 +72,17 @@ export class OptimizedChatService {
       try {
         const optimizedResult = await this.tryOptimizedPath(message, relevantContext);
         if (optimizedResult) {
-          console.log(`Optimized path completed in ${Date.now() - startTime}ms`);
+          logger.performance('Optimized path completed', Date.now() - startTime);
           return optimizedResult;
         }
         
         // Wenn kein Result aber auch kein technischer Fehler -> versuche einfache Textsuche
-        console.log('No fast path found, trying simple text search...');
+        logger.debug('No fast path found, trying simple text search');
         const { simpleTextSearch } = await import('../utils/productSearchUtils');
         
         // Lass GPT die relevanten Suchbegriffe aus der Frage extrahieren
         const extractedSearchTerm = await this.extractSearchTermWithGPT(message);
-        console.log(`DEBUG: GPT extracted search term: "${extractedSearchTerm}" from: "${message}"`);
+        logger.debug('GPT search term extraction', { extractedSearchTerm, message: message.substring(0, 100) });
         
         const textSearchResult = await simpleTextSearch(extractedSearchTerm, 20, false);
         
@@ -108,7 +112,7 @@ export class OptimizedChatService {
       } catch (technicalError: any) {
         // Bei technischen Fehlern (OpenAI quota, etc.) -> Fallback verwenden
         if (technicalError.message?.includes('quota') || technicalError.message?.includes('Klassifizierung fehlgeschlagen')) {
-          console.log('Technical error occurred, using fallback path:', technicalError.message);
+          logger.warn('Technical error in optimized path', { error: technicalError.message });
           return this.fallbackPath(message, relevantContext);
         }
         // Andere Fehler weiterwerfen
@@ -116,7 +120,7 @@ export class OptimizedChatService {
       }
       
     } catch (error) {
-      console.error('Fehler in OptimizedChatService:', error);
+      logger.error('OptimizedChatService error', { error: error instanceof Error ? error.message : String(error) });
       throw error;
     }
   }
@@ -143,9 +147,9 @@ export class OptimizedChatService {
       : '';
     
     // Extrahiere aus aktueller Nachricht UND Kontext
-    console.log('DEBUG: About to call extractLuminaireType with:', message);
+    logger.debug('Starting luminaire type extraction', { messageLength: message.length });
     let luminaireType = extractLuminaireType(message) || extractLuminaireType(contextString);
-    console.log('DEBUG: extractLuminaireType result:', luminaireType);
+    logger.debug('Luminaire type extracted', { luminaireType });
     
     let ipClass = extractIPFromMessage(message) || extractIPFromMessage(contextString);
     let isLuminaireReq = isLuminaireRequest(message) || isLuminaireRequest(contextString);
@@ -157,24 +161,26 @@ export class OptimizedChatService {
     let dimToWarm = isDimToWarmRequested(message) || isDimToWarmRequested(contextString);
     let dimmable = isDimmableRequested(message) || isDimmableRequested(contextString);
     
-    console.log('DEBUG: Message:', message);
-    console.log('DEBUG: Context:', contextString);
-    console.log('DEBUG: Extracted - luminaire:', luminaireType, 'cct:', cct, 'ip:', ipClass);
-    console.log('DEBUG: Special features - ledStrip:', isLEDStripReq, 'dimToWarm:', dimToWarm, 'dimmable:', dimmable);
+    logger.debug('Feature extraction complete', {
+      luminaireType,
+      cct,
+      ipClass,
+      features: { isLEDStripReq, dimToWarm, dimmable }
+    });
     
     // Produktfrage Pattern (z.B. "ist salsa lid dimmbar", "ist mezy s gut fürs wohnzimmer")
     // WICHTIG: Produktfragen sind kontextlos - ignoriere vorherigen Kontext
     const { isProductQuestion } = await import('../utils/productQuestionUtils');
     const productQuestion = isProductQuestion(message);
     if (productQuestion.isQuestion) {
-      console.log('Fast path: Product question detected (context-free):', productQuestion);
+      logger.debug('Fast path: Product question detected');
       // Bei Produktfragen KEINEN Kontext verwenden - das ist eine neue, spezifische Frage
       return this.handleProductQuestion(productQuestion, message, [], cacheKey);
     }
     
     // LED Strip Pattern (z.B. "led strip", "led strip dim to warm")
     if (isLEDStripReq) {
-      console.log('Fast path: LED Strip request detected');
+      logger.debug('Fast path: LED Strip request detected');
       return this.handleLEDStripRequest(message, context, cacheKey);
     }
 
@@ -182,7 +188,7 @@ export class OptimizedChatService {
     // Kategorie-Übersicht Pattern (z.B. "habt ihr schienensysteme", "welche track systems")
     const categoryType = isCategoryOverviewRequest(message);
     if (categoryType) {
-      console.log('Fast path: Category overview request detected:', categoryType);
+      logger.debug('Fast path: Category overview request detected', { categoryType });
       return this.handleCategoryOverviewRequest(categoryType, message, context, cacheKey);
     }
     
@@ -986,7 +992,7 @@ Antworte nur mit den NUMMERN der relevanten Nachrichten (z.B. "1,3" oder "keine"
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+          'Authorization': `Bearer ${require('../config/env').envConfig.openaiApiKey}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -1044,7 +1050,7 @@ Suchbegriffe:`;
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+          'Authorization': `Bearer ${require('../config/env').envConfig.openaiApiKey}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({

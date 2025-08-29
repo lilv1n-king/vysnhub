@@ -263,14 +263,14 @@ class PrivacyServiceSimple {
   private async getPrivacyPolicyContent(language: string = 'en'): Promise<string> {
     if (language === 'de') {
       return `
-# Datenschutzerklärung VYSN Hub
+# Datenschutzerklärung VYSN App
 
 **Letzte Aktualisierung: Januar 2025**
 
 ## 1. Verantwortlicher
 VYSN GmbH
 
-Mit der Nutzung der VYSN Hub App stimmen Sie der Verarbeitung Ihrer personenbezogenen Daten gemäß dieser Datenschutzerklärung zu.
+Mit der Nutzung der VYSN App App stimmen Sie der Verarbeitung Ihrer personenbezogenen Daten gemäß dieser Datenschutzerklärung zu.
 
 ## 2. Erhebung und Verarbeitung personenbezogener Daten
 
@@ -299,14 +299,14 @@ Bei Fragen zum Datenschutz: datenschutz@vysn.de
 
     // English version
     return `
-# VYSN Hub Privacy Policy
+# VYSN App Privacy Policy
 
 **Last Updated: January 2025**
 
 ## 1. Data Controller
 VYSN GmbH
 
-By using the VYSN Hub app, you consent to the processing of your personal data in accordance with this privacy policy.
+By using the VYSN App app, you consent to the processing of your personal data in accordance with this privacy policy.
 
 ## 2. Collection and Processing of Personal Data
 

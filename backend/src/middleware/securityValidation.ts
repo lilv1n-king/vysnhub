@@ -1,5 +1,5 @@
 /**
- * ⚠️ SICHERHEITS-VALIDIERUNG für VYSN Hub Backend
+ * ⚠️ SICHERHEITS-VALIDIERUNG für VYSN App Backend
  * 
  * Zusätzliche Validierungs-Middleware für kritische Endpunkte
  */

@@ -376,14 +376,29 @@ export class AuthController {
         // If user doesn't exist in profiles, create them
         if (error.code === 'PGRST116') {
           console.log('Creating profile for user:', user_id);
+          
+          // 🔒 SICHERHEITS-UPDATE: Sichere Admin-Zuweisung
+          // Prüfe ob bereits Admins existieren
+          const { data: existingAdmins } = await this.authService.getAdminClient()
+            .from('profiles')
+            .select('id')
+            .eq('is_admin', true)
+            .limit(1);
+          
+          // 🔒 SICHERHEITS-UPDATE: Sichere Admin-Email-Validierung
+          const { envConfig } = require('../config/env');
+          const isFirstSystemAdmin = !existingAdmins || existingAdmins.length === 0;
+          const userEmail = email || user.email;
+          const shouldBeAdmin = isFirstSystemAdmin && envConfig.adminEmails.includes(userEmail);
+          
           const { data: newProfile, error: createError } = await this.authService.getAdminClient()
             .from('profiles')
             .insert({
               id: user_id,
-              email: email || user.email,
+              email: userEmail,
               first_name: '',
               last_name: '',
-              is_admin: true, // First user becomes admin
+              is_admin: shouldBeAdmin,
               account_status: 'active'
             })
             .select('is_admin')
@@ -396,7 +411,8 @@ export class AuthController {
           res.json({
             success: true,
             is_admin: newProfile.is_admin,
-            profile_created: true
+            profile_created: true,
+            admin_assigned: shouldBeAdmin
           });
           return;
         }

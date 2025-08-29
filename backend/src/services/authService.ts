@@ -10,19 +10,14 @@ export class AuthService {
   private supabaseAdmin: SupabaseClient;
 
   constructor() {
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_KEY;
-    const supabaseServiceRole = process.env.SUPABASE_SERVICE_ROLE;
-
-    if (!supabaseUrl || !supabaseKey || !supabaseServiceRole) {
-      throw new Error('Supabase configuration missing');
-    }
-
+    // 🔒 SICHERHEITS-UPDATE: Sichere Environment Variable Verwaltung
+    const { envConfig } = require('../config/env');
+    
     // Regular client for auth operations
-    this.supabase = createClient(supabaseUrl, supabaseKey);
+    this.supabase = createClient(envConfig.supabaseUrl, envConfig.supabaseKey);
     
     // Admin client for service operations (profiles, admin APIs)
-    this.supabaseAdmin = createClient(supabaseUrl, supabaseServiceRole);
+    this.supabaseAdmin = createClient(envConfig.supabaseUrl, envConfig.supabaseServiceRole);
   }
 
   // Getter for admin client (bypasses RLS)

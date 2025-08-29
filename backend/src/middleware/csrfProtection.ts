@@ -1,5 +1,5 @@
 /**
- * ⚠️ CSRF-Schutz für VYSN Hub Backend
+ * ⚠️ CSRF-Schutz für VYSN App Backend
  * 
  * Implementiert Cross-Site Request Forgery Schutz
  */

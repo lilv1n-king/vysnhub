@@ -204,7 +204,7 @@ class PushNotificationService {
   createNotificationTemplates() {
     return {
       welcome: (userName: string): NotificationData => ({
-        title: '🎉 Willkommen bei VYSN Hub!',
+        title: '🎉 Willkommen bei VYSN App!',
         body: `Hallo ${userName}! Entdecke unsere neuesten Beleuchtungslösungen.`,
         data: { type: 'welcome', screen: 'home' },
         sound: 'default',

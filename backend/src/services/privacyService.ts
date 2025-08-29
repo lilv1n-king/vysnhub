@@ -241,14 +241,14 @@ class PrivacyService {
   private async getPrivacyPolicyContent(): Promise<string> {
     // In einer realen Anwendung würde dies aus einer Datei oder Datenbank geladen
     return `
-# Datenschutzerklärung VYSN Hub
+# Datenschutzerklärung VYSN App
 
 **Letzte Aktualisierung: Januar 2025**
 
 ## 1. Verantwortlicher
 VYSN GmbH
 
-Mit der Nutzung der VYSN Hub App stimmen Sie der Verarbeitung Ihrer personenbezogenen Daten gemäß dieser Datenschutzerklärung zu.
+Mit der Nutzung der VYSN App App stimmen Sie der Verarbeitung Ihrer personenbezogenen Daten gemäß dieser Datenschutzerklärung zu.
 
 ## 2. Erhebung und Verarbeitung personenbezogener Daten
 

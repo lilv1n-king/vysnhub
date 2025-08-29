@@ -1,5 +1,5 @@
 /**
- * ⚠️ SECURITY HEADERS für VYSN Hub Backend
+ * ⚠️ SECURITY HEADERS für VYSN App Backend
  * 
  * Implementiert wichtige HTTP-Sicherheitsheader
  */
@@ -76,7 +76,7 @@ export const setSecurityHeaders = (
   res.removeHeader('X-Powered-By');
 
   // 9. Server-Header anpassen
-  res.setHeader('Server', 'VYSN Hub API');
+  res.setHeader('Server', 'VYSN App API');
 
   // 10. Cross-Origin-Resource-Policy
   res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');

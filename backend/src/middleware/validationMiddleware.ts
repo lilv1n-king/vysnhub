@@ -9,8 +9,21 @@ const isValidEmail = (email: string): boolean => {
 };
 
 const isValidPassword = (password: string): boolean => {
-  // Minimale Passwort-Anforderungen: nur mindestens 6 Zeichen
-  return password.length >= 6;
+  // 🔒 SICHERHEITS-UPDATE: Starke Passwort-Policy
+  if (!password || password.length < 8) {
+    return false; // Mindestens 8 Zeichen
+  }
+  
+  // Prüfe Komplexitätsanforderungen
+  const hasLowerCase = /[a-z]/.test(password);
+  const hasUpperCase = /[A-Z]/.test(password);
+  const hasNumbers = /\d/.test(password);
+  const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+  
+  // Mindestens 3 von 4 Kategorien erforderlich
+  const complexity = [hasLowerCase, hasUpperCase, hasNumbers, hasSpecialChar].filter(Boolean).length;
+  
+  return complexity >= 3;
 };
 
 // HTML-Escape für XSS-Schutz
@@ -61,9 +74,9 @@ export const validateRegistration = (
     errors.push('Gültige E-Mail-Adresse ist erforderlich');
   }
 
-  // Passwort-Validierung (minimale Anforderungen)
+  // Passwort-Validierung (starke Sicherheitsanforderungen)
   if (!password || !isValidPassword(password)) {
-    errors.push('Passwort muss mindestens 6 Zeichen enthalten');
+    errors.push('Passwort muss mindestens 8 Zeichen enthalten und 3 von 4 Kategorien (Kleinbuchstaben, Großbuchstaben, Zahlen, Sonderzeichen) erfüllen');
   }
 
   // Name-Validierung mit Sanitization

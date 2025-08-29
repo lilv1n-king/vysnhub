@@ -169,11 +169,11 @@ export class EmailService {
 
       const mailOptions = {
         from: {
-          name: 'VYSN Hub',
+          name: 'VYSN App',
           address: process.env.SMTP_USER || 'noreply@vysnhub.com'
         },
         to: this.recipientEmail,
-        subject: `🛒 Neue Bestellung${orderData.orderNumber ? ` ${orderData.orderNumber}` : ''}: ${orderData.project.project_name} - ${orderData.customerName}`,
+        subject: `Neue Bestellung${orderData.orderNumber ? ` ${orderData.orderNumber}` : ''}: ${orderData.project.project_name} - ${orderData.customerName}`,
         text: textContent,
         html: htmlContent,
         replyTo: orderData.customerEmail,
@@ -214,11 +214,11 @@ export class EmailService {
 
       const mailOptions = {
         from: {
-          name: 'VYSN Hub',
+          name: 'VYSN App',
           address: process.env.SMTP_USER || 'noreply@vysnhub.com'
         },
         to: orderData.customerEmail,
-        subject: `✅ ${this.tOrder('subject', orderData.language || 'de')} ${orderData.orderNumber ? orderData.orderNumber : ''} - ${orderData.project.project_name}`,
+        subject: this.tOrder('subject', orderData.language || 'de'),
         text: textContent,
         html: htmlContent,
         // Privacy headers
@@ -296,7 +296,9 @@ export class EmailService {
           address: process.env.SMTP_USER || 'mail@mupmails.de'
         },
         to: quoteData.customerEmail,
-        subject: `💡 ${this.t('quoteSubject', quoteData.language)} ${quoteData.project.project_name}`,
+        subject: quoteData.language === 'en' 
+          ? `Quote from ${quoteData.senderCompany || quoteData.senderName}`
+          : `Angebot von ${quoteData.senderCompany || quoteData.senderName}`,
         text: textContent,
         html: htmlContent,
         replyTo: {
@@ -347,11 +349,6 @@ export class EmailService {
     const originalTotal = customerDiscount > 0 ? netTotal / (1 - customerDiscount / 100) : netTotal;
     const discountAmount = originalTotal - netTotal;
 
-    // Verbesserte Begrüßung
-    const greeting = customerCompany && customerCompany.trim() !== '' 
-      ? `${customerName}<br><strong>${customerCompany}</strong>`
-      : `${this.t('hello', language)} ${customerName}`;
-
     return `
 <!DOCTYPE html>
 <html>
@@ -361,10 +358,9 @@ export class EmailService {
 <style>
 body{font-family:Arial,sans-serif;margin:0;padding:15px;background:#fff;color:#000}
 .c{max-width:700px;margin:0 auto;background:#fff;border:2px solid #000;border-radius:10px;overflow:hidden}
-.h{background:#000;color:#fff;padding:20px;text-align:center}
+.h{background:#f8f9fa;color:#000;padding:20px;text-align:center;border-bottom:2px solid #000}
 .h h1{margin:0;font-size:24px;font-weight:bold}
 .content{padding:20px}
-.greeting{font-size:16px;margin-bottom:15px;font-weight:bold}
 .project{border:1px solid #000;border-radius:6px;padding:15px;margin-bottom:15px}
 .pt{font-size:16px;font-weight:bold;margin-bottom:8px}
 .table{width:100%;border-collapse:collapse;border:2px solid #000;border-radius:6px;overflow:hidden;margin:15px 0}
@@ -372,7 +368,7 @@ body{font-family:Arial,sans-serif;margin:0;padding:15px;background:#fff;color:#0
 .table th{background:#000;color:#fff;font-weight:bold}
 .qty{text-align:center}
 .price{text-align:right;font-weight:bold}
-.img{width:80px;height:80px;border:1px solid #ccc;border-radius:4px;object-fit:contain;margin-right:12px;display:block}
+
 .pn{font-weight:bold;margin-bottom:2px}
 .ps{font-size:11px;color:#666;font-family:monospace}
 .pricing{border:2px solid #000;border-radius:6px;padding:15px;margin:15px 0}
@@ -390,14 +386,10 @@ body{font-family:Arial,sans-serif;margin:0;padding:15px;background:#fff;color:#0
 <body>
 <div class="c">
 <div class="h">
-<div style="display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 10px;">
-<img src="https://vysn.de/wp-content/uploads/2023/11/logo-vysn.png" alt="VYSN Logo" style="height: 40px; width: auto;" />
-<h1 style="margin: 0; font-size: 24px;">${this.t('quoteTitle', language)}</h1>
-</div>
+<h1 style="margin: 0; font-size: 24px;">${quoteData.senderCompany || quoteData.senderName}</h1>
 <div>${this.t('thankYou', language)}</div>
 </div>
 <div class="content">
-<div class="greeting">${greeting}</div>
 ${message ? `<div class="msg">${message.replace(/\n/g, '<br>')}</div>` : ''}
 <div class="project">
 <div class="pt">${project.project_name}</div>
@@ -442,7 +434,7 @@ ${customerDiscount > 0 ? `
 <div><b>${senderName}</b></div>
 ${senderCompany ? `<div>${senderCompany}</div>` : ''}
 <div>${senderEmail}</div>
-<div style="font-size:11px;margin-top:10px">VYSN Hub</div>
+<div style="font-size:11px;margin-top:10px">VYSN App</div>
 </div>
 </div>
 </body>
@@ -462,31 +454,24 @@ ${senderCompany ? `<div>${senderCompany}</div>` : ''}
     const originalTotal = customerDiscount > 0 ? netTotal / (1 - customerDiscount / 100) : netTotal;
     const discountAmount = originalTotal - netTotal;
 
-    // Verbesserte Begrüßung
-    const greeting = customerCompany && customerCompany.trim() !== '' 
-      ? `${customerName}\n${customerCompany}`
-      : `Hallo ${customerName}`;
-
     return `
-💡 IHR ANGEBOT
+${language === 'en' ? 'QUOTE FROM' : 'ANGEBOT VON'} ${(quoteData.senderCompany || quoteData.senderName).toUpperCase()}
 ${'='.repeat(50)}
-
-${greeting}
 
 ${message ? `NACHRICHT:
 ${message}
 
-` : ''}📋 PROJEKTINFORMATIONEN:
+` : ''}PROJEKTINFORMATIONEN:
 Projektname: ${project.project_name}
 ${project.project_description ? `Beschreibung: ${project.project_description}` : ''}
 ${project.project_location ? `Standort: ${project.project_location}` : ''}
 Angebotsdatum: ${new Date().toLocaleDateString('de-DE')}
 
-📄 VOLLSTÄNDIGES ANGEBOT IM PDF-ANHANG
+VOLLSTÄNDIGES ANGEBOT IM PDF-ANHANG
 Ein detailliertes PDF-Angebot mit allen Produktbildern und Spezifikationen 
 ist als Anhang beigefügt.
 
-📦 ANGEBOTENE PRODUKTE:
+ANGEBOTENE PRODUKTE:
 ${'-'.repeat(60)}
 ${products.map(product => {
   return `${product.itemNumber} | ${product.name}
@@ -500,9 +485,7 @@ Kundendiscount (${customerDiscount}%): -${this.formatPrice(discountAmount)}
 ${'-'.repeat(30)}` : ''}
 GESAMTSUMME (netto):  ${this.formatPrice(netTotal)}
 
-Alle Preise verstehen sich zzgl. der gesetzlichen Mehrwertsteuer
-
-📧 KONTAKT:
+KONTAKT:
 ${senderName}
 ${senderEmail}
 
@@ -513,7 +496,7 @@ ${this.t('quoteNotice', language)}
 
 ${'-'.repeat(50)}
 www.vysn.de
-VYSN Hub - Professionelle Beleuchtungslösungen
+VYSN App - Professionelle Beleuchtungslösungen
     `;
   }
 
@@ -556,7 +539,7 @@ VYSN Hub - Professionelle Beleuchtungslösungen
                 <img src="https://app.vysnlighting.com/logo.png" alt="VYSN Logo" style="height: 60px; width: auto; margin-bottom: 10px;" />
             </div>
             <h1>🛒 Neue Bestellung eingegangen</h1>
-            <p>VYSN Hub - Beleuchtungslösungen</p>
+            <p>VYSN App - Beleuchtungslösungen</p>
         </div>
         
         <div class="content">
@@ -660,7 +643,7 @@ VYSN Hub - Professionelle Beleuchtungslösungen
 
             <!-- Nächste Schritte -->
             <div class="section">
-                <h2>⏭️ Nächste Schritte</h2>
+                <h2>Nächste Schritte</h2>
                 <ul>
                     <li>Verfügbarkeit der Produkte prüfen</li>
                     <li>Angebot/Rechnung erstellen</li>
@@ -673,7 +656,7 @@ VYSN Hub - Professionelle Beleuchtungslösungen
         <div class="footer">
             <p>📅 Bestellung eingegangen am: ${new Date().toLocaleString('de-DE')}</p>
             <p>Diese E-Mail wurde automatisch versendet | Daten werden nur zur Bestellabwicklung verwendet</p>
-            <p>VYSN Hub - Professionelle Beleuchtungslösungen</p>
+            <p>VYSN App - Professionelle Beleuchtungslösungen</p>
         </div>
     </div>
 </body>
@@ -724,7 +707,7 @@ ${orderNotes ? `
 ${orderNotes}
 ` : ''}
 
-⏭️ NÄCHSTE SCHRITTE:
+NÄCHSTE SCHRITTE:
 - Verfügbarkeit der Produkte prüfen
 - Angebot/Rechnung erstellen  
 - Kunde kontaktieren: ${customerEmail}
@@ -733,7 +716,7 @@ ${orderNotes}
 📅 Bestellung eingegangen am: ${new Date().toLocaleString('de-DE')}
 Daten nur zur Bestellabwicklung
 
-VYSN Hub - Professionelle Beleuchtungslösungen
+VYSN App - Professionelle Beleuchtungslösungen
     `;
   }
 
@@ -750,7 +733,7 @@ VYSN Hub - Professionelle Beleuchtungslösungen
 
   private orderConfirmationTranslations = {
     de: {
-      subject: 'Bestellbestätigung',
+      subject: 'Bestätigung Ihrer Bestellung',
       orderSuccessful: 'Bestellung erfolgreich!',
       thankYou: 'Vielen Dank, {{customerName}}! Ihre Bestellung wurde erfolgreich abgesendet.',
       orderInfo: 'Bestellinformationen',
@@ -776,7 +759,7 @@ VYSN Hub - Professionelle Beleuchtungslösungen
       deliveryTime: 'Lieferzeiten werden Ihnen mit der Rechnung mitgeteilt',
       questionsReply: 'Bei Fragen antworten Sie einfach auf diese E-Mail.',
       thankYouTrust: 'Vielen Dank für Ihr Vertrauen!',
-      companyName: 'VYSN Hub',
+      companyName: 'VYSN App',
       companyTagline: 'Professionelle Beleuchtungslösungen',
       autoGenerated: 'Diese E-Mail wurde automatisch generiert.',
       dataUsage: 'Daten werden nur zur Bestellabwicklung verwendet und nach 30 Tagen gelöscht.',
@@ -785,7 +768,7 @@ VYSN Hub - Professionelle Beleuchtungslösungen
       discountReceived: 'Sie haben {{discount}}% Rabatt erhalten!'
     },
     en: {
-      subject: 'Order Confirmation',
+      subject: 'Confirmation for your order',
       orderSuccessful: 'Order successful!',
       thankYou: 'Thank you, {{customerName}}! Your order has been successfully submitted.',
       orderInfo: 'Order Information',
@@ -811,7 +794,7 @@ VYSN Hub - Professionelle Beleuchtungslösungen
       deliveryTime: 'Delivery times will be communicated with the invoice',
       questionsReply: 'For questions simply reply to this email.',
       thankYouTrust: 'Thank you for your trust!',
-      companyName: 'VYSN Hub',
+      companyName: 'VYSN App',
       companyTagline: 'Professional Lighting Solutions',
       autoGenerated: 'This email was automatically generated.',
       dataUsage: 'Data is only used for order processing and deleted after 30 days.',
@@ -906,10 +889,7 @@ VYSN Hub - Professionelle Beleuchtungslösungen
     
     console.log(`📧 Order confirmation - Customer discount: ${customerDiscount}%, User profile discount: ${userProfile?.standard_discount || 'none'}, Final detected discount: ${detectedDiscount}%`);
     
-    // Verbesserte Begrüßung
-    const greeting = customerName && customerName.trim() !== '' 
-      ? `${this.t('hello', language)} ${customerName}`
-      : `${this.t('hello', language)}`;
+
 
     return `
 <!DOCTYPE html>
@@ -920,12 +900,10 @@ VYSN Hub - Professionelle Beleuchtungslösungen
 <style>
 body{font-family:Arial,sans-serif;margin:0;padding:15px;background:#fff;color:#000}
 .c{max-width:700px;margin:0 auto;background:#fff;border:2px solid #000;border-radius:10px;overflow:hidden}
-.h{background:#000;color:#fff;padding:20px;text-align:center}
+.h{background:#f8f9fa;color:#000;padding:20px;text-align:center;border-bottom:2px solid #000}
 .h h1{margin:0;font-size:24px;font-weight:bold}
 .content{padding:20px}
-.greeting{font-size:16px;margin-bottom:15px;font-weight:bold}
-.confirmation{border:2px solid #22c55e;border-radius:6px;padding:15px;margin-bottom:15px;background:#f0f9ff;text-align:center}
-.confirmation h2{color:#22c55e;margin:0 0 10px 0;font-size:20px}
+
 .order-info{border:1px solid #000;border-radius:6px;padding:15px;margin-bottom:15px}
 .pt{font-size:16px;font-weight:bold;margin-bottom:8px}
 .table{width:100%;border-collapse:collapse;border:2px solid #000;border-radius:6px;overflow:hidden;margin:15px 0}
@@ -933,7 +911,7 @@ body{font-family:Arial,sans-serif;margin:0;padding:15px;background:#fff;color:#0
 .table th{background:#000;color:#fff;font-weight:bold}
 .qty{text-align:center}
 .price{text-align:right;font-weight:bold}
-.img{width:80px;height:80px;border:1px solid #ccc;border-radius:4px;object-fit:contain;margin-right:12px;display:block}
+
 .pn{font-weight:bold;margin-bottom:2px}
 .ps{font-size:11px;color:#666;font-family:monospace}
 .pricing{border:2px solid #000;border-radius:6px;padding:15px;margin:15px 0}
@@ -953,17 +931,12 @@ body{font-family:Arial,sans-serif;margin:0;padding:15px;background:#fff;color:#0
 <div class="h">
 <div style="text-align: center; margin-bottom: 20px;">
         <img src="https://app.vysnlighting.com/logo.png" alt="VYSN Logo" style="height: 80px; width: auto; margin-bottom: 15px;" />
-<h1 style="margin: 0; font-size: 24px;">✅ ${this.tOrder('subject', language)}</h1>
+<h1 style="margin: 0; font-size: 24px;">${this.tOrder('subject', language)}</h1>
 </div>
 <div>${this.tOrder('thankYou', language, { customerName })}</div>
 </div>
 <div class="content">
-<div class="greeting">${greeting}</div>
 
-<div class="confirmation">
-<h2>${this.tOrder('orderSuccessful', language)}</h2>
-<p>${this.tOrder('thankYou', language, { customerName })}</p>
-</div>
 
 <div class="order-info">
 <div class="pt">${this.tOrder('orderInfo', language)}</div>
@@ -1001,7 +974,7 @@ ${showProject ? `<div><b>${this.tOrder('project', language)}:</b> ${project.proj
         </div>
 
         <div class="info">
-            <h4>⏭️ ${this.tOrder('nextSteps', language)}</h4>
+            <h4>${this.tOrder('nextSteps', language)}</h4>
             <ul style="text-align: left; margin: 10px 0; padding-left: 20px;">
                 <li>${this.tOrder('processing', language)}</li>
                 <li>${this.tOrder('detailedInvoice', language)}</li>
@@ -1042,14 +1015,12 @@ ${showProject ? `<div><b>${this.tOrder('project', language)}:</b> ${project.proj
     }
 
     return `
-✅ ${this.tOrder('subject', language).toUpperCase()} - ${this.tOrder('companyName', language).toUpperCase()}
+${this.tOrder('subject', language).toUpperCase()} - ${this.tOrder('companyName', language).toUpperCase()}
 ${'='.repeat(50)}
-
-${this.tOrder('hello', language, { customerName })}
 
 ${this.tOrder('thankYou', language, { customerName })}
 
-📋 ${this.tOrder('orderInfo', language).toUpperCase()}:
+${this.tOrder('orderInfo', language).toUpperCase()}:
 ${this.tOrder('orderNumber', language)}: ${orderNumber || this.tOrder('orderNumberTbd', language)}
 ${this.tOrder('orderDate', language)}: ${new Date().toLocaleString(language === 'en' ? 'en-US' : 'de-DE')}
 ${this.tOrder('status', language)}: ${this.tOrder('statusProcessing', language)}
@@ -1066,13 +1037,13 @@ ${'-'.repeat(50)}
 ${this.tOrder('totalAmount', language).toUpperCase()}: ${this.formatPrice(orderTotal)}
 (${this.tOrder('priceNote', language)})
 
-⏭️ ${this.tOrder('nextSteps', language).toUpperCase()}
+${this.tOrder('nextSteps', language).toUpperCase()}
 - ${this.tOrder('processing', language)}
 - ${this.tOrder('detailedInvoice', language)}
 - ${this.tOrder('questions', language)}
 - ${this.tOrder('deliveryTime', language)}
 
-📧 ${this.tOrder('questionsReply', language)}
+${this.tOrder('questionsReply', language)}
 
 ${this.tOrder('thankYouTrust', language)}
 
@@ -1089,15 +1060,12 @@ ${this.tOrder('dataUsage', language)}
    */
   private generateOrderConfirmationProductRows(products: any[], language: string = 'de'): string {
     return products.map(product => {
-      let imageUrl = '';
-      if (product.productData && product.productData.product_picture_1) {
-        imageUrl = product.productData.product_picture_1;
-      }
+
       
       return `<tr>
 <td style="padding:15px;">
   <div style="display:flex;align-items:center;">
-    ${imageUrl ? `<img src="${imageUrl}" alt="${product.name}" class="img" style="flex-shrink:0;" />` : ''}
+
     <div>
       <div class="pn">${product.name}</div>
       <div class="ps">${product.itemNumber}</div>
@@ -1116,10 +1084,7 @@ ${this.tOrder('dataUsage', language)}
    */
   private generateOrderConfirmationProductRowsWithDiscount(products: any[], customerDiscount: number, language: string = 'de'): string {
     return products.map(product => {
-      let imageUrl = '';
-      if (product.productData && product.productData.product_picture_1) {
-        imageUrl = product.productData.product_picture_1;
-      }
+
       
       // If there's a customer discount, calculate original prices
       let listUnitPrice = product.unitPrice;
@@ -1152,7 +1117,7 @@ ${this.tOrder('dataUsage', language)}
         return `<tr>
 <td style="padding:15px;">
   <div style="display:flex;align-items:center;">
-    ${imageUrl ? `<img src="${imageUrl}" alt="${product.name}" class="img" style="flex-shrink:0;" />` : ''}
+
     <div>
       <div class="pn">${product.name}</div>
       <div class="ps">${product.itemNumber}</div>
@@ -1168,7 +1133,7 @@ ${this.tOrder('dataUsage', language)}
         return `<tr>
 <td style="padding:15px;">
   <div style="display:flex;align-items:center;">
-    ${imageUrl ? `<img src="${imageUrl}" alt="${product.name}" class="img" style="flex-shrink:0;" />` : ''}
+
     <div>
       <div class="pn">${product.name}</div>
       <div class="ps">${product.itemNumber}</div>
@@ -1192,15 +1157,12 @@ ${this.tOrder('dataUsage', language)}
 
   private generateCompactProductRows(products: any[]): string {
     return products.map(product => {
-      let imageUrl = '';
-      if (product.productData && product.productData.product_picture_1) {
-        imageUrl = product.productData.product_picture_1;
-      }
+
       
       return `<tr>
 <td style="padding:15px;">
   <div style="display:flex;align-items:center;">
-    ${imageUrl ? `<img src="${imageUrl}" alt="${product.name}" class="img" style="flex-shrink:0;" />` : ''}
+
     <div>
       <div class="pn">${product.name}</div>
       <div class="ps">${product.itemNumber}</div>
@@ -1216,10 +1178,7 @@ ${this.tOrder('dataUsage', language)}
 
   private generateCompactProductRowsWithTax(products: any[], taxRate: number): string {
     return products.map(product => {
-      let imageUrl = '';
-      if (product.productData && product.productData.product_picture_1) {
-        imageUrl = product.productData.product_picture_1;
-      }
+
       
       // Netto-Preise berechnen
       const netUnitPrice = product.unitPrice / (1 + taxRate / 100);
@@ -1228,7 +1187,7 @@ ${this.tOrder('dataUsage', language)}
       return `<tr>
 <td style="padding:15px;">
   <div style="display:flex;align-items:center;">
-    ${imageUrl ? `<img src="${imageUrl}" alt="${product.name}" class="img" style="flex-shrink:0;" />` : ''}
+
     <div>
       <div class="pn">${product.name}</div>
       <div class="ps">${product.itemNumber}</div>
@@ -1244,10 +1203,7 @@ ${this.tOrder('dataUsage', language)}
 
   private generateCompactProductRowsWithDiscount(products: any[], customerDiscount: number, language: string = 'de'): string {
     return products.map(product => {
-      let imageUrl = '';
-      if (product.productData && product.productData.product_picture_1) {
-        imageUrl = product.productData.product_picture_1;
-      }
+
       
       // If there's a customer discount, calculate original prices
       let listUnitPrice = product.unitPrice;
@@ -1263,7 +1219,7 @@ ${this.tOrder('dataUsage', language)}
         return `<tr>
 <td style="padding:15px;">
   <div style="display:flex;align-items:center;">
-    ${imageUrl ? `<img src="${imageUrl}" alt="${product.name}" class="img" style="flex-shrink:0;" />` : ''}
+
     <div>
       <div class="pn">${product.name}</div>
       <div class="ps">${product.itemNumber}</div>
@@ -1279,7 +1235,7 @@ ${this.tOrder('dataUsage', language)}
         return `<tr>
 <td style="padding:15px;">
   <div style="display:flex;align-items:center;">
-    ${imageUrl ? `<img src="${imageUrl}" alt="${product.name}" class="img" style="flex-shrink:0;" />` : ''}
+
     <div>
       <div class="pn">${product.name}</div>
       <div class="ps">${product.itemNumber}</div>
@@ -1307,10 +1263,7 @@ ${this.tOrder('dataUsage', language)}
       return `
       <tr class="product-row">
           <td>
-              ${imageUrl ? `
-              <img src="${imageUrl}" alt="${product.name}" class="product-img" />
-              ` : ''}
-              <div style="${imageUrl ? 'margin-left: 60px;' : ''}">
+              <div>
                   <div class="product-name">${product.name}</div>
                   <div class="product-sku">${product.itemNumber}</div>
               </div>
@@ -1339,11 +1292,11 @@ ${this.tOrder('dataUsage', language)}
 
       const mailOptions = {
         from: {
-          name: 'VYSN Hub',
+          name: 'VYSN App',
           address: process.env.SMTP_USER || 'noreply@vysnhub.com'
         },
         to: data.email,
-        subject: 'Willkommen bei VYSN Hub - E-Mail bestätigen',
+        subject: 'Willkommen bei VYSN App - E-Mail bestätigen',
         html: this.getWelcomeEmailTemplate(data),
         text: this.getWelcomeEmailTextTemplate(data)
       };
@@ -1367,11 +1320,11 @@ ${this.tOrder('dataUsage', language)}
 
       const mailOptions = {
         from: {
-          name: 'VYSN Hub',
+          name: 'VYSN App',
           address: process.env.SMTP_USER || 'noreply@vysnhub.com'
         },
         to: email,
-        subject: 'VYSN Hub - E-Mail-Adresse bestätigen',
+        subject: 'VYSN App - E-Mail-Adresse bestätigen',
         html: this.getVerificationEmailTemplate(firstName, verificationCode),
         text: `
 Hallo ${firstName},
@@ -1414,7 +1367,7 @@ www.vysn.de
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Willkommen bei VYSN Hub</title>
+    <title>Willkommen bei VYSN App</title>
     <style>
         body { margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f5f5f5; }
         .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
@@ -1438,13 +1391,13 @@ www.vysn.de
 <body>
     <div class="container">
         <div class="header">
-            <h1>VYSN Hub</h1>
+            <h1>VYSN App</h1>
         </div>
         
         <div class="content">
-            <h2>Willkommen bei VYSN Hub, ${data.firstName}!</h2>
+            <h2>Willkommen bei VYSN App, ${data.firstName}!</h2>
             
-            <p>Vielen Dank für Ihre Registrierung bei VYSN Hub - Ihrer professionellen Plattform für Beleuchtungslösungen.</p>
+            <p>Vielen Dank für Ihre Registrierung bei VYSN App - Ihrer professionellen Plattform für Beleuchtungslösungen.</p>
             
             ${data.registrationCode ? `
             <div style="background-color: #e8f4fd; padding: 15px; border-radius: 5px; margin: 20px 0;">
@@ -1465,13 +1418,13 @@ www.vysn.de
             </div>
             
             <div class="features">
-                <h3>Ihre Vorteile mit VYSN Hub:</h3>
+                <h3>Ihre Vorteile mit VYSN App:</h3>
                 <ul>
-                    <li>🏢 Direkter Zugang zum kompletten VYSN Produktkatalog</li>
-                    <li>📋 Persönliche Projektplanung und -verwaltung</li>
-                    <li>🤖 KI-basierte Produktberatung und Lichtplanung</li>
-                    <li>📧 Direkte Bestellabwicklung per E-Mail</li>
-                    <li>📱 Barcode-Scanner für schnelle Produktsuche</li>
+                    <li>Direkter Zugang zum kompletten VYSN Produktkatalog</li>
+                    <li>Persönliche Projektplanung und -verwaltung</li>
+                    <li>KI-basierte Produktberatung und Lichtplanung</li>
+                    <li>Direkte Bestellabwicklung per E-Mail</li>
+                    <li>Barcode-Scanner für schnelle Produktsuche</li>
                 </ul>
             </div>
             
@@ -1497,9 +1450,9 @@ www.vysn.de
     registrationCode?: string;
   }): string {
     return `
-Willkommen bei VYSN Hub, ${data.firstName}!
+Willkommen bei VYSN App, ${data.firstName}!
 
-Vielen Dank für Ihre Registrierung bei VYSN Hub.
+Vielen Dank für Ihre Registrierung bei VYSN App.
 
 ${data.registrationCode ? `Ihr Registrierungscode: ${data.registrationCode}` : ''}
 
@@ -1553,7 +1506,7 @@ www.vysn.de
 <body>
     <div class="container">
         <div class="header">
-            <h1>VYSN Hub</h1>
+            <h1>VYSN App</h1>
         </div>
         
         <div class="content">
@@ -1587,16 +1540,16 @@ www.vysn.de
     try {
       const testMailOptions = {
         from: {
-          name: 'VYSN Hub',
+          name: 'VYSN App',
           address: process.env.SMTP_USER || 'noreply@vysnhub.com'
         },
         to: this.recipientEmail,
-        subject: '✅ VYSN Hub Email Service Test',
+        subject: 'VYSN App Email Service Test',
         text: 'Email service is working correctly!',
         html: `
-          <h1>✅ Email Service Test</h1>
-          <p>VYSN Hub Email Service ist erfolgreich konfiguriert!</p>
-          <p>📅 Gesendet am: ${new Date().toLocaleString('de-DE')}</p>
+          <h1>Email Service Test</h1>
+          <p>VYSN App Email Service ist erfolgreich konfiguriert!</p>
+          <p>Gesendet am: ${new Date().toLocaleString('de-DE')}</p>
         `
       };
 

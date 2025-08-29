@@ -1,4 +1,4 @@
-# 📦 VYSN Hub Order Management System
+# 📦 VYSN App Order Management System
 
 ## Überblick
 
@@ -167,7 +167,7 @@ Authorization: Bearer <token>
       "total_amount": 1250.50,
       "order_date": "2024-12-07T10:30:00Z",
       "project_id": "project-uuid",
-      "customer_notes": "Bestellung über VYSN Hub App",
+      "customer_notes": "Bestellung über VYSN App App",
       // ... weitere Felder
     }
   ]

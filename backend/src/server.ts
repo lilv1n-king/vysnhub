@@ -15,7 +15,9 @@ import privacyRouter from './routes/privacy';
 import registrationRouter from './routes/registration';
 import { homeContentRouter } from './routes/homeContent';
 import { adminRouter } from './routes/admin';
+import healthRouter from './routes/health';
 import { errorHandler } from './middleware/errorHandler';
+import { monitoringService } from './services/monitoringService';
 
 // Lade .env Datei ZUERST
 dotenv.config();
@@ -27,10 +29,11 @@ const PORT = parseInt(process.env.PORT || '3001');
 app.use(cors());
 app.use(express.json());
 
-// Health check
+// Health check routes
 app.get('/health', (req, res) => {
   res.json({ status: 'OK', message: 'VYSN Chatbot API läuft' });
 });
+app.use('/api/health', healthRouter);
 
 // Routes
 app.use('/api/chat', chatRouter);
@@ -53,6 +56,24 @@ app.use(errorHandler);
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server läuft auf allen Interfaces auf Port ${PORT}`);
+});
+
+// Start monitoring service
+if (process.env.NODE_ENV !== 'test') {
+  monitoringService.startMonitoring();
+}
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, shutting down gracefully');
+  monitoringService.stopMonitoring();
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  console.log('SIGINT received, shutting down gracefully');
+  monitoringService.stopMonitoring();
+  process.exit(0);
 });
 
 export default app; 

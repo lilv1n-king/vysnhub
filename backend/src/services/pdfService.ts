@@ -85,7 +85,7 @@ const translations = {
     companyTagline: '',
     vatNotice: 'All prices are net prices plus VAT',
     reverseChargeNotice: 'For cross-border transactions (e.g. Switzerland), reverse charge procedures may apply',
-    quoteNotice: 'This is a non-binding quote only. For cross-border transactions (e.g. Switzerland), reverse charge procedures may apply - corresponding tax regulations will then be applied with the invoice.',
+    quoteNotice: 'All prices are net prices plus VAT. Non-binding quote only. For cross-border transactions, reverse charge procedures may apply.',
     termsNotice: 'All prices are net prices plus VAT | Quote valid for 30 days from issue date | Errors and price changes reserved',
     shippingTitle: 'Shipping & Delivery',
     shippingText: 'Delivery times and shipping costs will be communicated after order confirmation.<br>For questions about availability or delivery, please contact us.'
@@ -721,8 +721,6 @@ export class PDFService {
             </tr>
         </table>
         <div class="tax-notice billing-block" style="margin-top: 10px; font-size: 10pt; color: #666; text-align: right;">
-            <em>${this.t('vatNotice', language)}</em><br>
-            <em>${this.t('reverseChargeNotice', language)}</em><br>
             <strong style="color: #d32f2f;">${this.t('quoteNotice', language)}</strong>
         </div>
     </div>

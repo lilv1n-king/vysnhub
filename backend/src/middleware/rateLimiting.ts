@@ -1,5 +1,5 @@
 /**
- * ⚠️ RATE LIMITING für VYSN Hub Backend
+ * ⚠️ RATE LIMITING für VYSN App Backend
  * 
  * Implementiert verschiedene Rate-Limiting-Strategien zum Schutz vor:
  * - DDoS-Angriffen

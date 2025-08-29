@@ -262,7 +262,7 @@ router.post('/test', async (req, res) => {
     }
 
     const testNotification = {
-      title: 'VYSN Hub Test 🔔',
+      title: 'VYSN App Test 🔔',
       body: 'Das ist eine Test Push Notification! Push Notifications funktionieren korrekt.',
       data: { 
         type: 'test',

@@ -81,7 +81,7 @@ export class EmailController {
         order_type: isReorder ? 'reorder' : 'standard',
         subtotal: orderTotal,
         total_amount: orderTotal,
-        customer_notes: orderNotes || `${isReorder ? 'Nachbestellung' : 'Bestellung'} über VYSN Hub App\nProjekt: ${project.project_name}`,
+        customer_notes: orderNotes || `${isReorder ? 'Nachbestellung' : 'Bestellung'} über VYSN App App\nProjekt: ${project.project_name}`,
         internal_notes: `${isReorder ? 'Automatische Nachbestellung' : 'Automatische Bestellung'} via Email-Service\nKunde: ${customerInfo.name} (${customerInfo.email})`
       };
 
@@ -116,8 +116,13 @@ export class EmailController {
       console.log(`✅ Order saved with ID: ${order.id} (${order.order_number})`);
 
       // 2. E-Mail-Daten zusammenstellen (mit Order-Nummer)
+      // Korrekten Namen aus User-Profil verwenden statt vom Frontend
+      const customerName = req.user!.first_name && req.user!.last_name 
+        ? `${req.user!.first_name} ${req.user!.last_name}`.trim()
+        : req.user!.first_name || req.user!.last_name || customerInfo.name;
+      
       const orderEmailData = {
-        customerName: customerInfo.name,
+        customerName,
         customerEmail: customerInfo.email,
         customerCompany: customerInfo.company,
         project,
@@ -564,7 +569,7 @@ export class EmailController {
         order_type: 'standard',
         subtotal: orderTotal,
         total_amount: orderTotal,
-        customer_notes: orderNotes || `Warenkorb-Bestellung über VYSN Hub App\nAnzahl Artikel: ${cartItems.length}`,
+        customer_notes: orderNotes || `Warenkorb-Bestellung über VYSN App App\nAnzahl Artikel: ${cartItems.length}`,
         internal_notes: `Warenkorb-Bestellung via Email-Service\nKunde: ${customerInfo.name} (${customerInfo.email})`
       };
 
@@ -581,8 +586,13 @@ export class EmailController {
       console.log(`✅ Cart order saved with ID: ${order.id} (${order.order_number})`);
 
       // 2. E-Mail-Daten zusammenstellen
+      // Korrekten Namen aus User-Profil verwenden statt vom Frontend
+      const customerName = req.user!.first_name && req.user!.last_name 
+        ? `${req.user!.first_name} ${req.user!.last_name}`.trim()
+        : req.user!.first_name || req.user!.last_name || customerInfo.name;
+      
       const orderEmailData = {
-        customerName: customerInfo.name,
+        customerName,
         customerEmail: customerInfo.email,
         customerCompany: customerInfo.company,
         orderNotes: orderNotes || '',
